@@ -126,7 +126,7 @@ export const staff: StaffMember[] = [
     location: "Global / Remote",
     specialties: ["Business English", "French Instruction", "German Instruction", "Document Translation", "Interpreting"],
     image: "/images/staff/daniela-leonhardt-2025.jpg",
-    imageFocus: "50% 30%",
+    imageFocus: "50% 20%",
     tagline: "Trilingual instructor and interpreter raised across Foreign Service posts.",
     overview:
       "Having grown up across U.S. Foreign Service postings, Daniela experienced languages, ceremonies, and customs on nearly every continent. Her French and German degrees let her move among English, French, and German as a native speaker, and she supports executives, expatriates, and diplomatic families with the same flexibility in both classrooms and translation assignments.",
