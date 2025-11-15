@@ -237,7 +237,14 @@ function CombinedStaffDropdown({
                     onClick={() => setOpen(false)}
                   >
                     <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
-                      <Image src={person.image} alt={person.name} fill sizes="40px" className="object-cover" />
+                      <Image
+                        src={person.image}
+                        alt={person.name}
+                        fill
+                        sizes="40px"
+                        className="object-cover"
+                        style={{ objectPosition: person.imageFocus ?? "center" }}
+                      />
                     </div>
                     <div>
                       <span className="font-semibold text-sky-900 block">{person.name}</span>
@@ -266,7 +273,14 @@ function CombinedStaffDropdown({
                     onClick={() => setOpen(false)}
                   >
                     <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
-                      <Image src={person.image} alt={person.name} fill sizes="40px" className="object-cover" />
+                      <Image
+                        src={person.image}
+                        alt={person.name}
+                        fill
+                        sizes="40px"
+                        className="object-cover"
+                        style={{ objectPosition: person.imageFocus ?? "center" }}
+                      />
                     </div>
                     <div>
                       <span className="font-semibold text-sky-900 block">{person.name}</span>

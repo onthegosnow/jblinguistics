@@ -37,6 +37,11 @@ const getSpecialties = (person: StaffMember): string[] => {
   return inferSpecialtiesFromTagline(person.tagline);
 };
 
+const getSpecList = (person: StaffMember): string[] => {
+  const specs = getSpecialties(person);
+  return Array.isArray(specs) ? specs.filter(Boolean) : [];
+};
+
 export default function TranslatorsPage() {
   const translators = staff.filter((p) => hasRole(p, "translator"));
 
@@ -310,6 +315,7 @@ export default function TranslatorsPage() {
                   alt={t.name}
                   fill
                   className="object-cover"
+                  style={{ objectPosition: t.imageFocus ?? "center" }}
                 />
               </div>
               <div className="p-4 flex-1 flex flex-col">

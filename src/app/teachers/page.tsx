@@ -218,6 +218,7 @@ export default function TeachersPage() {
                   alt={t.name}
                   fill
                   className="object-cover"
+                  style={{ objectPosition: t.imageFocus ?? "center" }}
                 />
               </div>
               <div className="p-4 flex-1 flex flex-col">

@@ -347,6 +347,7 @@ export const copy = {
     contact: {
       heading: "Inquiry Form",
       subtitle: "Tell us what you need and we’ll respond with a tailored proposal.",
+      phoneLine: "Prefer to talk live? Call (602) 628-4600 or leave your number and we’ll call you shortly.",
       name: "Name",
       email: "Email",
       organization: "Organization (optional)",
@@ -377,7 +378,7 @@ export const copy = {
       mission:
         "Our mission: fully virtual learning and translation services that move as fast as your goals.",
       teacher:
-        "Practical, tailored language training in Dutch, English, French, German, Mandarin, Spanish, and Swedish.",
+        "Practical, tailored language training in Dutch, English, French, German, Danish, Russian, and Swedish.",
       translator:
         "Certified document and website translations plus secure interpretation for UN, airlines, and banks.",
       trips:
@@ -777,6 +778,7 @@ export const copy = {
     contact: {
       heading: "Aanvraagformulier",
       subtitle: "Vertel ons wat u nodig hebt en ontvang een voorstel op maat.",
+      phoneLine: "Liever telefonisch contact? Bel (602) 628-4600 of laat uw nummer achter, dan bellen we snel terug.",
       name: "Naam",
       email: "E-mail",
       organization: "Organisatie (optioneel)",
@@ -807,7 +809,7 @@ export const copy = {
       mission:
         "Onze missie: virtuele taal- en vertaaldiensten die net zo snel gaan als uw doelen.",
       teacher:
-        "Praktisch, maatgemaakt taalonderwijs in Nederlands, Engels, Frans, Duits, Mandarijn, Spaans en Zweeds.",
+        "Praktisch, maatgemaakt taalonderwijs in Nederlands, Engels, Frans, Duits, Deens, Russisch en Zweeds.",
       translator:
         "Beëdigde document- en websitevertalingen plus veilige tolkdiensten voor UN, airlines en banken.",
       trips:
@@ -1208,6 +1210,7 @@ export const copy = {
     contact: {
       heading: "Formulaire de contact",
       subtitle: "Expliquez-nous votre besoin et recevez une proposition personnalisée.",
+      phoneLine: "Envie d’échanger par téléphone ? Appelez le (602) 628-4600 ou laissez votre numéro et nous vous rappellerons rapidement.",
       name: "Nom",
       email: "E-mail",
       organization: "Organisation (optionnel)",
@@ -1238,7 +1241,7 @@ export const copy = {
       mission:
         "Notre mission : des services linguistiques virtuels qui avancent au rythme de vos ambitions.",
       teacher:
-        "Formations sur mesure en néerlandais, anglais, français, allemand, mandarin, espagnol et suédois.",
+        "Formations sur mesure en néerlandais, anglais, français, allemand, danois, russe et suédois.",
       translator:
         "Traductions certifiées et interprétation sécurisée pour l'ONU, les compagnies aériennes et les banques.",
       trips:
@@ -1639,6 +1642,7 @@ export const copy = {
     contact: {
       heading: "Förfrågningsformulär",
       subtitle: "Berätta vad du behöver så tar vi fram ett förslag.",
+      phoneLine: "Vill du hellre ringa? Tfn (602) 628-4600, eller lämna ditt nummer så ringer vi upp dig snarast.",
       name: "Namn",
       email: "E-post",
       organization: "Organisation (valfritt)",
@@ -1669,7 +1673,7 @@ export const copy = {
       mission:
         "Vårt uppdrag: virtuella språk- och översättningstjänster som matchar ditt tempo.",
       teacher:
-        "Praktisk, skräddarsydd träning på nederländska, engelska, franska, tyska, mandarin, spanska och svenska.",
+        "Praktisk, skräddarsydd träning på nederländska, engelska, franska, tyska, danska, ryska och svenska.",
       translator:
         "Certifierade dokument- och webböversättningar plus säker tolkning för FN, flygbolag och banker.",
       trips:
@@ -2070,6 +2074,7 @@ export const copy = {
     contact: {
       heading: "Formulario de contacto",
       subtitle: "Cuéntenos qué necesita y le enviaremos una propuesta a medida.",
+      phoneLine: "¿Prefiere hablar por teléfono? Llámenos al (602) 628-4600 o deje su número y le devolveremos la llamada.",
       name: "Nombre",
       email: "Correo electrónico",
       organization: "Organización (opcional)",
@@ -2100,7 +2105,7 @@ export const copy = {
       mission:
         "Nuestra misión: servicios lingüísticos virtuales que avanzan al ritmo de sus metas.",
       teacher:
-        "Formación práctica y personalizada en neerlandés, inglés, francés, alemán, mandarín, español y sueco.",
+        "Formación práctica y personalizada en neerlandés, inglés, francés, alemán, danés, ruso y sueco.",
       translator:
         "Traducciones certificadas e interpretación segura para la ONU, aerolíneas y banca.",
       trips:
@@ -2492,6 +2497,7 @@ export const copy = {
     contact: {
       heading: "需求表单",
       subtitle: "告诉我们您的需求，我们会提供专属方案。",
+      phoneLine: "也可直接致电 (602) 628-4600，或在表单中留下号码，我们会尽快回拨。",
       name: "姓名",
       email: "邮箱",
       organization: "机构（可选）",
@@ -2522,7 +2528,7 @@ export const copy = {
       mission:
         "我们的使命：以虚拟方式提供与您节奏同步的语言与翻译服务。",
       teacher:
-        "提供荷兰语、英语、法语、德语、普通话、西班牙语和瑞典语的定制培训。",
+        "提供荷兰语、英语、法语、德语、丹麦语、俄语和瑞典语的定制培训。",
       translator:
         "为联合国、航司与银行提供认证翻译与安全口译。",
       trips:
@@ -2923,6 +2929,7 @@ export const copy = {
     contact: {
       heading: "Anfrageformular",
       subtitle: "Beschreiben Sie Ihr Vorhaben – wir senden ein individuelles Angebot.",
+      phoneLine: "Sie erreichen uns auch telefonisch unter (602) 628-4600. Hinterlassen Sie gern Ihre Nummer, dann rufen wir zeitnah zurück.",
       name: "Name",
       email: "E-Mail",
       organization: "Organisation (optional)",
@@ -2953,7 +2960,7 @@ export const copy = {
       mission:
         "Unsere Mission: virtuelle Sprach- und Übersetzungsservices, die Ihr Tempo mitgehen.",
       teacher:
-        "Praktisches, maßgeschneidertes Training in Niederländisch, Englisch, Französisch, Deutsch, Mandarin, Spanisch und Schwedisch.",
+        "Praktisches, maßgeschneidertes Training in Niederländisch, Englisch, Französisch, Deutsch, Dänisch, Russisch und Schwedisch.",
       translator:
         "Beglaubigte Dokument- & Website-Übersetzungen plus sicheres Dolmetschen für UN, Airlines und Banken.",
       trips:

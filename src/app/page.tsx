@@ -351,6 +351,9 @@ export default function Home() {
             <p className="mt-3 text-sm md:text-base text-sky-200">
               {t.contact.subtitle}
             </p>
+            <p className="mt-1 text-xs md:text-sm text-slate-300">
+              {t.contact.phoneLine}
+            </p>
 
             <form
               action="mailto:info@jblinguistics.com"

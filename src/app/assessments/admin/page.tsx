@@ -48,6 +48,33 @@ type ApplicantRecord = {
   resume: { filename: string; mimeType: string; size: number };
 };
 
+type PortalUserAdmin = {
+  id: string;
+  name: string;
+  email: string;
+  roles: ("teacher" | "translator")[];
+  languages?: string[];
+  createdAt: string;
+  active: boolean;
+};
+
+type PortalAssignmentAdmin = {
+  id: string;
+  title: string;
+  assignmentType: "class" | "translation";
+  description?: string;
+  client?: string;
+  languagePair?: string;
+  hoursAssigned: number;
+  startDate?: string;
+  dueDate?: string;
+  status: "assigned" | "in_progress" | "submitted" | "completed";
+  participants: string[];
+  assignees: { id: string; name: string; email: string }[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export default function AssessmentsAdminPage() {
   const [token, setToken] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -57,10 +84,26 @@ export default function AssessmentsAdminPage() {
   const [results, setResults] = useState<SubmissionRecord[]>([]);
   const [codes, setCodes] = useState<AccessCodeRecord[]>([]);
   const [applicants, setApplicants] = useState<ApplicantRecord[]>([]);
-  const [activeTab, setActiveTab] = useState<"results" | "codes" | "applicants">("results");
+  const [activeTab, setActiveTab] = useState<"results" | "codes" | "applicants" | "assignments" | "portalUsers">("results");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ label: "", candidateName: "", candidateEmail: "", maxUses: 1, expiresAt: "", notes: "" });
+  const [portalUsers, setPortalUsers] = useState<PortalUserAdmin[]>([]);
+  const [assignments, setAssignments] = useState<PortalAssignmentAdmin[]>([]);
+  const [userForm, setUserForm] = useState({ name: "", email: "", password: "", roles: { teacher: true, translator: false }, languages: "" });
+  const [assignmentForm, setAssignmentForm] = useState({
+    title: "",
+    assignmentType: "class",
+    description: "",
+    client: "",
+    languagePair: "",
+    hoursAssigned: 10,
+    startDate: "",
+    dueDate: "",
+    participants: "",
+    assignedTo: [] as string[],
+  });
+  const [assignmentFiles, setAssignmentFiles] = useState<FileList | null>(null);
 
   const hasToken = Boolean(token);
 
@@ -69,10 +112,12 @@ export default function AssessmentsAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const [resultsRes, codesRes, applicantsRes] = await Promise.all([
+      const [resultsRes, codesRes, applicantsRes, usersRes, assignmentsRes] = await Promise.all([
         fetch("/api/assessments/results", { headers: { "x-admin-token": token } }),
         fetch("/api/assessments/access-codes", { headers: { "x-admin-token": token } }),
         fetch("/api/careers/applicants", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/users", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/assignments", { headers: { "x-admin-token": token } }),
       ]);
       if (!resultsRes.ok) {
         const data = await resultsRes.json().catch(() => ({}));
@@ -86,12 +131,24 @@ export default function AssessmentsAdminPage() {
         const data = await applicantsRes.json().catch(() => ({}));
         throw new Error(data.message || "Unable to load applicants");
       }
+      if (!usersRes.ok) {
+        const data = await usersRes.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to load portal users");
+      }
+      if (!assignmentsRes.ok) {
+        const data = await assignmentsRes.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to load assignments");
+      }
       const resultsData = await resultsRes.json();
       const codesData = await codesRes.json();
       const applicantsData = await applicantsRes.json();
+      const usersData = await usersRes.json();
+      const assignmentsData = await assignmentsRes.json();
       setResults(resultsData.results ?? []);
       setCodes(codesData.codes ?? []);
       setApplicants(applicantsData.applicants ?? []);
+      setPortalUsers(usersData.users ?? []);
+      setAssignments(assignmentsData.assignments ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load admin data.");
     } finally {
@@ -184,6 +241,556 @@ export default function AssessmentsAdminPage() {
     [token]
   );
 
+  const toBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",").pop() ?? "");
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleCreatePortalUser = async () => {
+    if (!token) return;
+    if (!userForm.name || !userForm.email || !userForm.password) {
+      setError("Name, email, and password are required for portal users.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const roles = Object.entries(userForm.roles)
+        .filter(([, value]) => value)
+        .map(([key]) => key) as ("teacher" | "translator")[];
+      const response = await fetch("/api/portal/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({
+          name: userForm.name,
+          email: userForm.email,
+          password: userForm.password,
+          roles,
+          languages: userForm.languages
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean),
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to create portal user.");
+      }
+      setUserForm({ name: "", email: "", password: "", roles: { teacher: true, translator: false }, languages: "" });
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create portal user.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateAssignment = async () => {
+    if (!token) return;
+    if (!assignmentForm.title || !assignmentForm.assignedTo.length || !assignmentForm.hoursAssigned) {
+      setError("Assignments require a title, hours, and at least one assignee.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const attachments =
+        assignmentFiles && assignmentFiles.length
+          ? await Promise.all(
+              Array.from(assignmentFiles).map(async (file) => ({
+                filename: file.name,
+                mimeType: file.type || "application/octet-stream",
+                size: file.size,
+                data: await toBase64(file),
+                category: "support" as const,
+              }))
+            )
+          : [];
+      const response = await fetch("/api/portal/admin/assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({
+          title: assignmentForm.title,
+          assignmentType: assignmentForm.assignmentType,
+          description: assignmentForm.description,
+          client: assignmentForm.client,
+          languagePair: assignmentForm.languagePair,
+          hoursAssigned: assignmentForm.hoursAssigned,
+          startDate: assignmentForm.startDate,
+          dueDate: assignmentForm.dueDate,
+          assignedTo: assignmentForm.assignedTo,
+          participants: assignmentForm.participants
+            .split("\n")
+            .join(",")
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean),
+          attachments,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to create assignment.");
+      }
+      setAssignmentForm({
+        title: "",
+        assignmentType: "class",
+        description: "",
+        client: "",
+        languagePair: "",
+        hoursAssigned: 10,
+        startDate: "",
+        dueDate: "",
+        participants: "",
+        assignedTo: [],
+      });
+      setAssignmentFiles(null);
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create assignment.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "results":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6">
+            <h2 className="text-xl font-semibold">Recent submissions</h2>
+            {results.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-400">No submissions stored yet.</p>
+            ) : (
+              <div className="mt-4 overflow-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-slate-400">
+                    <tr>
+                      <th className="py-2 pr-4">Candidate</th>
+                      <th className="py-2 pr-4">Score</th>
+                      <th className="py-2 pr-4">Date</th>
+                      <th className="py-2 pr-4">Results email</th>
+                      <th className="py-2 pr-4">Access</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results
+                      .slice()
+                      .reverse()
+                      .map((result) => (
+                        <tr key={result.id} className="border-t border-slate-700">
+                          <td className="py-2 pr-4">
+                            <p className="font-semibold text-white">{result.candidateName}</p>
+                            <p className="text-xs text-slate-400">{result.candidateEmail || "–"}</p>
+                          </td>
+                          <td className="py-2 pr-4 text-teal-300">
+                            {result.summary.percentage}% ({result.summary.totalCorrect}/{result.summary.totalQuestions})
+                          </td>
+                          <td className="py-2 pr-4 text-slate-300">{new Date(result.submittedAt).toLocaleString()}</td>
+                          <td className="py-2 pr-4 text-slate-300">{result.proctorEmail}</td>
+                          <td className="py-2 pr-4 text-xs text-slate-400">
+                            {result.accessMeta?.mode === "code" ? `Code: ${result.accessMeta.code}` : "Shared"}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      case "codes":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6 space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold">Generate access code</h2>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Label
+                  <input
+                    type="text"
+                    value={form.label}
+                    onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))}
+                    placeholder="e.g. Lufthansa Cohort"
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Candidate name (optional)
+                  <input
+                    type="text"
+                    value={form.candidateName}
+                    onChange={(e) => setForm((prev) => ({ ...prev, candidateName: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Candidate email (optional)
+                  <input
+                    type="email"
+                    value={form.candidateEmail}
+                    onChange={(e) => setForm((prev) => ({ ...prev, candidateEmail: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Max uses
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.maxUses}
+                    onChange={(e) => setForm((prev) => ({ ...prev, maxUses: Number(e.target.value) }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Expires at (optional)
+                  <input
+                    type="date"
+                    value={form.expiresAt}
+                    onChange={(e) => setForm((prev) => ({ ...prev, expiresAt: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Notes
+                  <input
+                    type="text"
+                    value={form.notes}
+                    onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={handleCreateCode}
+                className="mt-4 inline-flex items-center rounded-2xl bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-900"
+              >
+                Create code
+              </button>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Existing codes</h3>
+              <div className="mt-4 space-y-3">
+                {codes.length === 0 ? (
+                  <p className="text-sm text-slate-400">No codes available.</p>
+                ) : (
+                  codes.map((code) => (
+                    <div key={code.code} className="rounded-2xl border border-slate-700 p-4 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-semibold text-white">{code.label}</p>
+                        <p className="text-xs text-slate-400">{code.code}</p>
+                        <p className="text-xs text-slate-500">
+                          Uses: {code.uses}/{code.maxUses}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleCode(code)}
+                        className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                          code.active ? "bg-emerald-500/20 text-emerald-200" : "bg-slate-700 text-slate-200"
+                        }`}
+                      >
+                        {code.active ? "Disable" : "Enable"}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      case "applicants":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6">
+            <h2 className="text-xl font-semibold">Career applicants</h2>
+            {applicants.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-400">No applications yet.</p>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {applicants.map((applicant) => (
+                  <div key={applicant.id} className="rounded-2xl border border-slate-700 p-4">
+                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-semibold text-white">{applicant.name}</p>
+                        <p className="text-xs text-slate-400">{applicant.email}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => downloadResume(applicant)}
+                        className="mt-2 inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-600"
+                      >
+                        Download resume
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-400">
+                      Submitted {new Date(applicant.submittedAt).toLocaleDateString()} — Roles: {applicant.roles.join(", ")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      case "assignments":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6 space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold">Create assignment</h2>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Title
+                  <input
+                    type="text"
+                    value={assignmentForm.title}
+                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, title: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Type
+                  <select
+                    value={assignmentForm.assignmentType}
+                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, assignmentType: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  >
+                    <option value="class">Class / cohort</option>
+                    <option value="translation">Translation</option>
+                  </select>
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Client / account
+                  <input
+                    type="text"
+                    value={assignmentForm.client}
+                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, client: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Language pair
+                  <input
+                    type="text"
+                    value={assignmentForm.languagePair}
+                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, languagePair: e.target.value }))}
+                    placeholder="e.g. EN ↔ DE"
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Hours assigned
+                  <input
+                    type="number"
+                    min={1}
+                    value={assignmentForm.hoursAssigned}
+                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, hoursAssigned: Number(e.target.value) }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Start date
+                  <input
+                    type="date"
+                    value={assignmentForm.startDate}
+                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Due date
+                  <input
+                    type="date"
+                    value={assignmentForm.dueDate}
+                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, dueDate: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Participants (comma or line separated)
+                  <textarea
+                    rows={2}
+                    value={assignmentForm.participants}
+                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, participants: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide md:col-span-2">
+                  Description / brief
+                  <textarea
+                    rows={3}
+                    value={assignmentForm.description}
+                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, description: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+              <div className="mt-4">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Assign to</p>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {portalUsers.map((user) => (
+                    <label key={user.id} className="inline-flex items-center gap-2 text-sm text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={assignmentForm.assignedTo.includes(user.id)}
+                        onChange={(e) =>
+                          setAssignmentForm((prev) => {
+                            const assignedTo = e.target.checked
+                              ? [...prev.assignedTo, user.id]
+                              : prev.assignedTo.filter((id) => id !== user.id);
+                            return { ...prev, assignedTo };
+                          })
+                        }
+                      />
+                      {user.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <label className="mt-4 block text-xs uppercase tracking-wide text-slate-400">
+                Attach brief / files
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => setAssignmentFiles(e.target.files)}
+                  className="mt-1 block text-sm"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleCreateAssignment}
+                className="mt-4 inline-flex items-center rounded-2xl bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-900"
+              >
+                Publish assignment
+              </button>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Active assignments</h3>
+              <div className="mt-4 space-y-3">
+                {assignments.length === 0 ? (
+                  <p className="text-sm text-slate-400">No assignments yet.</p>
+                ) : (
+                  assignments.map((assignment) => (
+                    <div key={assignment.id} className="rounded-2xl border border-slate-700 p-4">
+                      <p className="font-semibold text-white">{assignment.title}</p>
+                      <p className="text-xs text-slate-400">
+                        {assignment.assignmentType === "class" ? "Class" : "Translation"} · {assignment.hoursAssigned} hrs ·{" "}
+                        {assignment.status}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Assigned to: {assignment.assignees.map((a) => a.name).join(", ") || "—"}
+                      </p>
+                      {assignment.dueDate && (
+                        <p className="text-xs text-amber-200">
+                          Due {new Date(assignment.dueDate).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      case "portalUsers":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6 space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold">Create portal user</h2>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Name
+                  <input
+                    type="text"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm((prev) => ({ ...prev, name: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Email
+                  <input
+                    type="email"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Temporary password
+                  <input
+                    type="text"
+                    value={userForm.password}
+                    onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-300 uppercase tracking-wide">
+                  Languages (comma separated)
+                  <input
+                    type="text"
+                    value={userForm.languages}
+                    onChange={(e) => setUserForm((prev) => ({ ...prev, languages: e.target.value }))}
+                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-200">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={userForm.roles.teacher}
+                    onChange={(e) => setUserForm((prev) => ({ ...prev, roles: { ...prev.roles, teacher: e.target.checked } }))}
+                  />
+                  Teacher
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={userForm.roles.translator}
+                    onChange={(e) =>
+                      setUserForm((prev) => ({ ...prev, roles: { ...prev.roles, translator: e.target.checked } }))
+                    }
+                  />
+                  Translator
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={handleCreatePortalUser}
+                className="mt-4 inline-flex items-center rounded-2xl bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-900"
+              >
+                Create user
+              </button>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Active users</h3>
+              <div className="mt-4 space-y-3">
+                {portalUsers.length === 0 ? (
+                  <p className="text-sm text-slate-400">No users yet.</p>
+                ) : (
+                  portalUsers.map((user) => (
+                    <div key={user.id} className="rounded-2xl border border-slate-700 p-4">
+                      <p className="font-semibold text-white">{user.name}</p>
+                      <p className="text-xs text-slate-400">{user.email}</p>
+                      <p className="text-xs text-slate-500">
+                        Roles: {user.roles.join(", ")} · Languages: {user.languages?.join(", ") || "—"}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <main className="min-h-screen bg-slate-900 text-white">
       <section className="max-w-5xl mx-auto px-4 py-12">
@@ -240,6 +847,20 @@ export default function AssessmentsAdminPage() {
                 >
                   Applicants
                 </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "assignments" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("assignments")}
+                >
+                  Assignments
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "portalUsers" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("portalUsers")}
+                >
+                  Portal users
+                </button>
               </div>
               <button
                 type="button"
@@ -252,226 +873,7 @@ export default function AssessmentsAdminPage() {
               {error && <span className="text-xs text-rose-300">{error}</span>}
             </div>
 
-            {activeTab === "results" ? (
-              <div className="rounded-3xl bg-slate-800 p-6">
-                <h2 className="text-xl font-semibold">Recent submissions</h2>
-                {results.length === 0 ? (
-                  <p className="mt-3 text-sm text-slate-400">No submissions stored yet.</p>
-                ) : (
-                  <div className="mt-4 overflow-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="text-slate-400">
-                        <tr>
-                          <th className="py-2 pr-4">Candidate</th>
-                          <th className="py-2 pr-4">Score</th>
-                          <th className="py-2 pr-4">Date</th>
-                          <th className="py-2 pr-4">Results email</th>
-                          <th className="py-2 pr-4">Access</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {results
-                          .slice()
-                          .reverse()
-                          .map((result) => (
-                            <tr key={result.id} className="border-t border-slate-700">
-                              <td className="py-2 pr-4">
-                                <p className="font-semibold text-white">{result.candidateName}</p>
-                                <p className="text-xs text-slate-400">{result.candidateEmail || "–"}</p>
-                              </td>
-                              <td className="py-2 pr-4 text-teal-300">
-                                {result.summary.percentage}% ({result.summary.totalCorrect}/{result.summary.totalQuestions})
-                              </td>
-                              <td className="py-2 pr-4 text-slate-300">
-                                {new Date(result.submittedAt).toLocaleString()}
-                              </td>
-                              <td className="py-2 pr-4 text-slate-300">{result.proctorEmail}</td>
-                              <td className="py-2 pr-4 text-xs text-slate-400">
-                                {result.accessMeta?.mode === "code" ? `Code: ${result.accessMeta.code}` : "Shared"}
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            ) : activeTab === "codes" ? (
-              <div className="rounded-3xl bg-slate-800 p-6 space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold">Generate access code</h2>
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <label className="text-xs text-slate-300 uppercase tracking-wide">
-                      Label
-                      <input
-                        type="text"
-                        value={form.label}
-                        onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))}
-                        placeholder="e.g. Lufthansa Cohort"
-                        className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <label className="text-xs text-slate-300 uppercase tracking-wide">
-                      Candidate name (optional)
-                      <input
-                        type="text"
-                        value={form.candidateName}
-                        onChange={(e) => setForm((prev) => ({ ...prev, candidateName: e.target.value }))}
-                        className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <label className="text-xs text-slate-300 uppercase tracking-wide">
-                      Candidate email (optional)
-                      <input
-                        type="email"
-                        value={form.candidateEmail}
-                        onChange={(e) => setForm((prev) => ({ ...prev, candidateEmail: e.target.value }))}
-                        className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <label className="text-xs text-slate-300 uppercase tracking-wide">
-                      Max uses
-                      <input
-                        type="number"
-                        min={1}
-                        value={form.maxUses}
-                        onChange={(e) => setForm((prev) => ({ ...prev, maxUses: Number(e.target.value) }))}
-                        className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <label className="text-xs text-slate-300 uppercase tracking-wide">
-                      Expires at (optional)
-                      <input
-                        type="datetime-local"
-                        value={form.expiresAt}
-                        onChange={(e) => setForm((prev) => ({ ...prev, expiresAt: e.target.value }))}
-                        className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <label className="text-xs text-slate-300 uppercase tracking-wide">
-                      Notes
-                      <input
-                        type="text"
-                        value={form.notes}
-                        onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-                        className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-                      />
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCreateCode}
-                    className="mt-4 inline-flex items-center rounded-2xl bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-900"
-                  >
-                    Generate code
-                  </button>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold">Active codes</h3>
-                  {codes.length === 0 ? (
-                    <p className="mt-2 text-sm text-slate-400">No codes generated yet.</p>
-                  ) : (
-                    <div className="mt-4 space-y-3">
-                      {codes
-                        .slice()
-                        .sort((a, b) => a.code.localeCompare(b.code))
-                        .map((code) => (
-                          <div key={code.code} className="rounded-2xl border border-slate-700 p-4">
-                            <div className="flex flex-wrap items-center gap-3">
-                              <p className="text-lg font-bold text-white">{code.code}</p>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${code.active ? "bg-teal-500 text-slate-900" : "bg-slate-600"}`}>
-                                {code.active ? "Active" : "Inactive"}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => navigator.clipboard.writeText(code.code)}
-                                className="text-xs text-slate-300 underline"
-                              >
-                                Copy
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => toggleCode(code)}
-                                className="text-xs text-slate-300 underline"
-                              >
-                                {code.active ? "Deactivate" : "Activate"}
-                              </button>
-                            </div>
-                            <p className="text-sm text-slate-300 mt-1">{code.label}</p>
-                            <p className="text-xs text-slate-400">
-                              Uses {code.uses}/{code.maxUses} · Created {new Date(code.createdAt).toLocaleString()}
-                            </p>
-                            {code.expiresAt && (
-                              <p className="text-xs text-amber-300">Expires {new Date(code.expiresAt).toLocaleString()}</p>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-3xl bg-slate-800 p-6 space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold">Talent applications</h2>
-                  {applicants.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-400">No applicants stored yet.</p>
-                  ) : (
-                    <div className="mt-4 space-y-3">
-                      {applicants
-                        .slice()
-                        .reverse()
-                        .map((applicant) => (
-                          <div key={applicant.id} className="rounded-2xl border border-slate-700 p-4">
-                            <div className="flex flex-wrap items-center gap-3">
-                              <div>
-                                <p className="text-base font-semibold text-white">{applicant.name}</p>
-                                <p className="text-xs text-slate-400">{applicant.email || "–"}</p>
-                              </div>
-                              <span className="text-xs text-slate-400">{new Date(applicant.submittedAt).toLocaleString()}</span>
-                              <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-                                {applicant.roles.map((role) => (
-                                  <span key={role} className="rounded-full bg-slate-700 px-3 py-1">
-                                    {role}
-                                  </span>
-                                ))}
-                              </div>
-                              <button
-                                type="button"
-                                className="ml-auto rounded-full border border-slate-500 px-3 py-1 text-xs"
-                                onClick={() => downloadResume(applicant)}
-                              >
-                                Download resume
-                              </button>
-                            </div>
-                            <div className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-slate-300">
-                              <p>
-                                <span className="text-slate-500">Location:</span> {applicant.location || "–"}
-                              </p>
-                              <p>
-                                <span className="text-slate-500">Languages:</span> {applicant.languages || "–"}
-                              </p>
-                              <p>
-                                <span className="text-slate-500">Experience:</span> {applicant.experience || "–"}
-                              </p>
-                              <p>
-                                <span className="text-slate-500">Availability:</span> {applicant.availability || "–"}
-                              </p>
-                            </div>
-                            {applicant.message ? (
-                              <p className="mt-2 text-xs text-slate-200">{applicant.message}</p>
-                            ) : null}
-                            <p className="mt-2 text-[11px] text-slate-500">
-                              File: {applicant.resume.filename} · {(applicant.resume.size / 1024).toFixed(1)} KB
-                            </p>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {renderTabContent()}
           </div>
         )}
       </section>

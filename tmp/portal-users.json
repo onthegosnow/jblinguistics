@@ -1,0 +1,40 @@
+[
+  {
+    "name": "Jonathan Brooks",
+    "email": "jonathanb3421@gmail.com",
+    "passwordHash": "7c29298e23cdd16d367f5812e7aa9fc5a874ae5340e66b3aab8d9fa1485e8662",
+    "roles": [
+      "teacher",
+      "translator"
+    ],
+    "languages": [
+      "English",
+      "German",
+      "French",
+      "Russian",
+      "Dutch",
+      "Danish",
+      "Swedish"
+    ],
+    "active": true,
+    "id": "af57a92e-ea08-4a65-845b-4fcf814c961f",
+    "createdAt": "2025-11-15T05:57:20.061Z"
+  },
+  {
+    "name": "Daniela Leonhardt",
+    "email": "elaloeart@gmail.com",
+    "passwordHash": "7711316eaa3f95c9a4bbf9a5a5d598f4eefc1372956c9a955108849de137ab00",
+    "roles": [
+      "teacher",
+      "translator"
+    ],
+    "languages": [
+      "English",
+      "French",
+      "German"
+    ],
+    "active": true,
+    "id": "bea10e8c-28b8-4dd2-bc4d-af8e910512b9",
+    "createdAt": "2025-11-15T15:49:01.925Z"
+  }
+]

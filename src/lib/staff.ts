@@ -8,6 +8,7 @@ export type StaffMember = {
   languages: string;          // display string
   langs?: string[];           // structured list for filters
   image: string;
+  imageFocus?: string;
   tagline: string;
   overview: string;
   background: string[];
@@ -47,7 +48,7 @@ export const staff: StaffMember[] = [
     image: "/Brand/1740435323075.jpeg",
     tagline: "Founder of JB Linguistics LLC and global language educator.",
     overview:
-      "Jonathan is an international affairs specialist and language educator who has worked in 86 countries with international volunteer groups, airlines, and government partners.",
+      "Jonathan is an international affairs specialist and language educator who has worked in 102 countries with international volunteer groups, airlines, and government partners.",
     profilePath: "/teachers/jonathan-brooks",
     background: [
       "B.Sc. in World Religion Studies with minor in Biblical Historical Studies",
@@ -124,10 +125,11 @@ export const staff: StaffMember[] = [
     region: "Europe",
     location: "Global / Remote",
     specialties: ["Business English", "French Instruction", "German Instruction", "Document Translation", "Interpreting"],
-    image: "/images/staff/daniela-leonhardt.jpg",
+    image: "/images/staff/daniela-leonhardt-2025.jpg",
+    imageFocus: "50% 30%",
     tagline: "Trilingual instructor and interpreter raised across Foreign Service posts.",
     overview:
-      "Daniela grew up inside the U.S. Foreign Service, rotating through embassies where she absorbed languages, ceremony, and cross-cultural nuance. With degrees in both French and German, she switches seamlessly among all three languages and helps executives, expatriates, and diplomatic families do the same.",
+      "Having grown up across U.S. Foreign Service postings, Daniela experienced languages, ceremonies, and customs on nearly every continent. Her French and German degrees let her move among English, French, and German as a native speaker, and she supports executives, expatriates, and diplomatic families with the same flexibility in both classrooms and translation assignments.",
     background: [
       "Childhood spent across Europe, Africa, and Latin America in Foreign Service posts",
       "B.A. French Linguistics; B.A. German Studies",
@@ -139,7 +141,6 @@ export const staff: StaffMember[] = [
       "Document translation and editing across English ↔ French ↔ German, from HR policy to executive presentations",
       "Interpretation for diplomatic briefings, investor meetings, and global town halls",
     ],
-    profilePath: "/teachers#team",
   },
   {
     slug: "lukas-schmidt",

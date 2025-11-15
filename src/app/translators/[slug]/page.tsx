@@ -1,14 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getStaffBySlug, hasRole } from "@/lib/staff";
+import { getStaffBySlug, hasRole, staff } from "@/lib/staff";
 import { notFound } from "next/navigation";
 
 type Props = {
   params: { slug: string };
 };
 
-export default function TranslatorProfilePage({ params }: Props) {
-  const person = getStaffBySlug(params.slug);
+export function generateStaticParams() {
+  return staff.filter((person) => hasRole(person, "translator")).map((person) => ({ slug: person.slug }));
+}
+
+export const revalidate = 0;
+export const dynamic = "force-dynamic";
+
+export default async function TranslatorProfilePage({ params }: Props) {
+  const { slug } = await params;
+  const person = getStaffBySlug(slug);
 
   if (!person || !hasRole(person, "translator")) {
     return notFound();
@@ -32,6 +40,7 @@ export default function TranslatorProfilePage({ params }: Props) {
                 alt={person.name}
                 fill
                 className="object-cover"
+                style={{ objectPosition: person.imageFocus ?? "center" }}
               />
             </div>
             <div className="p-4">

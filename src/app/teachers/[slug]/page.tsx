@@ -1,14 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getStaffBySlug } from "@/lib/staff";
+import { getStaffBySlug, hasRole, staff } from "@/lib/staff";
 import { notFound } from "next/navigation";
 
 type Props = {
   params: { slug: string };
 };
 
-export default function TeacherProfilePage({ params }: Props) {
-  const person = getStaffBySlug(params.slug);
+export function generateStaticParams() {
+  return staff.filter((person) => hasRole(person, "teacher")).map((person) => ({ slug: person.slug }));
+}
+
+export const revalidate = 0;
+export const dynamic = "force-dynamic";
+
+export default async function TeacherProfilePage({ params }: Props) {
+  const { slug } = await params;
+  const person = getStaffBySlug(slug);
 
   if (!person || person.role !== "teacher") {
     return notFound();
@@ -32,6 +40,7 @@ export default function TeacherProfilePage({ params }: Props) {
                 alt={person.name}
                 fill
                 className="object-cover"
+                style={{ objectPosition: person.imageFocus ?? "center" }}
               />
             </div>
             <div className="p-4">
@@ -54,7 +63,7 @@ export default function TeacherProfilePage({ params }: Props) {
             </section>
 
             {/* Profile Highlights — only for Jonathan Brooks */}
-            {params.slug === "jonathan-brooks" && (
+            {slug === "jonathan-brooks" && (
               <section>
                 <h2 className="text-sm font-semibold text-sky-900 uppercase tracking-wide">
                   Profile Highlights
@@ -82,7 +91,7 @@ export default function TeacherProfilePage({ params }: Props) {
                   </li>
                   <li className="flex gap-2">
                     <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-teal-500" />
-                    <span>Travel experience in 86 countries with international volunteer groups</span>
+                    <span>Travel experience in 102 countries with international volunteer groups</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-teal-500" />
