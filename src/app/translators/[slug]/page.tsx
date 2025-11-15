@@ -34,7 +34,7 @@ export default async function TranslatorProfilePage({ params }: Props) {
 
         <div className="mt-4 grid md:grid-cols-[1.1fr,1.4fr] gap-6 items-start">
           <div className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 overflow-hidden">
-            <div className="relative h-64">
+            <div className="relative h-[30rem]">
               <Image
                 src={person.image}
                 alt={person.name}

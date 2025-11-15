@@ -212,13 +212,15 @@ export default function TeachersPage() {
               key={t.slug}
               className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 overflow-hidden flex flex-col"
             >
-              <div className="relative h-52">
+              <div className="relative h-60 overflow-hidden flex items-start">
                 <Image
                   src={t.image}
                   alt={t.name}
                   fill
-                  className="object-cover"
-                  style={{ objectPosition: t.imageFocus ?? "center" }}
+                  className={`object-cover ${
+                    t.imageFocus ? "" : "object-center"
+                  }`}
+                  style={{ objectPosition: t.imageFocus ?? "center 20%" }}
                 />
               </div>
               <div className="p-4 flex-1 flex flex-col">

@@ -42,7 +42,7 @@ const learningTracks = [
 const reimbursementHighlights = [
   "Professional English training that improves or maintains job-related skills",
   "Programs tied to promotion, compliance, safety, or security requirements",
-  "Structured courses delivered by JB Linguistics LLC (U.S.-registered vendor)",
+  "Structured courses delivered by JB Linguistics LLC (U.S.-registered vendor) and JB Linguistics GmbH (Germany-registered, serving all European markets)",
 ];
 
 const documentationList = [

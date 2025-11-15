@@ -120,6 +120,12 @@ export default function TripDetail({ params }: { params: { slug: string } }) {
             >
               {detailCta}
             </Link>
+            <Link
+              href={`/trips/${dest.slug}/pricing`}
+              className="mt-3 inline-block rounded-full border border-white/40 text-white px-4 py-2 text-sm font-semibold hover:bg-white/10 transition"
+            >
+              {t.tripsPage.cardPricingLink ?? "View sample pricing"}
+            </Link>
           </div>
 
           <div className="relative h-56 md:h-72 rounded-3xl overflow-hidden shadow">
@@ -223,6 +229,16 @@ export default function TripDetail({ params }: { params: { slug: string } }) {
         </div>
 
         <p className="mt-6 text-xs text-slate-300">{tripsCopy.note}</p>
+
+        <div className="mt-8 rounded-3xl border border-rose-300/50 bg-rose-950/30 p-5 text-slate-100">
+          <p className="text-sm font-semibold text-rose-200 uppercase tracking-wide">
+            {tripsCopy.waiverHeading ?? "Travel & liability notice"}
+          </p>
+          <p className="mt-2 text-sm text-slate-100">
+            {tripsCopy.waiverText ??
+              "Participants must obtain supplemental travel medical and trip cancellation insurance. JB Linguistics LLC and JB Linguistics GmbH coordinate logistics but are not liable for injuries, accidents, or disruptions occurring during travel. Proof of coverage and signed waivers are required prior to departure."}
+          </p>
+        </div>
       </section>
     </main>
   );

@@ -361,8 +361,8 @@ function TripsDropdown({
                 onClick={() => setOpen(false)}
               >
                 <div className="relative h-14 w-20 overflow-hidden rounded-xl bg-slate-100">
-                  {trip.hero ? (
-                    <Image src={trip.hero} alt={trip.name} fill className="object-cover" />
+                  {trip.hero || trip.heroSplit?.left ? (
+                    <Image src={trip.hero ?? trip.heroSplit?.left ?? "/images/trips/florida.jpg"} alt={trip.name} fill className="object-cover" />
                   ) : (
                     <span className="text-[10px] text-slate-500 flex h-full w-full items-center justify-center">
                       {trip.name}

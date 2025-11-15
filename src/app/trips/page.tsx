@@ -250,12 +250,18 @@ export default function TripsIndex() {
               })}
                 </div>
 
-                <div className="pt-1">
+                <div className="pt-1 flex flex-wrap gap-2">
                   <Link
                     href={`/trips/${d.slug}?days=${defaultLen}`}
                     className="inline-flex items-center justify-center rounded-full px-3.5 py-2 text-sm font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm"
                   >
                     {tripsCopy.cardButton}
+                  </Link>
+                  <Link
+                    href={`/trips/${d.slug}/pricing`}
+                    className="inline-flex items-center justify-center rounded-full px-3.5 py-2 text-sm font-semibold border border-slate-300 text-sky-900 hover:bg-slate-50 transition"
+                  >
+                    {tripsCopy.cardPricingLink ?? "View sample pricing"}
                   </Link>
                 </div>
 
