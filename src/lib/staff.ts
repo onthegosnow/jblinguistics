@@ -16,6 +16,7 @@ export type StaffMember = {
   location?: string;          // optional city/country for display
   specialties?: string[];     // e.g., ["Business English","Exam Prep"]
   expertise?: string[];       // alias/extra tags for filters
+  profilePath?: string;       // optional override path for nav links
 };
 
 export function hasRole(member: StaffMember, role: StaffRole): boolean {
@@ -47,13 +48,15 @@ export const staff: StaffMember[] = [
     tagline: "Founder of JB Linguistics LLC and global language educator.",
     overview:
       "Jonathan is an international affairs specialist and language educator who has worked in 86 countries with international volunteer groups, airlines, and government partners.",
+    profilePath: "/teachers/jonathan-brooks",
     background: [
       "B.Sc. in World Religion Studies with minor in Biblical Historical Studies",
       "Master’s degree in International Affairs",
       "168-hour TEFL certification",
-      "Trained in the airline industry on both Airbus and Boeing aircraft",
-      "Private pilot license (PPL) in both EASA and FAA systems",
-      "Extensive collaboration with German governmental entities and diplomats (Ü1 security clearance)",
+      "13+ years leading in-flight operations and international program management",
+      "Private pilot licenses (EASA & FAA, IFR rated) with Airbus/Boeing exposure",
+      "Built and managed global teams of 150+ linguists for German government contracts",
+      "Trusted partner for sensitive German government and aviation projects",
     ],
     linguistics: [
       "Designs custom language programs for corporate teams and diplomats",
@@ -110,6 +113,33 @@ export const staff: StaffMember[] = [
       "Design of activity-based lessons during trips",
       "Assessment and feedback for learners at all levels",
     ],
+  },
+  {
+    slug: "daniela-leonhardt",
+    role: "teacher",
+    roles: ["teacher", "translator"],
+    name: "Daniela Leonhardt",
+    languages: "English · German · French (native-level)",
+    langs: ["English", "German", "French"],
+    region: "Europe",
+    location: "Global / Remote",
+    specialties: ["Business English", "French Instruction", "German Instruction", "Document Translation", "Interpreting"],
+    image: "/images/staff/daniela-leonhardt.jpg",
+    tagline: "Trilingual instructor and interpreter raised across Foreign Service posts.",
+    overview:
+      "Daniela grew up inside the U.S. Foreign Service, rotating through embassies where she absorbed languages, ceremony, and cross-cultural nuance. With degrees in both French and German, she switches seamlessly among all three languages and helps executives, expatriates, and diplomatic families do the same.",
+    background: [
+      "Childhood spent across Europe, Africa, and Latin America in Foreign Service posts",
+      "B.A. French Linguistics; B.A. German Studies",
+      "15+ years supporting corporate, diplomatic, and NGO teams with multilingual communication",
+      "Leads bilingual workshops and immersive coaching for expatriate leaders",
+    ],
+    linguistics: [
+      "1:1 and cohort training in English, French, and German with an emphasis on intercultural fluency",
+      "Document translation and editing across English ↔ French ↔ German, from HR policy to executive presentations",
+      "Interpretation for diplomatic briefings, investor meetings, and global town halls",
+    ],
+    profilePath: "/teachers#team",
   },
   {
     slug: "lukas-schmidt",

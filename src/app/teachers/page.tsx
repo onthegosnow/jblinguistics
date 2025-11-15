@@ -2,7 +2,39 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { hasRole, staff } from "@/lib/staff";
+import { hasRole, staff, type StaffMember } from "@/lib/staff";
+
+const splitDisplayLanguages = (value: string): string[] =>
+  String(value || "")
+    .split(/[,/|·•–-]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const getStructuredLanguages = (person: StaffMember): string[] =>
+  Array.isArray(person.langs) && person.langs.length ? person.langs : splitDisplayLanguages(person.languages);
+
+const getRegionLabel = (person: StaffMember): string => (person.region || person.location || "").trim();
+
+const inferSpecialtiesFromTagline = (tagline?: string): string[] => {
+  if (!tagline) return [];
+  const tl = tagline.toLowerCase();
+  const guessed: string[] = [];
+  if (/(ielts|toefl|telc|goethe|exam|prüfung)/i.test(tl)) guessed.push("Exam Prep");
+  if (/(business|corporate|executive|leadership)/i.test(tl)) guessed.push("Business English");
+  if (/(academic|university|research)/i.test(tl)) guessed.push("Academic English");
+  if (/(conversation|speaking|fluency)/i.test(tl)) guessed.push("Conversation");
+  if (/(diplom|government|ministry|embassy)/i.test(tl)) guessed.push("Diplomacy & Government");
+  if (/(aviation|airbus|boeing|pilot|icao)/i.test(tl)) guessed.push("Aviation English");
+  if (/(legal|contract|compliance)/i.test(tl)) guessed.push("Legal/Compliance");
+  if (/(medical|healthcare)/i.test(tl)) guessed.push("Medical");
+  return guessed;
+};
+
+const getSpecialties = (person: StaffMember): string[] => {
+  if (Array.isArray(person.specialties) && person.specialties.length) return person.specialties;
+  if (Array.isArray(person.expertise) && person.expertise.length) return person.expertise;
+  return inferSpecialtiesFromTagline(person.tagline);
+};
 
 export default function TeachersPage() {
   const teachers = staff.filter((p) => hasRole(p, "teacher"));
@@ -12,13 +44,7 @@ export default function TeachersPage() {
     const set = new Set<string>();
     for (const t of teachers) {
       // Prefer a structured array if present (t.langs), else parse the display string t.languages
-      const arr: string[] =
-        Array.isArray((t as any).langs) && (t as any).langs.length
-          ? ((t as any).langs as string[])
-          : String(t.languages || "")
-              .split(/[,/|·•–-]+/)
-              .map((s) => s.trim())
-              .filter(Boolean);
+      const arr = getStructuredLanguages(t);
       arr.forEach((l) => set.add(l));
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
@@ -28,10 +54,7 @@ export default function TeachersPage() {
   const allRegions = useMemo(() => {
     const set = new Set<string>();
     for (const t of teachers) {
-      const reg: string =
-        ((t as any).region as string) ||
-        ((t as any).location as string) ||
-        "";
+      const reg = getRegionLabel(t);
       if (reg && typeof reg === "string") set.add(reg.trim());
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
@@ -55,22 +78,7 @@ export default function TeachersPage() {
       }
     };
     for (const t of teachers) {
-      addFrom((t as any).specialties);
-      addFrom((t as any).expertise);
-      // Optional light keyword mining from tagline if nothing structured exists
-      if (!((t as any).specialties || (t as any).expertise) && typeof (t as any).tagline === "string") {
-        const tl = ((t as any).tagline as string).toLowerCase();
-        const guessed: string[] = [];
-        if (/(ielts|toefl|telc|goethe|exam|prüfung)/i.test(tl)) guessed.push("Exam Prep");
-        if (/(business|corporate|executive|leadership)/i.test(tl)) guessed.push("Business English");
-        if (/(academic|university|research)/i.test(tl)) guessed.push("Academic English");
-        if (/(conversation|speaking|fluency)/i.test(tl)) guessed.push("Conversation");
-        if (/(diplom|government|ministry|embassy)/i.test(tl)) guessed.push("Diplomacy & Government");
-        if (/(aviation|airbus|boeing|pilot|icao)/i.test(tl)) guessed.push("Aviation English");
-        if (/(legal|contract|compliance)/i.test(tl)) guessed.push("Legal/Compliance");
-        if (/(medical|healthcare)/i.test(tl)) guessed.push("Medical");
-        if (guessed.length) guessed.forEach((g) => set.add(g));
-      }
+      addFrom(getSpecialties(t));
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [teachers]);
@@ -85,30 +93,19 @@ export default function TeachersPage() {
     return teachers.filter((t) => {
       const name = (t.name || "").toLowerCase();
       const langsText = (t.languages || "").toLowerCase();
-      const reg = (((t as any).region as string) || ((t as any).location as string) || "").toLowerCase();
+      const reg = getRegionLabel(t).toLowerCase();
 
       // specialty normalization (array or delimited string)
-      const specs: string[] =
-        Array.isArray((t as any).specialties) && (t as any).specialties.length
-          ? ((t as any).specialties as string[])
-          : typeof (t as any).expertise === "string"
-          ? String((t as any).expertise)
-              .split(/[,/|·•;]+/)
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [];
+      const specs = getSpecialties(t);
 
       const matchesTerm =
         !term || name.includes(term) || langsText.includes(term) || reg.includes(term);
 
       const matchesLang =
         !lang ||
-        (Array.isArray((t as any).langs)
-          ? ((t as any).langs as string[]).some((l) => l.toLowerCase() === lang.toLowerCase())
-          : String(t.languages || "")
-              .split(/[,/|·•–-]+/)
-              .map((s) => s.trim().toLowerCase())
-              .includes(lang.toLowerCase()));
+        getStructuredLanguages(t)
+          .map((l) => l.toLowerCase())
+          .includes(lang.toLowerCase());
 
       const matchesRegion = !region || reg === region.toLowerCase();
 

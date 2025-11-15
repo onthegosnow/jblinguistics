@@ -4,9 +4,11 @@ export type Destination = {
     name: string;
     region?: string;
     hero?: string;
+    heroSplit?: { left: string; right: string; altLeft?: string; altRight?: string };
     blurb?: string;
     lengths?: number[]; // default: 14
     highlights?: string[];
+    customItinerary?: Record<number, { title: string; lesson: string; activity: string }[]>;
   };
   
 export const DEFAULT_LENGTHS = [7, 10, 14];
@@ -25,7 +27,12 @@ export const destinations: Destination[] = [
       "NYC museums, finance district briefings, and public-speaking labs",
       "Daily 2–3h coaching + curated excursions",
     ],
-    hero: "/images/trips/florida-nyc.jpg",
+    heroSplit: {
+      left: "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1000&q=80",
+      right: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1000&q=80",
+      altLeft: "Miami palm trees and boardwalk",
+      altRight: "Statue of Liberty",
+    },
   },
   {
     slug: "florida-bermuda",
@@ -39,21 +46,31 @@ export const destinations: Destination[] = [
       "Bermuda heritage walks, marine labs, and diplomacy briefings",
       "Daily coaching, reef excursions, and cultural hosting",
     ],
-    hero: "/images/trips/florida-bermuda.jpg",
+    heroSplit: {
+      left: "https://images.unsplash.com/photo-1493558103817-58b2924bce98?auto=format&fit=crop&w=1000&q=80",
+      right: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1000&q=80",
+      altLeft: "Florida Keys turquoise water",
+      altRight: "Bermuda pink sand cove",
+    },
   },
   {
-    slug: "florida-grand-canyon",
-    name: "Florida + Grand Canyon (2 weeks)",
-    region: "North America",
+    slug: "florida-grand-cayman",
+    name: "Florida + Grand Cayman (2 weeks)",
+    region: "Caribbean",
     lengths: [14],
     blurb:
-      "Week 1: Florida coastal fluency. Week 2: American Southwest travel dialogues and national park storytelling culminating at the Grand Canyon.",
+      "Week 1 spotlights Florida hospitality labs; Week 2 moves to Grand Cayman for reef conservation, finance hub visits, and beachside coaching.",
     highlights: [
-      "Hospitality & aviation English in Florida",
-      "Grand Canyon & Sedona field labs focused on storytelling",
-      "Coach 2–3h/day + guided hikes and ranger briefings",
+      "Orlando/Tampa aviation English intensives",
+      "Grand Cayman reef excursions, mangrove kayaks, and George Town finance walk",
+      "Daily 2–3h coaching plus snorkeling, sunset catamarans, and culinary labs",
     ],
-    hero: "/images/trips/florida-grand-canyon.jpg",
+    heroSplit: {
+      left: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=80",
+      right: "https://images.unsplash.com/photo-1483683804023-6ccdb62f86ef?auto=format&fit=crop&w=1000&q=80",
+      altLeft: "Miami Beach sunrise",
+      altRight: "Grand Cayman Seven Mile Beach",
+    },
   },
 
   // Florida-only departures
@@ -83,27 +100,33 @@ export const destinations: Destination[] = [
       "On-site dialogues at PortMiami & Wynwood innovation spaces",
       "Everglades & Little Havana cultural immersions",
     ],
-    hero: "/images/trips/florida-immersion-autumn.jpg",
+    hero:
+      "https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?auto=format&fit=crop&w=1200&q=80",
   },
 
-  // Long Beach programs
+  // Southern California programs
   {
     slug: "long-beach-ca",
-    name: "Long Beach, California (2 weeks)",
+    name: "Southern California Immersion (2 weeks)",
     region: "North America",
     lengths: [14],
     blurb:
-      "Two-week coastal immersion anchored in Long Beach and sunny Orange County, with day trips into Los Angeles (Getty, Griffith, Hollywood). Ideal for leadership teams who want structured coaching plus real-world practice.",
+      "Two-week coastal immersion covering Los Angeles, Orange County, and San Diego with day trips into iconic neighborhoods (Getty, Griffith, Hollywood, Balboa Park). Ideal for leadership teams seeking structured coaching plus real-world practice.",
     highlights: [
       "Morning coaching blocks aboard the Queen Mary & Aquarium of the Pacific briefings",
-      "Shoreline Village and Naples canals conversation labs",
-      "Orange County day trip through Laguna Beach + LA excursions (Hollywood, Griffith, Getty)",
+      "Conversation labs along Santa Monica, Newport Beach, and La Jolla coastlines",
+      "Excursions through LA, Orange County, and San Diego (Hollywood, Griffith, Balboa Park)",
     ],
-    hero: "/images/trips/long-beach.jpg",
+    heroSplit: {
+      left: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1000&q=80",
+      right: "https://images.unsplash.com/photo-1506197603052-3cc9c3a201bd?auto=format&fit=crop&w=1000&q=80",
+      altLeft: "Laguna Beach shoreline at sunset",
+      altRight: "Hollywood sign view",
+    },
   },
   {
     slug: "long-beach-hawaii",
-    name: "Long Beach + Hawaii (3 weeks)",
+    name: "Southern California + Hawaii (3 weeks)",
     region: "North America",
     lengths: [21],
     blurb:
@@ -130,6 +153,45 @@ export const destinations: Destination[] = [
       "Evening theatre debrief circles",
     ],
     hero: "/images/trips/dublin-heritage.jpg",
+    customItinerary: {
+      7: [
+        {
+          title: "Day 1 · Frankfurt to Dublin",
+          lesson: "Conversational warm-up at the departure gate plus taxi-dialogue drills en route to the city.",
+          activity: "Trinity College grounds, Book of Kells gallery, and sunset tour + pint at the Guinness Storehouse.",
+        },
+        {
+          title: "Day 2 · Wild Atlantic Way",
+          lesson: "Sentence-structure labs on the coach ride with instant correction and vocabulary challenges.",
+          activity: "Cliffs of Moher excursion, fish & chips in Doolin, and photo stops outside roadside castles before returning to Dublin.",
+        },
+        {
+          title: "Day 3 · Coastal Howth",
+          lesson: "Harbor negotiation role-plays and pronunciation tune-ups over breakfast.",
+          activity: "Train to Howth, seafood lunch overlooking the harbor, cliff walk conversation circles, and evening cheese boards at Temple Bar.",
+        },
+        {
+          title: "Day 4 · Dublin tech & startups",
+          lesson: "Presentation clinic at a coworking space with peer feedback loops.",
+          activity: "Docklands innovation visits, storytelling bootcamp, and live-music scavenger hunt through the city center.",
+        },
+        {
+          title: "Day 5 · Elective day trip",
+          lesson: "Storytelling + journaling review on the coach to either Galway or Belfast (group choice).",
+          activity: "Street-art walk, museum stop, and café debrief before returning for a relaxed evening.",
+        },
+        {
+          title: "Day 6 · Cultural deep dive",
+          lesson: "Grammar refinement over shared breakfast and vocabulary lightning rounds.",
+          activity: "Museum or Gaelic sports outing followed by small-group coaching and optional theatre night.",
+        },
+        {
+          title: "Day 7 · Coffeehouse capstone",
+          lesson: "Final pronunciation checks, goal review, and personal action plans at a local café.",
+          activity: "Check-out logistics coaching, practical airport dialogues, and evening flight back to Frankfurt.",
+        },
+      ],
+    },
   },
   {
     slug: "dublin-business",
@@ -163,11 +225,11 @@ export const destinations: Destination[] = [
   // Custom / negotiated project slot
   {
     slug: "custom-tailored",
-    name: "Custom Delegation Programs (7–21 days)",
+    name: "Custom English Team Building Events (7–21 days)",
     region: "Global",
     lengths: [7, 10, 14, 21],
     blurb:
-      "Need London + Brussels? Singapore + Sydney? We assemble bespoke itineraries aligned to your operational goals, compliance needs, or Bildungsurlaub requirements.",
+      "Need London + Brussels? Singapore + Sydney? We assemble bespoke itineraries focused on English team building for executives, NGOs, and enterprise groups, aligned to your operational goals, compliance needs, or Bildungsurlaub requirements.",
     highlights: [
       "Choice of English-speaking destinations beyond the core list",
       "Curriculum mapped to your KPIs and regulatory needs",
@@ -323,8 +385,15 @@ const regionTemplates: Record<string, { themes: string[]; activities: string[] }
 
 export function itineraryFor(
   d: Destination,
-  length: number = 14
+  length: number = 14,
+  override?: Record<number, { title: string; lesson: string; activity: string }[]>
 ): { days: { title: string; lesson: string; activity: string }[] } {
+  if (override?.[length]) {
+    return { days: override[length] as { title: string; lesson: string; activity: string }[] };
+  }
+  if (d.customItinerary?.[length]) {
+    return { days: d.customItinerary[length] as { title: string; lesson: string; activity: string }[] };
+  }
   const bySlug: Record<string, { themes: string[]; activities: string[] }> = {
     "florida": {
       themes: [
@@ -386,24 +455,24 @@ export function itineraryFor(
         "sunset capstone",
       ],
     },
-    "florida-grand-canyon": {
+    "florida-grand-cayman": {
       themes: [
-        "Travel English",
-        "Presentations & Storytelling",
+        "Hospitality English",
+        "Finance & Compliance",
         "Listening & Pronunciation",
         "Email & Messaging",
-        "Workplace English",
+        "Storytelling",
         "Cultural Fluency",
         "Conversational Fluency",
       ],
       activities: [
         "Florida coastal conversation lab",
-        "museum visit & discussion",
-        "national park orientation",
-        "Grand Canyon rim walk",
-        "heritage center visit",
-        "market/food hall dialogs",
-        "capstone reflection",
+        "aviation briefing + airport back-of-house tour",
+        "reef conservation snorkel",
+        "George Town finance district walk",
+        "mangrove kayak vocabulary sprint",
+        "sunset catamaran networking",
+        "beachside capstone + coconut tasting",
       ],
     },
     "long-beach-ca": {
@@ -750,6 +819,14 @@ export function itineraryFor(
     ],
   };
 
+  const funAddOns = [
+    " capped with a street-food tasting challenge",
+    " plus a journaling circle at a local café",
+    " followed by a sunset photo scavenger hunt",
+    " with live music or theatre tickets for the evening",
+    " alongside a charity micro-mission or volunteer drop-in",
+  ];
+
   const regionSpec = d.region ? regionTemplates[d.region] : undefined;
   const spec = bySlug[d.slug] || regionSpec || fallback;
 
@@ -758,10 +835,11 @@ export function itineraryFor(
     const day = i + 1;
     const theme = spec.themes[i % spec.themes.length];
     const activity = spec.activities[i % spec.activities.length];
+    const addOn = funAddOns[i % funAddOns.length];
     days.push({
       title: `Day ${day} — ${theme}`,
-      lesson: `2–3 hr coached session focused on ${theme.toLowerCase()}.`,
-      activity: `Guided ${activity} in ${d.name}.`,
+      lesson: `Immersive studio on ${theme.toLowerCase()} with rapid-fire drills, feedback, and personal action items.`,
+      activity: `Guided ${activity} in ${d.name}${addOn}.`,
     });
   }
   return { days };

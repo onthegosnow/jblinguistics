@@ -1,0 +1,56 @@
+[
+  {
+    "id": "bfb799a4-3672-4487-9ac7-6581c962c679",
+    "submittedAt": "2025-11-14T19:27:10.838Z",
+    "candidateName": "Ryan Snow",
+    "candidateEmail": "onthegosnow@gmail.com",
+    "proctorEmail": "onthegosnow@gmail.com",
+    "testLanguage": "en",
+    "summary": {
+      "totalCorrect": 1,
+      "totalQuestions": 200,
+      "percentage": 0.5,
+      "breakdown": {
+        "A1": {
+          "correct": 0,
+          "incorrect": 2,
+          "unanswered": 33,
+          "total": 35
+        },
+        "A2": {
+          "correct": 0,
+          "incorrect": 1,
+          "unanswered": 33,
+          "total": 34
+        },
+        "B1": {
+          "correct": 0,
+          "incorrect": 1,
+          "unanswered": 35,
+          "total": 36
+        },
+        "B2": {
+          "correct": 1,
+          "incorrect": 0,
+          "unanswered": 32,
+          "total": 33
+        },
+        "C1": {
+          "correct": 0,
+          "incorrect": 0,
+          "unanswered": 29,
+          "total": 29
+        },
+        "C2": {
+          "correct": 0,
+          "incorrect": 0,
+          "unanswered": 33,
+          "total": 33
+        }
+      }
+    },
+    "accessMeta": {
+      "mode": "shared"
+    }
+  }
+]

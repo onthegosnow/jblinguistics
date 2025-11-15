@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { TealNav } from "@/components/teal-nav";
 import ChatbotWidget from "@/components/chatbot";
-import { copy } from "@/lib/copy";
+import Providers from "@/components/providers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -41,17 +41,12 @@ export default function RootLayout({
         <link rel="icon" href="/Brand/IMG_0364.PNG" type="image/png" />
         <link rel="apple-touch-icon" href="/Brand/IMG_0364.PNG" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <TealNav
-          data-layout-nav
-          lang="en"
-          t={copy.en}
-          ctaLabel="Get a quote"
-        />
-        {children}
-        <ChatbotWidget />
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Providers>
+          <TealNav data-layout-nav />
+          {children}
+          <ChatbotWidget />
+        </Providers>
       </body>
     </html>
   );

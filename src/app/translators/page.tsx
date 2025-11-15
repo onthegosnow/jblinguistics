@@ -1,8 +1,41 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { hasRole, staff } from "@/lib/staff";
+import { useMemo, useState } from "react";
+import { hasRole, staff, type StaffMember } from "@/lib/staff";
+
+const splitDisplayLanguages = (value: string): string[] =>
+  String(value || "")
+    .split(/[,/|·•–-]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const getStructuredLanguages = (person: StaffMember): string[] =>
+  Array.isArray(person.langs) && person.langs.length ? person.langs : splitDisplayLanguages(person.languages);
+
+const getRegionLabel = (person: StaffMember): string => (person.region || person.location || "").trim();
+
+const inferSpecialtiesFromTagline = (tagline?: string): string[] => {
+  if (!tagline) return [];
+  const tl = tagline.toLowerCase();
+  const guessed: string[] = [];
+  if (/(ielts|toefl|telc|goethe|exam|prüfung)/i.test(tl)) guessed.push("Exam Prep");
+  if (/(business|corporate|executive|leadership)/i.test(tl)) guessed.push("Business English");
+  if (/(academic|university|research)/i.test(tl)) guessed.push("Academic English");
+  if (/(conversation|speaking|fluency)/i.test(tl)) guessed.push("Conversation");
+  if (/(diplom|government|embassy|ministry)/i.test(tl)) guessed.push("Diplomacy & Government");
+  if (/(aviation|airbus|boeing|icao|pilot)/i.test(tl)) guessed.push("Aviation English");
+  if (/(medical|healthcare)/i.test(tl)) guessed.push("Medical English");
+  if (/(legal|contract|compliance)/i.test(tl)) guessed.push("Legal/Compliance");
+  if (/(kids|teens|young learners|schule)/i.test(tl)) guessed.push("Kids & Teens");
+  return guessed;
+};
+
+const getSpecialties = (person: StaffMember): string[] => {
+  if (Array.isArray(person.specialties) && person.specialties.length) return person.specialties;
+  if (Array.isArray(person.expertise) && person.expertise.length) return person.expertise;
+  return inferSpecialtiesFromTagline(person.tagline);
+};
 
 export default function TranslatorsPage() {
   const translators = staff.filter((p) => hasRole(p, "translator"));
@@ -11,13 +44,7 @@ export default function TranslatorsPage() {
   const allLangs = useMemo(() => {
     const set = new Set<string>();
     translators.forEach((t) => {
-      const arr: string[] =
-        Array.isArray((t as any).langs) && (t as any).langs.length
-          ? ((t as any).langs as string[])
-          : String(t.languages || "")
-              .split(/[,/|·•–-]+/)
-              .map((s) => s.trim())
-              .filter(Boolean);
+      const arr = getStructuredLanguages(t);
       arr.forEach((l) => set.add(l));
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
@@ -26,11 +53,8 @@ export default function TranslatorsPage() {
   const allRegions = useMemo(() => {
     const set = new Set<string>();
     translators.forEach((t) => {
-      const reg =
-        ((t as any).region as string) ||
-        ((t as any).location as string) ||
-        "";
-      if (reg) set.add(reg.trim());
+      const reg = getRegionLabel(t);
+      if (reg) set.add(reg);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [translators]);
@@ -52,23 +76,7 @@ export default function TranslatorsPage() {
       }
     };
     translators.forEach((t) => {
-      addFrom((t as any).specialties);
-      addFrom((t as any).expertise);
-      // Guess fallback from tagline if nothing structured
-      if (!((t as any).specialties || (t as any).expertise) && typeof (t as any).tagline === "string") {
-        const tl = ((t as any).tagline as string).toLowerCase();
-        const guessed: string[] = [];
-        if (/(ielts|toefl|telc|goethe|exam|prüfung)/i.test(tl)) guessed.push("Exam Prep");
-        if (/(business|corporate|executive|leadership)/i.test(tl)) guessed.push("Business English");
-        if (/(academic|university|research)/i.test(tl)) guessed.push("Academic English");
-        if (/(conversation|speaking|fluency)/i.test(tl)) guessed.push("Conversation");
-        if (/(diplom|government|embassy|ministry)/i.test(tl)) guessed.push("Diplomacy & Government");
-        if (/(aviation|airbus|boeing|icao|pilot)/i.test(tl)) guessed.push("Aviation English");
-        if (/(medical|healthcare)/i.test(tl)) guessed.push("Medical English");
-        if (/(legal|contract|compliance)/i.test(tl)) guessed.push("Legal/Compliance");
-        if (/(kids|teens|young learners|schule|schule)/i.test(tl)) guessed.push("Kids & Teens");
-        if (guessed.length) guessed.forEach((g) => set.add(g));
-      }
+      addFrom(getSpecialties(t));
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [translators]);
@@ -82,10 +90,6 @@ export default function TranslatorsPage() {
   // Pagination
   const PAGE_SIZE = 9;
   const [page, setPage] = useState(1);
-  useEffect(() => {
-    // Reset to first page whenever filters or query change
-        setPage(1);
-  }, [q, lang, region, spec]);
 
   const hasActive = useMemo(
     () => Boolean(q.trim() || lang || region || spec),
@@ -98,31 +102,18 @@ export default function TranslatorsPage() {
     return translators.filter((t) => {
       const name = (t.name || "").toLowerCase();
       const langsText = (t.languages || "").toLowerCase();
-      const reg = (((t as any).region as string) || ((t as any).location as string) || "").toLowerCase();
+      const reg = getRegionLabel(t).toLowerCase();
 
-      const specs: string[] =
-        Array.isArray((t as any).specialties) && (t as any).specialties.length
-          ? ((t as any).specialties as string[])
-          : Array.isArray((t as any).expertise) && (t as any).expertise.length
-          ? ((t as any).expertise as string[])
-          : typeof (t as any).expertise === "string"
-          ? String((t as any).expertise)
-              .split(/[,/|·•;]+/)
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [];
+      const specs = getSpecialties(t);
 
       const matchesTerm =
         !term || name.includes(term) || langsText.includes(term) || reg.includes(term);
 
       const matchesLang =
         !lang ||
-        (Array.isArray((t as any).langs)
-          ? ((t as any).langs as string[]).some((l) => l.toLowerCase() === lang.toLowerCase())
-          : String(t.languages || "")
-              .split(/[,/|·•–-]+/)
-              .map((s) => s.trim().toLowerCase())
-              .includes(lang.toLowerCase()));
+        getStructuredLanguages(t)
+          .map((l) => l.toLowerCase())
+          .includes(lang.toLowerCase());
 
       const matchesRegion = !region || reg === region.toLowerCase();
 
@@ -133,33 +124,6 @@ export default function TranslatorsPage() {
       return matchesTerm && matchesLang && matchesRegion && matchesSpec;
     });
   }, [translators, q, lang, region, spec]);
-
-  // Helper: get normalized specialties list for a teacher
-  function getSpecList(t: any): string[] {
-    if (Array.isArray(t.specialties) && t.specialties.length) return t.specialties as string[];
-    if (Array.isArray(t.expertise) && t.expertise.length) return t.expertise as string[];
-    if (typeof t.expertise === "string") {
-      return String(t.expertise)
-        .split(/[,/|·•;]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-    // Last-resort guess from tagline
-    const out: string[] = [];
-    if (typeof t.tagline === "string") {
-      const tl = String(t.tagline).toLowerCase();
-      if (/(ielts|toefl|telc|goethe|exam|prüfung)/i.test(tl)) out.push("Exam Prep");
-      if (/(business|corporate|executive|leadership)/i.test(tl)) out.push("Business English");
-      if (/(academic|university|research)/i.test(tl)) out.push("Academic English");
-      if (/(conversation|speaking|fluency)/i.test(tl)) out.push("Conversation");
-      if (/(diplom|government|embassy|ministry)/i.test(tl)) out.push("Diplomacy & Government");
-      if (/(aviation|airbus|boeing|icao|pilot)/i.test(tl)) out.push("Aviation English");
-      if (/(medical|healthcare)/i.test(tl)) out.push("Medical English");
-      if (/(legal|contract|compliance)/i.test(tl)) out.push("Legal/Compliance");
-      if (/(kids|teens|young learners|schule|schule)/i.test(tl)) out.push("Kids & Teens");
-    }
-    return out;
-  }
 
   const totalPages = Math.max(1, Math.ceil(filteredTranslators.length / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
@@ -199,7 +163,10 @@ export default function TranslatorsPage() {
               id="translator-search"
               type="search"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search by name, language, or region…"
               className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
@@ -209,7 +176,10 @@ export default function TranslatorsPage() {
             <select
               id="translator-lang"
               value={lang}
-              onChange={(e) => setLang(e.target.value)}
+              onChange={(e) => {
+                setLang(e.target.value);
+                setPage(1);
+              }}
               className="min-w-[14rem] rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="">All languages</option>
@@ -225,7 +195,10 @@ export default function TranslatorsPage() {
             <select
               id="translator-region"
               value={region}
-              onChange={(e) => setRegion(e.target.value)}
+              onChange={(e) => {
+                setRegion(e.target.value);
+                setPage(1);
+              }}
               className="min-w-[14rem] rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="">All regions</option>
@@ -241,7 +214,10 @@ export default function TranslatorsPage() {
             <select
               id="translator-spec"
               value={spec}
-              onChange={(e) => setSpec(e.target.value)}
+              onChange={(e) => {
+                setSpec(e.target.value);
+                setPage(1);
+              }}
               className="min-w-[16rem] rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="">All specialties</option>

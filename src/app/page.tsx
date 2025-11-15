@@ -3,18 +3,25 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { copy, type Lang } from "@/lib/copy";
-import TealNav from "@/components/teal-nav";
-import { destinations } from "@/lib/trips";
-
+import { TealNav } from "@/components/teal-nav";
+import { useLanguage } from "@/lib/language-context";
 
 export default function Home() {
-  const [lang, setLang] = useState<Lang>("en");
-  const t = copy[lang];
+  const { t } = useLanguage();
 
-  const featuredTrips = destinations.map((d) => d.name).slice(0, 11);
-  const remainingTrips = Math.max(0, destinations.length - featuredTrips.length);
+  const serviceLinks = {
+    learning: "/services/linguistic-learning",
+    translation: "/services/translation-localization",
+    interpretation: "/services/simultaneous-interpretation",
+    documents: "/services/certified-document-translation",
+  } as const;
+  const quickLinks = [
+    { key: "mission", label: t.sectionsShort.mission, href: "#mission" },
+    { key: "learning", label: t.sectionsShort.teacher, href: serviceLinks.learning },
+    { key: "translation", label: t.sectionsShort.translator, href: serviceLinks.translation },
+    { key: "trips", label: t.sectionsShort.trips, href: "/trips" },
+    { key: "contact", label: t.sectionsShort.contact, href: "#contact" },
+  ];
 
 
   return (
@@ -26,13 +33,7 @@ export default function Home() {
       `}</style>
       <div className="min-h-screen bg-gradient-to-b from-sky-50 via-teal-50 to-slate-100 text-slate-900">
       {/* Top bar / Nav */}
-      <TealNav
-        lang={lang}
-        t={t}
-        ctaLabel={lang === "en" ? "Get a quote" : "Angebot anfragen"}
-        onChangeLang={setLang}
-        usePageAnchors
-      />
+      <TealNav usePageAnchors />
 
 
       {/* Hero */}
@@ -75,20 +76,14 @@ export default function Home() {
                   href="/teachers/jonathan-brooks"
                   className="inline-flex items-center gap-1 text-sm text-sky-800 hover:text-sky-900 underline underline-offset-4"
                 >
-                  {lang === "en" ? "Meet Jonathan Brooks" : "Lernen Sie Jonathan Brooks kennen"} →
+                  {t.hero.meetJB} →
                 </Link>
               </div>
 
               <div className="mt-6 text-[11px] text-slate-600 space-y-1">
-                <p>
-                  • Linguistic provisions in 20+ languages: training, translation, and interpretation
-                </p>
-                <p>
-                  • Remote and in-person, project-based collaboration with companies, NGOs, and governments
-                </p>
-                <p>
-                  • Based on the experience of Jonathan Brooks – international affairs, aviation, and global volunteer work across 86 countries
-                </p>
+                {t.hero.highlights.map((item) => (
+                  <p key={item}>• {item}</p>
+                ))}
               </div>
             </div>
 
@@ -104,20 +99,15 @@ export default function Home() {
                 </div>
                 <div className="p-4 md:p-5 text-xs text-slate-700 space-y-2">
                   <p className="font-semibold text-sky-900 text-sm">
-                    Practical language learning, translation & interpretation
+                    {t.hero.cardTitle}
                   </p>
-                  <p>
-                    Sessions can be fully virtual or arranged in person – from
-                    one-to-one coaching to high-level diplomatic settings.
-                  </p>
+                  <p>{t.hero.cardBody}</p>
                 </div>
               </div>
               {/* Security-aware badge below the image card */}
               <div className="mt-4 rounded-2xl bg-sky-900 text-sky-50 text-[11px] p-3 shadow-lg shadow-sky-900/40">
-                <p className="font-semibold">Security-aware language support</p>
-                <p className="mt-1">
-                  Experience with German government work and security clearance (Level Ü1) for sensitive contexts.
-                </p>
+                <p className="font-semibold">{t.hero.badgeTitle}</p>
+                <p className="mt-1">{t.hero.badgeText}</p>
               </div>
             </div>
           </div>
@@ -129,9 +119,33 @@ export default function Home() {
             <h2 className="text-2xl md:text-3xl font-bold text-sky-900">
               {t.mission.heading}
             </h2>
-            <p className="mt-4 text-sm md:text-base text-slate-700 leading-relaxed">
-              {t.mission.text}
-            </p>
+            <div className="mt-4 space-y-3 text-sm md:text-base text-slate-700 leading-relaxed">
+              {[t.mission.text, "text2" in t.mission ? (t.mission as { text2?: string }).text2 : undefined]
+                .filter((paragraph): paragraph is string => Boolean(paragraph))
+                .map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Virtual-first highlight */}
+        <section className="py-8 md:py-12 bg-teal-900/90 text-sky-50">
+          <div className="max-w-5xl mx-auto px-4 grid md:grid-cols-[1.3fr,1fr] gap-8 items-center">
+            <div>
+              <h2 className="text-2xl font-semibold">{t.virtual.heading}</h2>
+              <p className="mt-3 text-sm md:text-base text-teal-50/90 leading-relaxed">
+                {t.virtual.text}
+              </p>
+            </div>
+            <ul className="space-y-2 text-xs md:text-sm">
+              {t.virtual.bullets.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span className="mt-1 h-2 w-2 rounded-full bg-white/80" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
@@ -140,367 +154,88 @@ export default function Home() {
           id="services-overview"
           className="py-10 md:py-14 bg-gradient-to-r from-teal-50 to-sky-50"
         >
-          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-3 gap-6">
-            <div className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 p-5 text-sm">
-              <h3 className="font-semibold text-sky-900">
-                {lang === "en" ? "Linguistic Learning" : "Sprachtraining"}
-              </h3>
-              <p className="mt-2 text-slate-700 text-xs leading-relaxed">
-                {lang === "en"
-                  ? "Structured yet flexible language programs for individuals and teams – online and on-site, aligned with your real communication needs."
-                  : "Strukturierte und flexible Sprachprogramme für Einzelpersonen und Teams – online und vor Ort, abgestimmt auf Ihre reale Kommunikation."}
-              </p>
+          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-4 gap-6">
+            {t.services.cards.map((card) => {
+              const href = serviceLinks[card.key as keyof typeof serviceLinks] ?? "#services-overview";
+              return (
+                <Link
+                  key={card.key}
+                  href={href}
+                  className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 p-5 text-sm flex flex-col gap-3 hover:-translate-y-0.5 transition"
+                >
+                  <h3 className="font-semibold text-sky-900">{card.title}</h3>
+                  <p className="text-slate-700 text-xs leading-relaxed">{card.description}</p>
+                  <span className="text-[11px] text-sky-700 font-semibold">
+                    {t.hero.ctaSecondary} →
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* About JB highlights */}
+        <section id="about" className="py-10 md:py-14 bg-white">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="max-w-2xl">
+              <p className="text-xs uppercase tracking-[0.3em] text-teal-600 font-semibold">{t.nav.aboutJb}</p>
+              <h2 className="mt-2 text-2xl md:text-3xl font-bold text-sky-900">{t.hero.title}</h2>
+              <p className="mt-3 text-sm md:text-base text-slate-700 leading-relaxed">{t.sectionsShort.mission}</p>
+              <p className="mt-3 text-sm text-slate-600">{t.hero.subtitle}</p>
             </div>
-            <div className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 p-5 text-sm">
-              <h3 className="font-semibold text-sky-900">
-                {lang === "en"
-                  ? "Translation & Localization"
-                  : "Übersetzung & Lokalisierung"}
-              </h3>
-              <p className="mt-2 text-slate-700 text-xs leading-relaxed">
-                {lang === "en"
-                  ? "Precise written translations and localized content for contracts, reports, websites, and internal documents."
-                  : "Präzise schriftliche Übersetzungen und lokalisierte Inhalte für Verträge, Berichte, Websites und interne Unterlagen."}
-              </p>
-            </div>
-            <div className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 p-5 text-sm">
-              <h3 className="font-semibold text-sky-900">
-                {lang === "en"
-                  ? "Simultaneous Interpretation"
-                  : "Simultan-Dolmetschen"}
-              </h3>
-              <p className="mt-2 text-slate-700 text-xs leading-relaxed">
-                {lang === "en"
-                  ? "Virtual and in-person simultaneous interpretation for diplomatic visits, negotiations, and high-stakes meetings."
-                  : "Virtuelles und persönliches Simultan-Dolmetschen für politische Besuche, Verhandlungen und wichtige Meetings."}
-              </p>
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {quickLinks.map((item) => (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700 hover:bg-white hover:-translate-y-0.5 transition shadow-sm shadow-slate-900/5"
+                >
+                  {item.label}
+                </Link>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* Teacher / learning section */}
-        <section id="teacher" className="py-10 md:py-14 bg-white">
+        {/* Enterprise section */}
+        <section className="py-10 md:py-14 bg-gradient-to-b from-white to-slate-100">
           <div className="max-w-6xl mx-auto px-4">
-            <div className="grid md:grid-cols-2 gap-10 items-start">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-sky-900">
-                  {t.teacher.heading}
-                </h2>
-                <p className="mt-4 text-sm md:text-base text-slate-700 leading-relaxed">
-                  {t.teacher.intro}
-                </p>
-                <ul className="mt-5 space-y-2 text-sm text-slate-700">
-                  {t.teacher.bullets.map((item, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="mt-1 h-2 w-2 rounded-full bg-teal-500" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <Link
-                    href="/teachers"
-                    className="inline-flex items-center rounded-full bg-teal-600 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-500 transition shadow-md shadow-teal-600/30"
-                  >
-                    {lang === "en" ? "View all teachers" : "Alle Lehrkräfte anzeigen"}
-                  </Link>
-                  <Link
-                    href="/teachers/jonathan-brooks"
-                    className="inline-flex items-center rounded-full border border-sky-900/20 bg-white/80 text-sky-900 px-4 py-2 text-sm font-semibold hover:bg-sky-50 transition"
-                  >
-                    {lang === "en" ? "Meet Jonathan Brooks" : "Jonathan Brooks kennenlernen"}
-                  </Link>
-                  <Link
-                    href="#contact"
-                    className="inline-flex items-center rounded-full bg-sky-900 text-white px-4 py-2 text-sm font-semibold hover:bg-sky-800 transition shadow-md shadow-sky-900/30"
-                  >
-                    {lang === "en" ? "Request a consultation" : "Beratung anfragen"}
-                  </Link>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="relative h-52 md:h-64 rounded-3xl overflow-hidden shadow-lg shadow-sky-900/15">
-                  <Image
-                    src="/images/home/teachers-collab.jpg"
-                    alt="Team workshop during a language session"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="rounded-3xl bg-gradient-to-r from-teal-600 to-sky-700 text-sky-50 p-4 text-xs md:text-[13px] shadow-lg shadow-teal-700/30">
-                  <p className="font-semibold">
-                    {lang === "en"
-                      ? "Streamlined learning for busy professionals"
-                      : "Effizientes Lernen für vielbeschäftigte Fachkräfte"}
-                  </p>
-                  <p className="mt-1">
-                    {lang === "en"
-                      ? "Sessions are built around real documents, calls, and situations you actually face – so every hour moves you forward."
-                      : "Die Trainings basieren auf echten Dokumenten, Gesprächen und Situationen aus Ihrem Alltag – jede Stunde bringt Sie spürbar voran."}
+            <div className="rounded-3xl bg-white shadow-lg shadow-sky-900/10 border border-slate-200 p-6 md:p-8">
+              <div className="md:flex md:items-start md:justify-between gap-8">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-sky-900">
+                    {t.enterprise.heading}
+                  </h2>
+                  <p className="mt-3 text-sm md:text-base text-slate-700 leading-relaxed">
+                    {t.enterprise.intro}
                   </p>
                 </div>
-              </div>
-            </div>
-
-            {/* Teacher cards */}
-            <div className="mt-10">
-              <h3 className="text-xl font-semibold text-sky-900 text-center mb-6">
-                {lang === "en" ? "Meet Our Teachers" : "Unser Lehrteam"}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {[
-                  {
-                    name: "Anna Müller",
-                    lang: "German",
-                    img: "https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&dpr=2&w=400",
-                  },
-                  {
-                    name: "James Carter",
-                    lang: "English",
-                    img: "https://images.pexels.com/photos/2379005/pexels-photo-2379005.jpeg?auto=compress&dpr=2&w=400",
-                  },
-                  {
-                    name: "Claire Dubois",
-                    lang: "French",
-                    img: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&dpr=2&w=400",
-                  },
-                ].map((tch) => (
-                  <div
-                    key={tch.name}
-                    className="rounded-xl shadow-md overflow-hidden bg-slate-50"
-                  >
-                    <img
-                      src={tch.img}
-                      alt={tch.name}
-                      className="w-full h-60 object-cover"
-                    />
-                    <div className="p-4">
-                      <h3 className="text-xl font-bold text-teal-700">
-                        {tch.name}
-                      </h3>
-                      <p className="text-slate-600">
-                        {tch.lang}{" "}
-                        {lang === "en" ? "Instructor" : "Sprachtrainer*in"}
-                      </p>
-                      <a
-                        href="#contact"
-                        className="text-sm text-sky-600 hover:underline"
-                      >
-                        {lang === "en"
-                          ? "Ask about this teacher"
-                          : "Anfrage zu dieser Lehrkraft"}
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Translator / interpretation section */}
-        <section
-          id="translator"
-          className="py-10 md:py-14 bg-gradient-to-b from-sky-900 to-slate-900 text-sky-50"
-        >
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="grid md:grid-cols-2 gap-10 items-start">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold">
-                  {t.translator.heading}
-                </h2>
-                <p className="mt-4 text-sm md:text-base text-sky-100 leading-relaxed">
-                  {t.translator.intro}
-                </p>
-                <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-teal-200">
-                  {t.translator.servicesTitle}
-                </h3>
-                <ul className="mt-3 space-y-2 text-xs md:text-sm">
-                  {t.translator.services.map((item, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="mt-1 h-2 w-2 rounded-full bg-teal-400" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-5">
-                  <Link
-                    href="/teachers/jonathan-brooks"
-                    className="inline-flex items-center rounded-full bg-teal-500 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-400 transition shadow-md shadow-teal-500/30"
-                  >
-                    {lang === "en" ? "Work with Jonathan Brooks" : "Mit Jonathan Brooks arbeiten"}
-                  </Link>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="rounded-3xl bg-slate-800/70 border border-sky-600/40 p-4 text-xs md:text-[13px]">
-                  <p className="font-semibold text-teal-300">
-                    {lang === "en"
-                      ? "Virtual & in-person, project-based"
-                      : "Virtuell & vor Ort, projektbasiert"}
-                  </p>
-                  <p className="mt-1 text-sky-100">
-                    {lang === "en"
-                      ? "All interpretation work is scoped as a negotiated project – tailored to your terminology, confidentiality requirements, and schedule."
-                      : "Alle Dolmetscheinsätze erfolgen im Rahmen projektbezogener Vereinbarungen – abgestimmt auf Terminologie, Vertraulichkeit und Ihren Zeitplan."}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl overflow-hidden shadow-lg shadow-sky-900/40">
-                  <div className="relative h-48">
-                    <Image
-                      src="https://images.pexels.com/photos/1181615/pexels-photo-1181615.jpeg?auto=compress&dpr=2&w=900"
-                      alt="Conference interpretation setting"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Translator cards */}
-            <div className="mt-10">
-              <h3 className="text-xl font-semibold text-sky-50 text-center mb-6">
-                {lang === "en"
-                  ? "Our Translators & Interpreters"
-                  : "Unsere Übersetzer*innen & Dolmetscher*innen"}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {[
-                  {
-                    name: "Lukas Schmidt",
-                    lang: "German–English",
-                    img: "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&dpr=2&w=400",
-                  },
-                  {
-                    name: "Elena Rossi",
-                    lang: "Italian–English",
-                    img: "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&dpr=2&w=400",
-                  },
-                  {
-                    name: "Sofia Hernandez",
-                    lang: "Spanish–English",
-                    img: "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&dpr=2&w=400",
-                  },
-                ].map((tr) => (
-                  <div
-                    key={tr.name}
-                    className="rounded-xl shadow-md overflow-hidden bg-slate-900/60 border border-slate-700"
-                  >
-                    <img
-                      src={tr.img}
-                      alt={tr.name}
-                      className="w-full h-60 object-cover"
-                    />
-                    <div className="p-4">
-                      <h3 className="text-xl font-bold text-teal-300">
-                        {tr.name}
-                      </h3>
-                      <p className="text-sky-100">{tr.lang} Translator</p>
-                      <a
-                        href="#contact"
-                        className="text-sm text-teal-200 hover:underline"
-                      >
-                        {lang === "en"
-                          ? "Ask about availability"
-                          : "Verfügbarkeit anfragen"}
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 flex justify-center">
                 <Link
                   href="#contact"
-                  className="inline-flex items-center rounded-full bg-teal-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-teal-400 transition shadow-md shadow-teal-500/30"
+                  className="mt-4 inline-flex items-center rounded-full bg-sky-900 text-white px-4 py-2 text-sm font-semibold hover:bg-sky-800 transition shadow-md shadow-sky-900/30"
                 >
-                  {lang === "en" ? "Request an interpreter" : "Dolmetscher*in anfragen"}
+                  {t.nav.ctaLabel}
                 </Link>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Join our network */}
-        <section
-          id="join-our-team"
-          className="py-10 md:py-14 bg-gradient-to-b from-white to-slate-100"
-        >
-          <div className="max-w-6xl mx-auto px-4 rounded-3xl bg-white shadow-lg shadow-sky-900/10 border border-slate-200 p-5 md:p-7">
-            <div className="md:flex md:items-center md:justify-between gap-6">
-              <div>
-                <h3 className="text-2xl font-bold text-sky-900">
-                  {lang === "en"
-                    ? "Teach or translate with JB Linguistics"
-                    : "Werden Sie Teil des JB Linguistics Netzwerks"}
-                </h3>
-                <p className="mt-2 text-sm text-slate-700">
-                  {lang === "en"
-                    ? "We welcome experienced teachers, translators, and interpreters who thrive in mission-driven and government-grade environments."
-                    : "Wir freuen uns über erfahrene Lehrkräfte, Übersetzer*innen und Dolmetscher*innen, die gerne in anspruchsvollen Projekten und Behördenumfeldern arbeiten."}
-                </p>
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                {t.enterprise.cards.map((card) => (
+                  <div
+                    key={card.title}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
+                  >
+                    <h3 className="text-base font-semibold text-sky-900">{card.title}</h3>
+                    <p className="mt-2 text-slate-600">{card.text}</p>
+                    <ul className="mt-3 space-y-1.5">
+                      {card.bullets.map((item) => (
+                        <li key={item} className="flex gap-2">
+                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-teal-500" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               </div>
-              <div className="mt-4 md:mt-0">
-                <Link
-                  href="/apply"
-                  className="inline-flex items-center rounded-full bg-sky-900 text-white px-4 py-2 text-sm font-semibold hover:bg-sky-800 transition shadow-md shadow-sky-900/30"
-                >
-                  {lang === "en" ? "Go to application page" : "Zur Bewerbungsseite"}
-                </Link>
-              </div>
-            </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {[
-                {
-                  title: lang === "en" ? "Teachers" : "Lehrkräfte",
-                  bullets:
-                    lang === "en"
-                      ? [
-                          "Corporate, NGO, or government training experience",
-                          "Confident online + on-site delivery",
-                          "Precise documentation & assessment habits",
-                        ]
-                      : [
-                          "Erfahrung in Unternehmens-, NGO- oder Behördenprojekten",
-                          "Sicher im Online- und Präsenzunterricht",
-                          "Sorgfältige Dokumentation & Assessments",
-                        ],
-                },
-                {
-                  title:
-                    lang === "en"
-                      ? "Translators & Interpreters"
-                      : "Übersetzer*innen & Dolmetscher*innen",
-                  bullets:
-                    lang === "en"
-                      ? [
-                          "Terminology depth for legal, aviation, and diplomatic work",
-                          "Availability for short-notice missions",
-                          "Security-minded, discreet communication",
-                        ]
-                      : [
-                          "Fachsprache für Recht, Luftfahrt und Diplomatie",
-                          "Flexibel für kurzfristige Einsätze",
-                          "Diskrete und sicherheitsbewusste Kommunikation",
-                        ],
-                },
-              ].map((card) => (
-                <div
-                  key={card.title}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
-                >
-                  <h4 className="text-base font-semibold text-sky-900">{card.title}</h4>
-                  <ul className="mt-3 space-y-1.5">
-                    {card.bullets.map((b) => (
-                      <li key={b} className="flex gap-2">
-                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-teal-500" />
-                        <span>{b}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
             </div>
           </div>
         </section>
@@ -522,7 +257,7 @@ export default function Home() {
                   href="/teachers/jonathan-brooks"
                   className="inline-flex items-center rounded-full bg-sky-900 text-sky-50 px-4 py-2 text-sm font-semibold hover:bg-sky-800 transition"
                 >
-                  Read Jonathan Brooks’s full bio →
+                  {t.gov.ctaBio} →
                 </Link>
               </div>
             </div>
@@ -535,60 +270,27 @@ export default function Home() {
           id="trips"
           className="py-10 md:py-14 bg-gradient-to-r from-teal-700 to-sky-700 text-sky-50"
         >
-          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-2 gap-10 items-center">
+          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-[1.1fr,0.9fr] gap-10 items-center">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold">
-                {t.trips.heading}
-              </h2>
-              <p className="mt-4 text-sm md:text-base leading-relaxed">
-                {t.trips.intro}
-              </p>
-              <ul className="mt-4 space-y-2 text-xs md:text-sm">
-                {t.trips.bullets.map((item, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="mt-1 h-2 w-2 rounded-full bg-teal-200" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-4 text-xs md:text-sm text-teal-100">
-                {t.trips.note}
-              </p>
-              {/* Featured trips list */}
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold">
-                  {lang === "en"
-                    ? "Featured 2026 itineraries"
-                    : "Vorgestellte 2026-Reisen"}
-                </h3>
-                <ul className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                  {featuredTrips.map((d) => (
-                    <li
-                      key={d}
-                      className="rounded-full bg-sky-800/40 border border-sky-200/20 px-3 py-1"
-                    >
-                      {d}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-[11px] text-teal-100">
-                  {lang === "en"
-                    ? `Need something different? We build additional custom itineraries to match your goals, calendar, and compliance requirements.${remainingTrips > 0 ? ` We already have ${remainingTrips} more departures reserved for bespoke cohorts.` : ""}`
-                    : `Sie wünschen ein anderes Ziel? Wir gestalten zusätzliche Wunschreisen – abgestimmt auf Ihre Ziele, Termine und Compliance-Anforderungen.${remainingTrips > 0 ? ` Zusätzlich stehen ${remainingTrips} weitere Abfahrten für maßgeschneiderte Gruppen bereit.` : ""}`}
-                </p>
-                <p className="mt-1 text-[11px] text-teal-100">
-                  {lang === "en"
-                    ? "German citizens can leverage Bildungsurlaub through JB Linguistics — more details shared after you inquire."
-                    : "Für deutsche Staatsbürger ist Bildungsurlaub über JB Linguistics möglich – Details erhalten Sie nach Ihrer Anfrage."}
-                </p>
-                <p className="mt-1 text-[11px] text-teal-100">
-                  <Link href="/trips" className="underline">
-                    {lang === "en"
-                      ? "Browse the full Linguistic Learning Trips page for every 2026 departure."
-                      : "Alle 2026-Reisen finden Sie auf der Linguistic-Learning-Trips-Seite."}
-                  </Link>
-                </p>
+              <p className="text-xs uppercase tracking-[0.3em] text-teal-200 font-semibold">{t.nav.trips}</p>
+              <h2 className="mt-2 text-2xl md:text-3xl font-bold">{t.trips.heading}</h2>
+              <p className="mt-4 text-sm md:text-base leading-relaxed text-sky-50/90">{t.trips.intro}</p>
+              <p className="mt-4 text-sm text-teal-100">{t.sectionsShort.trips}</p>
+              <div className="mt-6 flex flex-wrap gap-3 text-sm">
+                <Link
+                  href="/trips"
+                  className="inline-flex items-center rounded-full bg-white text-sky-900 px-4 py-2 font-semibold hover:bg-slate-100 transition"
+                >
+                  {t.trips.browseLink}
+                </Link>
+                <Link
+                  href={serviceLinks.learning}
+                  className="inline-flex items-center rounded-full border border-white/40 px-4 py-2 font-semibold text-white hover:bg-white/10 transition"
+                >
+                  {t.nav.teacher}
+                </Link>
               </div>
+              <p className="mt-3 text-xs text-teal-100/90">{t.trips.note}</p>
             </div>
             <div className="relative h-56 md:h-72 rounded-3xl overflow-hidden shadow-2xl shadow-sky-900/40">
               <Image
@@ -597,6 +299,45 @@ export default function Home() {
                 fill
                 className="object-cover"
               />
+            </div>
+          </div>
+        </section>
+
+        {/* Careers teaser */}
+        <section id="careers" className="py-10 md:py-14 bg-white">
+          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-[1.2fr,0.8fr] gap-8 items-center">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-teal-500 font-semibold">Talent network</p>
+              <h2 className="mt-2 text-2xl md:text-3xl font-bold text-sky-900">{t.careers.heading}</h2>
+              <p className="mt-3 text-sm md:text-base text-slate-700 leading-relaxed">{t.careers.text}</p>
+              <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                {t.careers.bullets.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-teal-500" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5 flex flex-wrap gap-3 text-sm">
+                <Link
+                  href="/careers"
+                  className="inline-flex items-center rounded-full bg-teal-600 text-white px-5 py-2 font-semibold hover:bg-teal-500 transition shadow-md shadow-teal-600/30"
+                >
+                  {t.careers.ctaPrimary}
+                </Link>
+                <a
+                  href="#contact"
+                  className="inline-flex items-center rounded-full border border-slate-300 px-5 py-2 font-semibold text-sky-900 hover:bg-slate-50"
+                >
+                  {t.careers.ctaSecondary}
+                </a>
+              </div>
+            </div>
+            <div className="rounded-3xl border border-teal-100 bg-gradient-to-br from-teal-50 to-sky-50 p-5 shadow-lg shadow-teal-900/10 text-sm text-slate-700">
+              <p className="text-xs uppercase tracking-[0.3em] text-teal-600 font-semibold">Why join</p>
+              <p className="mt-2 text-base font-semibold text-sky-900">{t.careers.cardTitle}</p>
+              <p className="mt-2 text-sm">{t.careers.cardText}</p>
+              <p className="mt-3 text-xs text-slate-500">{t.careers.note}</p>
             </div>
           </div>
         </section>
@@ -656,9 +397,7 @@ export default function Home() {
                     {t.contact.servicesLabel}
                   </label>
                   <select className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400">
-                    <option value="">
-                      {lang === "en" ? "Select…" : "Bitte wählen…"}
-                    </option>
+                    <option value="">{t.contact.servicesPlaceholder}</option>
                     {t.contact.servicesOptions.map((opt, i) => (
                       <option key={i} value={opt}>
                         {opt}
@@ -672,11 +411,7 @@ export default function Home() {
                   </label>
                   <input
                     type="text"
-                    placeholder={
-                      lang === "en"
-                        ? "e.g. English ↔ German, French, Swedish…"
-                        : "z. B. Deutsch ↔ Englisch, Französisch, Schwedisch…"
-                    }
+                    placeholder={t.contact.languagesPlaceholder}
                     className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                   />
                 </div>
@@ -689,11 +424,7 @@ export default function Home() {
                 <textarea
                   rows={4}
                   className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                  placeholder={
-                    lang === "en"
-                      ? "What are you working on? Please include context (industry, audience, volume, dates)…"
-                      : "Worum geht es genau? Bitte nennen Sie kurz den Kontext (Branche, Zielgruppe, Umfang, Zeitraum)…"
-                  }
+                  placeholder={t.contact.detailsPlaceholder}
                 />
               </div>
 
@@ -726,17 +457,13 @@ export default function Home() {
                   {t.contact.submit}
                 </button>
                 <p className="text-[10px] text-slate-400 max-w-xs">
-                  {lang === "en"
-                    ? "By submitting, you agree that JB Linguistics LLC may contact you about this inquiry. No information is shared with third parties without your consent."
-                    : "Mit dem Absenden erklären Sie sich einverstanden, dass JB Linguistics LLC Sie zu dieser Anfrage kontaktiert. Es werden keine Daten ohne Ihre Zustimmung an Dritte weitergegeben."}
+                  {t.contact.disclaimer}
                 </p>
               </div>
             </form>
 
             <p className="mt-4 text-[11px] text-slate-400">
-              {lang === "en"
-                ? "Technical note: connect this form to your preferred email, CRM, or form handler (e.g. API route, Formspree, Make/Zapier)."
-                : "Technischer Hinweis: Verbinden Sie dieses Formular mit Ihrem bevorzugten E-Mail-Postfach, CRM oder Form-Service (z. B. API-Route, Formspree, Make/Zapier)."}
+              {t.contact.techNote}
             </p>
           </div>
         </section>
@@ -746,22 +473,20 @@ export default function Home() {
       <section className="bg-gradient-to-r from-teal-600 to-sky-700 text-sky-50">
         <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-sm md:text-base font-medium text-center md:text-left">
-            {lang === "en"
-              ? "Ready to move forward? Tell us about your project and get a tailored proposal."
-              : "Bereit für den nächsten Schritt? Beschreiben Sie Ihr Vorhaben und erhalten Sie ein individuelles Angebot."}
+            {t.globalCta.text}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="#contact"
               className="inline-flex items-center rounded-full bg-white text-sky-900 px-4 py-2 text-sm font-semibold hover:bg-sky-50 transition shadow-sm"
             >
-              {lang === "en" ? "Get a quote" : "Angebot anfragen"}
+              {t.globalCta.primary}
             </Link>
             <Link
               href="#contact"
               className="inline-flex items-center rounded-full border border-white/70 text-white px-4 py-2 text-sm font-semibold hover:bg-white/10 transition"
             >
-              {lang === "en" ? "Request a consultation" : "Beratung anfragen"}
+              {t.globalCta.secondary}
             </Link>
           </div>
         </div>
@@ -775,17 +500,15 @@ export default function Home() {
             reserved.
           </p>
           <p className="opacity-80">
-            {lang === "en"
-              ? "Remote-first, available globally for negotiated projects."
-              : "Remote-first, weltweit für projektbasierte Zusammenarbeit verfügbar."}
+            {t.footer.tagline}
           </p>
           <div className="flex items-center gap-3">
             <Link href="/teachers" className="hover:text-sky-200">
-              {lang === "en" ? "Teachers" : "Lehrkräfte"}
+              {t.footer.teachers}
             </Link>
             <span aria-hidden="true">·</span>
             <Link href="/teachers/jonathan-brooks" className="hover:text-sky-200">
-              {lang === "en" ? "JB’s Bio" : "JBs Profil"}
+              {t.footer.bio}
             </Link>
           </div>
         </div>
