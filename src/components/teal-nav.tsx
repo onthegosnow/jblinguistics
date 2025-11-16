@@ -17,6 +17,7 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
   const { lang, setLang, t } = useLanguage();
   const sectionHref = (id: string) => (usePageAnchors ? `#${id}` : `/#${id}`);
   const [langOpen, setLangOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const langRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -47,6 +48,25 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
               className="h-12 w-12 md:h-16 md:w-16 drop-shadow-sm object-contain"
             />
           </Link>
+        </div>
+
+        <div className="flex flex-1 items-center justify-end gap-3 md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileOpen((prev) => !prev)}
+            className="inline-flex items-center gap-1 rounded-full border border-white/60 bg-white/10 px-4 py-2 text-sm font-semibold text-white"
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? "Close" : "Menu"}
+            <span aria-hidden>{mobileOpen ? "✕" : "☰"}</span>
+          </button>
+          <LanguageMenu
+            lang={lang}
+            setLang={setLang}
+            open={langOpen}
+            setOpen={setLangOpen}
+            langRef={langRef}
+          />
         </div>
 
         <nav className="hidden md:flex flex-1 items-center justify-end gap-3 text-sm font-semibold flex-nowrap">
@@ -111,6 +131,53 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
           />
         </nav>
       </div>
+      {mobileOpen && (
+        <div className="md:hidden border-t border-white/20 bg-[#0b9a98] text-white">
+          <div className="px-4 py-4 space-y-2 text-sm font-semibold">
+            <Link href="/" className="block rounded-2xl bg-white/10 px-4 py-2" onClick={() => setMobileOpen(false)}>
+              Home
+            </Link>
+            <Link
+              href="/services/linguistic-learning"
+              className="block rounded-2xl bg-white/10 px-4 py-2"
+              onClick={() => setMobileOpen(false)}
+            >
+              {t.nav.teacher}
+            </Link>
+            <Link
+              href="/services/translation-localization"
+              className="block rounded-2xl bg-white/10 px-4 py-2"
+              onClick={() => setMobileOpen(false)}
+            >
+              {t.nav.translator}
+            </Link>
+            <Link href="/trips" className="block rounded-2xl bg-white/10 px-4 py-2" onClick={() => setMobileOpen(false)}>
+              {t.nav.trips}
+            </Link>
+            <Link
+              href="/teachers/jonathan-brooks"
+              className="block rounded-2xl bg-white/10 px-4 py-2"
+              onClick={() => setMobileOpen(false)}
+            >
+              {t.nav.aboutJb}
+            </Link>
+            <Link
+              href="/careers"
+              className="block rounded-2xl bg-white/10 px-4 py-2"
+              onClick={() => setMobileOpen(false)}
+            >
+              {t.nav.careers}
+            </Link>
+            <Link
+              href={sectionHref("contact")}
+              className="block rounded-2xl bg-white text-center text-sky-900 px-4 py-2 shadow"
+              onClick={() => setMobileOpen(false)}
+            >
+              {t.nav.ctaLabel}
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
