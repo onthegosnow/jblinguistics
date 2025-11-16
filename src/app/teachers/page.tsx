@@ -130,7 +130,7 @@ export default function TeachersPage() {
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
-            href="#contact"
+            href="/#contact"
             className="inline-flex items-center rounded-full bg-teal-600 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-500 transition shadow-md shadow-teal-600/30"
           >
             Request a consultation
@@ -212,15 +212,20 @@ export default function TeachersPage() {
               key={t.slug}
               className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 overflow-hidden flex flex-col"
             >
-              <div className="relative h-60 overflow-hidden flex items-start">
+              <div
+                className={`relative h-64 overflow-hidden flex items-start ${
+                  t.imageFit === "contain" ? "bg-slate-200" : ""
+                }`}
+              >
                 <Image
                   src={t.image}
                   alt={t.name}
                   fill
-                  className={`object-cover ${
-                    t.imageFocus ? "" : "object-center"
-                  }`}
-                  style={{ objectPosition: t.imageFocus ?? "center 20%" }}
+                  className="object-cover"
+                  style={{
+                    objectPosition: t.imageFocus ?? "50% 35%",
+                    objectFit: t.imageFit ?? "cover",
+                  }}
                 />
               </div>
               <div className="p-4 flex-1 flex flex-col">
@@ -245,7 +250,7 @@ export default function TeachersPage() {
         </div>
         <div className="mt-8 flex justify-center">
           <Link
-            href="#contact"
+            href="/#contact"
             className="inline-flex items-center rounded-full bg-sky-900 text-white px-5 py-2.5 text-sm font-semibold hover:bg-sky-800 transition shadow-md shadow-sky-900/30"
           >
             Get a quote

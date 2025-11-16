@@ -11,9 +11,10 @@ const serviceOptions = [
 ];
 
 const durationOptions = [
-  { value: "30", label: "30 minutes" },
-  { value: "45", label: "45 minutes" },
-  { value: "60", label: "60 minutes" },
+  { value: "90", label: "1.5 hours" },
+  { value: "180", label: "3 hours" },
+  { value: "270", label: "4.5 hours" },
+  { value: "intensive", label: "Inquire about intensive blocks" },
 ];
 
 const timezoneOptions = [
@@ -26,8 +27,6 @@ const timezoneOptions = [
   "America/Phoenix",
   "America/Los_Angeles",
 ];
-
-const BOOKING_URL = process.env.NEXT_PUBLIC_BOOKING_URL;
 
 export default function EducationBookingEngine({ compact = false }: { compact?: boolean }) {
   const [serviceType, setServiceType] = useState(serviceOptions[0].value);
@@ -46,37 +45,22 @@ export default function EducationBookingEngine({ compact = false }: { compact?: 
       return;
     }
 
-    const payload = {
-      serviceType,
-      preferredLanguage,
-      timezone,
-      date,
-      time,
-      duration,
-      notes,
-    };
+    const body = [
+      `Service: ${serviceOptions.find((s) => s.value === serviceType)?.label ?? serviceType}`,
+      `Language: ${preferredLanguage.toUpperCase()}`,
+      `Timezone: ${timezone}`,
+      `Preferred date: ${date}`,
+      `Preferred time: ${time}`,
+      `Duration: ${durationOptions.find((d) => d.value === duration)?.label ?? duration}`,
+      notes ? `Notes: ${notes}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
-    if (BOOKING_URL) {
-      try {
-        const url = new URL(BOOKING_URL);
-        Object.entries(payload).forEach(([key, value]) => url.searchParams.set(key, String(value)));
-        window.open(url.toString(), "_blank", "noopener,noreferrer");
-        setMessage("Booking portal opened in a new tab.");
-      } catch (error) {
-        console.error("Invalid booking URL", error);
-        setMessage("Booking portal URL is invalid. Please check NEXT_PUBLIC_BOOKING_URL.");
-      }
-      return;
-    }
-
-    setMessage(
-      `No third-party booking tool configured. Share this info with JB: ${JSON.stringify(payload, null, 2)}`
-    );
+    window.location.href = `mailto:jblinquisticsllc@gmail.com?subject=Schedule time with JB&body=${encodeURIComponent(body)}`;
+    setMessage("Your email client just opened with the request details.");
+    return;
   };
-
-  const note = BOOKING_URL
-    ? "Your selections will open in our secure booking partner portal."
-    : "Set NEXT_PUBLIC_BOOKING_URL (Cal.com, Calendly, HubSpot, etc.) to route this form to your scheduling vendor.";
 
   return (
     <div
@@ -87,7 +71,7 @@ export default function EducationBookingEngine({ compact = false }: { compact?: 
       <h3 className="text-lg font-semibold text-sky-900">
         {compact ? "Book JB for a session" : "Schedule time with JB"}
       </h3>
-      <p className="mt-2 text-sm text-slate-600">{note}</p>
+      <p className="mt-2 text-sm text-slate-600">Complete the form and we’ll email the request directly to JB</p>
       <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="text-sm text-slate-700">
@@ -182,17 +166,11 @@ export default function EducationBookingEngine({ compact = false }: { compact?: 
             type="submit"
             className="inline-flex items-center justify-center rounded-full bg-teal-600 text-white px-5 py-2 text-sm font-semibold hover:bg-teal-500 transition"
           >
-            {BOOKING_URL ? "Open booking portal" : "Copy details"}
+            Send request
           </button>
           {message && <p className="text-xs text-slate-600">{message}</p>}
         </div>
       </form>
-      {!BOOKING_URL && !compact && (
-        <p className="mt-4 text-xs text-slate-500">
-          Tip: point <code>NEXT_PUBLIC_BOOKING_URL</code> to a Cal.com, Calendly, HubSpot, or Salesforce booking link with query
-          parameters, so this form deep-links into your preferred provider.
-        </p>
-      )}
     </div>
   );
 }

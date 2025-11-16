@@ -1,6 +1,13 @@
 import { promises as fs } from "fs";
 import crypto from "crypto";
 import path from "path";
+import type {
+  TeacherAssessmentAnswer,
+  TeacherAssessmentLanguage,
+  TeacherAssessmentScore,
+} from "../teacher-assessment";
+import type { TranslatorExerciseLanguage } from "../translator-exercise";
+import type { ResumeInsights } from "../resume-analysis";
 
 const RESULTS_FILE = process.env.ASSESSMENT_RESULTS_FILE ?? path.join(process.cwd(), "tmp", "assessment-results.json");
 const ACCESS_FILE = process.env.ASSESSMENT_ACCESS_FILE ?? path.join(process.cwd(), "tmp", "assessment-access-codes.json");
@@ -51,12 +58,27 @@ export type CareerApplicationRecord = {
   email?: string;
   location?: string;
   languages?: string;
+  workingLanguages?: TeacherAssessmentLanguage[];
   experience?: string;
   availability?: string;
   message?: string;
   roles: string[];
   landing?: string;
   resume: StoredResume;
+  resumeInsights?: ResumeInsights;
+  teacherAssessments?: Array<{
+    language: TeacherAssessmentLanguage;
+    seed: number;
+    answers: TeacherAssessmentAnswer[];
+    responses: { conflict: string; attendance: string };
+    score: TeacherAssessmentScore;
+  }>;
+  translatorExercise?: {
+    language: TranslatorExerciseLanguage;
+    submission: string;
+    score: number | null;
+    missingTokens: string[];
+  };
 };
 
 async function ensureDir(filePath: string) {

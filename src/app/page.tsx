@@ -8,6 +8,53 @@ import { useLanguage } from "@/lib/language-context";
 
 export default function Home() {
   const { t } = useLanguage();
+  const tripCollageImages = [
+    {
+      src: "https://images.unsplash.com/photo-1636937400111-f08d1fe8af2b?auto=format&fit=crop&w=1600&q=80",
+      alt: "Clearwater Beach shoreline in Florida",
+      label: "Clearwater Beach, FL",
+    },
+    {
+      src: "https://images.unsplash.com/photo-1508168143669-3033ab15b23b?auto=format&fit=crop&w=1600&q=80",
+      alt: "Aerial view of Seven Mile Beach in the Cayman Islands",
+      label: "Cayman Islands",
+    },
+    {
+      src: "https://images.unsplash.com/photo-1667978754074-0be1bba96981?auto=format&fit=crop&w=1600&q=80",
+      alt: "Pink sand cove in Bermuda",
+      label: "Bermuda pink sands",
+    },
+    {
+      src: "https://images.unsplash.com/photo-1588384153148-ebd739ac430c?auto=format&fit=crop&w=1600&q=80",
+      alt: "Statue of Liberty and Manhattan skyline",
+      label: "New York City",
+    },
+    {
+      src: "https://images.unsplash.com/photo-1719510193787-fd393a9b4856?auto=format&fit=crop&w=1600&q=80",
+      alt: "Turquoise waves along a Hawaii coastline",
+      label: "Hawaii coastline",
+    },
+    {
+      src: "https://images.unsplash.com/photo-1680724431830-8b9433e61e7d?auto=format&fit=crop&w=1600&q=80",
+      alt: "Performer spinning a fire-lit hula hoop in Hawaii",
+      label: "Hula & fire performance",
+    },
+    {
+      src: "https://images.unsplash.com/photo-1506184106046-1e6e90c0222d?auto=format&fit=crop&w=1600&q=80",
+      alt: "Hollywood sign view in Los Angeles",
+      label: "Hollywood sign",
+    },
+    {
+      src: "https://images.unsplash.com/photo-1621534893852-355409fccaee?auto=format&fit=crop&w=1600&q=80",
+      alt: "Hollywood Walk of Fame crowds",
+      label: "Walk of Fame",
+    },
+    {
+      src: "https://images.unsplash.com/photo-1568430328012-21ed450453ea?auto=format&fit=crop&w=1600&q=80",
+      alt: "Whale breaching during Pacific tour",
+      label: "Whale watching",
+    },
+  ];
 
   const serviceLinks = {
     learning: "/services/linguistic-learning",
@@ -15,14 +62,6 @@ export default function Home() {
     interpretation: "/services/simultaneous-interpretation",
     documents: "/services/certified-document-translation",
   } as const;
-  const quickLinks = [
-    { key: "mission", label: t.sectionsShort.mission, href: "#mission" },
-    { key: "learning", label: t.sectionsShort.teacher, href: serviceLinks.learning },
-    { key: "translation", label: t.sectionsShort.translator, href: serviceLinks.translation },
-    { key: "trips", label: t.sectionsShort.trips, href: "/trips" },
-    { key: "contact", label: t.sectionsShort.contact, href: "#contact" },
-  ];
-
 
   return (
     <>
@@ -38,32 +77,41 @@ export default function Home() {
 
       {/* Hero */}
       <main>
-        <section className="pt-10 pb-14 md:pt-16 md:pb-20">
-          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-2 gap-10 md:gap-14 items-center">
-            <div>
-              {/* Large logo replacing the text title */}
-              <div className="mb-4">
+        <section className="pt-10 pb-14 md:pt-12 md:pb-20">
+          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-2 gap-10 md:gap-14 items-start">
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4 flex flex-col items-center">
                 <Image
-                  src="/Brand/IMG_0364.PNG"
+                  src="/Brand/JB LOGO no TEXT.png"
                   alt="JB Linguistics LLC logo"
                   width={320}
                   height={320}
                   priority
-                  className="w-56 md:w-64 lg:w-72 h-auto object-contain drop-shadow-md"
+                  className="w-52 md:w-60 lg:w-72 h-auto object-contain drop-shadow-md"
                 />
+                <h1 className="mt-3 text-2xl md:text-3xl font-semibold text-sky-900">{t.hero.title}</h1>
               </div>
-              <h1 className="sr-only">{t.hero.title}</h1>
-              <p className="mt-4 text-sm md:text-base text-slate-700 leading-relaxed">
+              <p className="mt-4 text-sm md:text-base text-slate-700 leading-relaxed max-w-xl">
                 {t.hero.subtitle}
               </p>
+              <div className="mt-6 w-full rounded-3xl bg-white/80 p-5 text-left shadow-md shadow-sky-900/5 border border-slate-100">
+                <p className="text-xs uppercase tracking-[0.35em] text-slate-500">{t.mission.heading}</p>
+                <div className="mt-3 space-y-2 text-sm text-slate-700 leading-relaxed">
+                  {[t.mission.text, "text2" in t.mission ? (t.mission as { text2?: string }).text2 : undefined]
+                    .filter((paragraph): paragraph is string => Boolean(paragraph))
+                    .map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
+                </div>
+              </div>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <a
-                  href="#contact"
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <Link
+                  href="/#contact"
                   className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold bg-teal-500 hover:bg-teal-600 text-white shadow-md shadow-teal-500/40 transition"
                 >
                   {t.hero.ctaPrimary}
-                </a>
+                </Link>
                 <a
                   href="#services-overview"
                   className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold border border-sky-900/20 bg-white/70 text-sky-900 hover:bg-sky-50 transition"
@@ -71,37 +119,78 @@ export default function Home() {
                   {t.hero.ctaSecondary}
                 </a>
               </div>
-              <div className="mt-3">
-                <Link
-                  href="/teachers/jonathan-brooks"
-                  className="inline-flex items-center gap-1 text-sm text-sky-800 hover:text-sky-900 underline underline-offset-4"
-                >
-                  {t.hero.meetJB} →
-                </Link>
+              <div className="mt-6 w-full rounded-3xl bg-[#f2fbfb] border border-teal-100 p-5 text-left shadow-inner shadow-teal-900/5">
+                <p className="text-xs uppercase tracking-[0.35em] text-teal-500">{t.virtual.heading}</p>
+                <p className="mt-3 text-sm text-slate-700 leading-relaxed">
+                  {t.virtual.text}
+                </p>
+                <ul className="mt-3 space-y-2 text-xs text-slate-600">
+                  {t.virtual.bullets.map((item) => (
+                    <li key={item} className="flex gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-teal-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
-              <div className="mt-6 text-[11px] text-slate-600 space-y-1">
+              <div className="mt-6 text-[11px] text-slate-600 space-y-1 text-left">
                 {t.hero.highlights.map((item) => (
                   <p key={item}>• {item}</p>
                 ))}
               </div>
             </div>
 
-            <div className="relative">
+            <div className="relative flex flex-col gap-5">
               <div className="rounded-3xl overflow-hidden shadow-xl shadow-sky-900/15 border border-teal-100 bg-white">
-                <div className="relative h-56 md:h-72">
+                <div className="relative h-56 md:h-60">
                   <Image
-                    src="/images/home/hero-collab.jpg"
-                    alt="Language consultant working with professionals"
+                    src="https://images.unsplash.com/photo-1612832164313-ac0d7e07b5ce?auto=format&fit=crop&w=1000&q=80"
+                    alt="Language coaching conducted over a secure video call"
                     fill
                     className="object-cover"
+                    priority
                   />
                 </div>
                 <div className="p-4 md:p-5 text-xs text-slate-700 space-y-2">
                   <p className="font-semibold text-sky-900 text-sm">
-                    {t.hero.cardTitle}
+                    Secure video-based instruction
                   </p>
-                  <p>{t.hero.cardBody}</p>
+                  <p>
+                    One-to-one and cohort lessons stream through encrypted meeting rooms with collaborative boards, lesson recordings, and chat transcripts.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-3xl overflow-hidden shadow-lg shadow-slate-900/10 border border-slate-100 bg-white/90 translate-x-4">
+                <div className="relative h-48 md:h-52">
+                  <Image
+                    src="https://images.unsplash.com/photo-1702825328124-dab63d85490e?auto=format&fit=crop&w=1000&q=80"
+                    alt="Certified translation packet with an embossed seal"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-4 text-xs text-slate-700 space-y-2">
+                  <p className="font-semibold text-sky-900 text-sm">Certified documents with seals</p>
+                  <p>
+                    Sworn linguists deliver notarized translations, apostille support, and multi-step QA tailored to immigration and regulatory filings.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-3xl overflow-hidden shadow-lg shadow-slate-900/10 border border-slate-100 bg-white/90 translate-x-8">
+                <div className="relative h-48 md:h-52">
+                  <Image
+                    src="https://images.unsplash.com/photo-1596339502177-8de71f7cacfd?auto=format&fit=crop&w=1100&q=80"
+                    alt="Interpreter supporting delegates at a government conference"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-4 text-xs text-slate-700 space-y-2">
+                  <p className="font-semibold text-sky-900 text-sm">Diplomacy-grade interpretation</p>
+                  <p>
+                    Conference interpreters familiar with UN, EU, and NATO protocols keep official negotiations on-script with simultaneous and consecutive coverage.
+                  </p>
                 </div>
               </div>
               {/* Security-aware badge below the image card */}
@@ -113,86 +202,35 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Mission */}
-        <section id="mission" className="py-10 md:py-14 bg-white/80">
-          <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-2xl md:text-3xl font-bold text-sky-900">
-              {t.mission.heading}
-            </h2>
-            <div className="mt-4 space-y-3 text-sm md:text-base text-slate-700 leading-relaxed">
-              {[t.mission.text, "text2" in t.mission ? (t.mission as { text2?: string }).text2 : undefined]
-                .filter((paragraph): paragraph is string => Boolean(paragraph))
-                .map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Virtual-first highlight */}
-        <section className="py-8 md:py-12 bg-teal-900/90 text-sky-50">
-          <div className="max-w-5xl mx-auto px-4 grid md:grid-cols-[1.3fr,1fr] gap-8 items-center">
-            <div>
-              <h2 className="text-2xl font-semibold">{t.virtual.heading}</h2>
-              <p className="mt-3 text-sm md:text-base text-teal-50/90 leading-relaxed">
-                {t.virtual.text}
-              </p>
-            </div>
-            <ul className="space-y-2 text-xs md:text-sm">
-              {t.virtual.bullets.map((item) => (
-                <li key={item} className="flex gap-2">
-                  <span className="mt-1 h-2 w-2 rounded-full bg-white/80" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        {/* Services overview tiles */}
         <section
           id="services-overview"
-          className="py-10 md:py-14 bg-gradient-to-r from-teal-50 to-sky-50"
+          className="py-10 md:py-14 bg-[#0e4e4b] text-teal-50"
         >
-          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-4 gap-6">
-            {t.services.cards.map((card) => {
-              const href = serviceLinks[card.key as keyof typeof serviceLinks] ?? "#services-overview";
-              return (
-                <Link
-                  key={card.key}
-                  href={href}
-                  className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 p-5 text-sm flex flex-col gap-3 hover:-translate-y-0.5 transition"
-                >
-                  <h3 className="font-semibold text-sky-900">{card.title}</h3>
-                  <p className="text-slate-700 text-xs leading-relaxed">{card.description}</p>
-                  <span className="text-[11px] text-sky-700 font-semibold">
-                    {t.hero.ctaSecondary} →
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* About JB highlights */}
-        <section id="about" className="py-10 md:py-14 bg-white">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="max-w-2xl">
-              <p className="text-xs uppercase tracking-[0.3em] text-teal-600 font-semibold">{t.nav.aboutJb}</p>
-              <h2 className="mt-2 text-2xl md:text-3xl font-bold text-sky-900">{t.hero.title}</h2>
-              <p className="mt-3 text-sm md:text-base text-slate-700 leading-relaxed">{t.sectionsShort.mission}</p>
-              <p className="mt-3 text-sm text-slate-600">{t.hero.subtitle}</p>
+          <div className="max-w-6xl mx-auto px-4 space-y-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-teal-200">Our services</p>
+              <h2 className="mt-2 text-2xl md:text-3xl font-semibold text-white">Choose the mix you need</h2>
+              <p className="mt-2 text-sm md:text-base text-teal-100/90">
+                Mix and match language training, certified translations, and interpretation support to match each program or contract.
+              </p>
             </div>
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {quickLinks.map((item) => (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700 hover:bg-white hover:-translate-y-0.5 transition shadow-sm shadow-slate-900/5"
-                >
-                  {item.label}
-                </Link>
-              ))}
+            <div className="grid md:grid-cols-4 gap-6">
+              {t.services.cards.map((card) => {
+                const href = serviceLinks[card.key as keyof typeof serviceLinks] ?? "#services-overview";
+                return (
+                  <Link
+                    key={card.key}
+                    href={href}
+                    className="rounded-3xl bg-white/10 border border-white/25 p-5 text-sm flex flex-col gap-3 hover:bg-white/15 transition"
+                  >
+                    <h3 className="font-semibold text-white">{card.title}</h3>
+                    <p className="text-teal-50/90">{card.description}</p>
+                    <span className="text-teal-200 font-semibold text-xs">
+                      {t.hero.ctaSecondary} →
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -211,8 +249,8 @@ export default function Home() {
                   </p>
                 </div>
                 <Link
-                  href="#contact"
-                  className="mt-4 inline-flex items-center rounded-full bg-sky-900 text-white px-4 py-2 text-sm font-semibold hover:bg-sky-800 transition shadow-md shadow-sky-900/30"
+                  href="/#contact"
+                  className="mt-4 inline-flex items-center rounded-full bg-sky-900 text-white px-4 py-2 text-sm font-semibold hover:bg-sky-800 transition shadow-md shadow-sky-900/30 whitespace-nowrap"
                 >
                   {t.nav.ctaLabel}
                 </Link>
@@ -237,31 +275,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* Government & security section */}
-        <section id="gov" className="py-10 md:py-14 bg-white">
-          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-[1.4fr,1fr] gap-10 items-start">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-sky-900">
-                {t.gov.heading}
-              </h2>
-              <div className="mt-4 space-y-3 text-sm md:text-base text-slate-700 leading-relaxed">
-                {t.gov.text.map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-              </div>
-              <div className="mt-4">
-                <Link
-                  href="/teachers/jonathan-brooks"
-                  className="inline-flex items-center rounded-full bg-sky-900 text-sky-50 px-4 py-2 text-sm font-semibold hover:bg-sky-800 transition"
-                >
-                  {t.gov.ctaBio} →
-                </Link>
-              </div>
-            </div>
-            {/* Intentionally left blank: highlight box removed */}
           </div>
         </section>
 
@@ -292,52 +305,20 @@ export default function Home() {
               </div>
               <p className="mt-3 text-xs text-teal-100/90">{t.trips.note}</p>
             </div>
-            <div className="relative h-56 md:h-72 rounded-3xl overflow-hidden shadow-2xl shadow-sky-900/40">
-              <Image
-                src="/images/home/travel-showcase.jpg"
-                alt="Cityscape representing language learning travel"
-                fill
-                className="object-cover"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Careers teaser */}
-        <section id="careers" className="py-10 md:py-14 bg-white">
-          <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-[1.2fr,0.8fr] gap-8 items-center">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-teal-500 font-semibold">Talent network</p>
-              <h2 className="mt-2 text-2xl md:text-3xl font-bold text-sky-900">{t.careers.heading}</h2>
-              <p className="mt-3 text-sm md:text-base text-slate-700 leading-relaxed">{t.careers.text}</p>
-              <ul className="mt-4 space-y-2 text-sm text-slate-700">
-                {t.careers.bullets.map((item) => (
-                  <li key={item} className="flex gap-2">
-                    <span className="mt-1 h-2 w-2 rounded-full bg-teal-500" />
-                    <span>{item}</span>
-                  </li>
+            <div className="rounded-3xl overflow-hidden shadow-2xl shadow-sky-900/40 border border-white/20 bg-white/10 p-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
+                {tripCollageImages.map((image) => (
+                  <div key={image.alt} className="relative w-full aspect-[4/3] overflow-hidden rounded-2xl">
+                    <Image
+                      src={image.src}
+                      alt={image.alt}
+                      fill
+                      sizes="(min-width: 1024px) 20vw, (min-width: 640px) 45vw, 90vw"
+                      className="object-cover"
+                    />
+                  </div>
                 ))}
-              </ul>
-              <div className="mt-5 flex flex-wrap gap-3 text-sm">
-                <Link
-                  href="/careers"
-                  className="inline-flex items-center rounded-full bg-teal-600 text-white px-5 py-2 font-semibold hover:bg-teal-500 transition shadow-md shadow-teal-600/30"
-                >
-                  {t.careers.ctaPrimary}
-                </Link>
-                <a
-                  href="#contact"
-                  className="inline-flex items-center rounded-full border border-slate-300 px-5 py-2 font-semibold text-sky-900 hover:bg-slate-50"
-                >
-                  {t.careers.ctaSecondary}
-                </a>
               </div>
-            </div>
-            <div className="rounded-3xl border border-teal-100 bg-gradient-to-br from-teal-50 to-sky-50 p-5 shadow-lg shadow-teal-900/10 text-sm text-slate-700">
-              <p className="text-xs uppercase tracking-[0.3em] text-teal-600 font-semibold">Why join</p>
-              <p className="mt-2 text-base font-semibold text-sky-900">{t.careers.cardTitle}</p>
-              <p className="mt-2 text-sm">{t.careers.cardText}</p>
-              <p className="mt-3 text-xs text-slate-500">{t.careers.note}</p>
             </div>
           </div>
         </section>
@@ -479,14 +460,14 @@ export default function Home() {
             {t.globalCta.text}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="#contact"
-              className="inline-flex items-center rounded-full bg-white text-sky-900 px-4 py-2 text-sm font-semibold hover:bg-sky-50 transition shadow-sm"
+                <Link
+                  href="/#contact"
+              className="inline-flex items-center rounded-full bg-white text-sky-900 px-4 py-2 text-sm font-semibold hover:bg-sky-50 transition shadow-sm whitespace-nowrap"
             >
               {t.globalCta.primary}
             </Link>
             <Link
-              href="#contact"
+              href="/#contact"
               className="inline-flex items-center rounded-full border border-white/70 text-white px-4 py-2 text-sm font-semibold hover:bg-white/10 transition"
             >
               {t.globalCta.secondary}

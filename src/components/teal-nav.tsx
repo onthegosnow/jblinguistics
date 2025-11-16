@@ -32,37 +32,50 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
 
   return (
     <header
-      className={`sticky top-0 z-30 bg-[#0fb5b3] border-b border-[#0a8c8a]/80 text-white backdrop-blur ${className}`}
+      className={`sticky top-0 z-30 bg-[#0fb5b3] border-b border-[#0a8c8a]/80 text-sky-900 backdrop-blur ${className}`}
       {...rest}
     >
       <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 px-4 py-3 md:py-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Link href="/" className="flex items-center">
             <Image
-              src="/Brand/IMG_0364_Longer%202.png"
+              src="/Brand/JB LOGO no TEXT.png"
               alt="JB Linguistics LLC"
-              width={200}
-              height={48}
+              width={76}
+              height={76}
               priority
-              className="h-8 w-auto md:h-10 drop-shadow-sm"
+              className="h-12 w-12 md:h-16 md:w-16 drop-shadow-sm object-contain"
             />
-            <span className="sr-only">JB Linguistics LLC</span>
           </Link>
         </div>
 
-        <nav className="hidden md:flex items-center gap-2 text-sm font-medium">
-          <NavDropdown label={t.nav.mission} href={sectionHref("mission")} summary={t.sectionsShort.mission} />
+        <nav className="hidden md:flex flex-1 items-center justify-end gap-3 text-sm font-semibold flex-nowrap">
           <Link
-            href="/services/linguistic-learning"
-            className="px-3 py-2 text-sky-50 hover:text-white hover:bg-white/15 rounded-full transition"
+            href="/"
+            className="px-2 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
           >
-            {t.nav.teacher}
+            Home
           </Link>
-          <NavDropdown
-            label={t.nav.translator}
-            href="/services/translation-localization"
-            summary={t.sectionsShort.translator}
-          />
+          <div className="flex items-center gap-1 rounded-full flex-nowrap">
+            <Link
+              href="/services/linguistic-learning"
+              className="px-3 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
+            >
+              {t.nav.teacher}
+            </Link>
+            <Link
+              href="/services/translation-localization"
+              className="px-3 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
+            >
+              {t.nav.translator}
+            </Link>
+            <TripsDropdown
+              label={t.nav.trips}
+              baseHref="/trips"
+              items={destinations}
+              viewAllLabel={t.nav.viewAllDestinations}
+            />
+          </div>
           <CombinedStaffDropdown
             label={t.nav.staff}
             teachersLabel={t.nav.teacher}
@@ -72,20 +85,20 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
           />
           <Link
             href="/teachers/jonathan-brooks"
-            className="px-3 py-2 text-sky-50 hover:text-white hover:bg-white/15 rounded-full transition"
+            className="px-3 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
           >
             {t.nav.aboutJb}
           </Link>
-          <TripsDropdown
-            label={t.nav.trips}
-            baseHref="/trips"
-            items={destinations}
-            viewAllLabel={t.nav.viewAllDestinations}
-          />
           <NavDropdown label={t.nav.contact} href={sectionHref("contact")} summary={t.sectionsShort.contact} />
           <Link
+            href="/careers"
+            className="px-3 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
+          >
+            {t.nav.careers}
+          </Link>
+          <Link
             href={sectionHref("contact")}
-            className="ml-1 inline-flex items-center rounded-full bg-white text-sky-900 px-3 py-2 text-sm font-semibold hover:bg-sky-50 transition shadow-sm"
+            className="ml-1 inline-flex items-center rounded-full bg-white text-sky-900 px-4 py-2 text-sm font-semibold hover:bg-sky-50 transition shadow-sm whitespace-nowrap"
           >
             {t.nav.ctaLabel}
           </Link>
@@ -120,7 +133,7 @@ function LanguageMenu({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1 rounded-full border border-white/40 px-3 py-2 text-xs font-semibold"
+        className="inline-flex items-center gap-1 rounded-full border border-sky-900/30 bg-white/80 px-3 py-2 text-xs font-semibold text-sky-900"
       >
         {lang.toUpperCase()} <span aria-hidden>{open ? "▲" : "▼"}</span>
         <span className="sr-only">Select language</span>
@@ -159,7 +172,10 @@ function NavDropdown({
   const [open, setOpen] = useState(false);
   return (
     <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-      <a href={href} className="px-3 py-2 text-sky-50 hover:text-white hover:bg-white/15 rounded-full transition">
+      <a
+        href={href}
+        className="px-3 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
+      >
         {label}
       </a>
       {open && (
@@ -215,7 +231,7 @@ function CombinedStaffDropdown({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex items-center gap-1 px-3 py-2 text-sky-50 hover:text-white hover:bg-white/15 rounded-full transition"
+        className="inline-flex items-center gap-1 px-3 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
         aria-haspopup="true"
         aria-expanded={open}
       >
@@ -343,7 +359,7 @@ function TripsDropdown({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex items-center gap-1 px-3 py-2 text-sky-50 hover:text-white hover:bg-white/15 rounded-full transition"
+        className="inline-flex items-center gap-1 px-3 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
         aria-haspopup="true"
         aria-expanded={open}
       >

@@ -27,6 +27,7 @@ export const copy = {
       trips: "Learning Trips",
       contact: "Contact",
       aboutJb: "Meet our CEO",
+      careers: "Careers",
       viewAllDestinations: "View all destinations",
       viewAllStaff: "View all",
       ctaLabel: "Get a quote",
@@ -39,6 +40,7 @@ export const copy = {
       ctaSecondary: "Explore services",
       meetJB: "Meet Jonathan Brooks",
       highlights: [
+        "Registered as JB Linguistics LLC (Florida) and JB Linguistics GmbH (Germany) to support U.S. and EU clients.",
         "All services are virtual unless you book a Linguistic Learning Trip.",
         "Certified document & website translations with rigorous QA and sworn linguists.",
         "Programs delivered in Dutch, English, French, German, Mandarin, Spanish, and Swedish.",
@@ -405,6 +407,13 @@ export const copy = {
         "Educators with aviation, enterprise, or diplomatic experience are fast-tracked for 2025–2026 cohorts.",
         "Remote delivery with transparent pay bands, fast invoicing, and bilingual support.",
       ],
+      perks: [
+        "Flexible schedules built around client-demand windows.",
+        "Fully remote workflows with secure virtual classrooms.",
+        "Free language-learning benefits for staff and contractors.",
+        "Discounted translation services for employees and their families.",
+        "Free onboarding and AI-focused training once hired.",
+      ],
       ctaPrimary: "Visit the careers page",
       ctaSecondary: "Refer a colleague",
       cardTitle: "Remote-first, multilingual, compliance-ready",
@@ -439,6 +448,45 @@ export const copy = {
         success: "Thank you for applying — our talent team will review and get back to you shortly.",
         error: "Unable to submit right now. Please try again in a moment.",
       },
+      assessments: {
+        teacher: {
+          heading: "Teacher assessment (required)",
+          intro:
+            "Select the language you wish to teach. Answer all 100 grammar questions (B2–C2) and provide two reflective responses about your classroom management approach.",
+          languageLabel: "Assessment language",
+          languagePlaceholder: "Choose the language you teach",
+          answeredLabel: "Answered",
+          shortResponseHeading: "Short responses",
+          conflictPrompt:
+            "If a student consistently creates conflict during class, how do you resolve it in the moment and prevent future disruptions?",
+          attendancePrompt:
+            "If students cancel frequently or skip sessions, how would you correct the pattern and adjust your approach to improve participation?",
+          requirementNote: "All 100 questions and both written responses are mandatory for educator roles.",
+        },
+        translator: {
+          heading: "Translator exercise (required)",
+          intro:
+            "Read the short English passage about AI adoption at work. Select the language you translate into and deliver your best rendering below.",
+          storyHeading: "Source passage",
+          story: [
+            "Artificial intelligence proves most useful when it frees employees from the repetitive load that clutters every project. A thoughtful rollout begins with a clear promise to staff: AI exists to augment skilled professionals, not to displace them. Organizations that pair deliberate pilots with tight guardrails can introduce automation that handles the rote steps—transcription, glossary prep, file conversions—so people spend more time reasoning with stakeholders.",
+            "Successful AI adoption always includes candid briefings about data. Companies describe which workflows stay on secure servers, which tools anonymize source text, and how every interaction is logged for audits. By training teams on both the limits and the strengths of large language models, leaders maintain trust even as they accelerate delivery timelines.",
+            "Implementation goes beyond translation memory or canned chatbots. High-performing teams maintain neural glossaries that surface context-specific hints during live interpretation of meetings; they pair summarization engines with human reviewers to condense parliamentary debates into policy-ready briefs; and they tune classifier models so they flag cultural or regulatory risks before a document reaches a decision maker. Every workflow is paired with human checkpoints and traceable metadata.",
+            "Human review remains the signature feature of responsible AI programs. Automation produces an initial draft; domain experts annotate it, resolve local nuance, and explain the rationale back to clients or executives. That dialog becomes training data for future projects—without ever leaving the secure perimeter—so organizations continuously improve without leaking sensitive information.",
+            "In conclusion, AI functions best as a disciplined assistant. Companies that invest in security, transparency, and deliberate change management adopt automation without sacrificing confidentiality or empathy. Translating the passage above should capture that same balance: embrace the excitement of innovation while anchoring it in responsible, human-centered delivery.",
+          ],
+          languageLabel: "Target language",
+          languagePlaceholder: "Select the language you translate into",
+          submissionLabel: "Your translation",
+          notes: "Please submit your translation in the selected language. We will auto-score accuracy and surface any quality risks in the admin portal.",
+        },
+        validation: {
+          teacherLanguage: "Select an assessment language before submitting.",
+          teacherIncomplete: "Answer all 100 questions and complete both short responses for the teacher assessment.",
+          translatorLanguage: "Select a target language for the translation exercise.",
+          translatorText: "Provide your translation before submitting.",
+        },
+      },
     },
     footer: {
       tagline: "Virtual-first, available worldwide for negotiated projects.",
@@ -456,6 +504,7 @@ export const copy = {
       trips: "Leerreizen",
       contact: "Contact",
       aboutJb: "Maak kennis met onze CEO",
+      careers: "Carrières",
       viewAllDestinations: "Alle bestemmingen",
       viewAllStaff: "Alles bekijken",
       ctaLabel: "Offerte aanvragen",
@@ -468,6 +517,7 @@ export const copy = {
       ctaSecondary: "Diensten bekijken",
       meetJB: "Maak kennis met Jonathan Brooks",
       highlights: [
+        "Geregistreerd als JB Linguistics LLC (Florida) en JB Linguistics GmbH (Duitsland) om klanten in de VS en Europa te ondersteunen.",
         "Alle diensten zijn virtueel, behalve wanneer u een Linguistic Learning Trip boekt.",
         "Beëdigde document- en websitevertalingen met strenge kwaliteitscontrole en beëdigde taalkundigen.",
         "Programma's beschikbaar in het Nederlands, Engels, Frans, Duits, Mandarijn, Spaans en Zweeds.",
@@ -836,6 +886,13 @@ export const copy = {
         "Trainers met ervaring bij luchtvaart, corporates of diplomatie krijgen snelle intake.",
         "Volledig remote levering met transparante tarieven en snelle facturatie.",
       ],
+      perks: [
+        "Flexibele schema's afgestemd op klantvraag.",
+        "Volledig remote workflows met beveiligde virtuele klaslokalen.",
+        "Gratis taalleren voor medewerkers en contractors.",
+        "Kortingen op vertaaldiensten voor medewerkers en hun gezinnen.",
+        "Gratis onboarding en AI-gerichte training na startdatum.",
+      ],
       ctaPrimary: "Bekijk de carrièrepagina",
       ctaSecondary: "Tip een collega",
       cardTitle: "Remote-first, meertalig en compliant",
@@ -870,6 +927,45 @@ export const copy = {
         success: "Dank u! We reageren zodra er een match is.",
         error: "Verzenden mislukt. Probeer het zo opnieuw.",
       },
+      assessments: {
+        teacher: {
+          heading: "Docenttoets (verplicht)",
+          intro:
+            "Selecteer de taal die u wilt onderwijzen. Beantwoord alle 100 grammatica-vragen (B2–C2) en geef twee reflectieve antwoorden over klasbeheer.",
+          languageLabel: "Taal van de toets",
+          languagePlaceholder: "Kies de taal waarin u lesgeeft",
+          answeredLabel: "Beantwoord",
+          shortResponseHeading: "Korte antwoorden",
+          conflictPrompt:
+            "Als een student herhaaldelijk conflicten veroorzaakt, hoe lost u dat direct op en hoe voorkomt u herhaling op lange termijn?",
+          attendancePrompt:
+            "Als studenten vaak afzeggen of wegblijven, welke stappen neemt u om deelname te verbeteren en uw aanpak aan te passen?",
+          requirementNote: "Alle 100 vragen en beide schriftelijke antwoorden zijn verplicht voor docentrollen.",
+        },
+        translator: {
+          heading: "Vertaalopdracht (verplicht)",
+          intro:
+            "Lees de Engelse passage over AI op de werkvloer. Kies de taal waarin u vertaalt en lever uw beste vertaling hieronder aan.",
+          storyHeading: "Bronpassage",
+          story: [
+            "Kunstmatige intelligentie levert de meeste waarde wanneer het teams bevrijdt van de repetitieve last die elk project vertraagt. Een zorgvuldig uitgerolde strategie begint met een heldere belofte: AI is er om professionals te ondersteunen, niet om hen overbodig te maken. Bedrijven die met pilots en strakke veiligheidskaders werken, kunnen automatisering inzetten voor de routine—transcripties, glossaria, bestandconversies—zodat experts meer tijd overhouden voor analyse en advies.",
+            "Succesvolle adoptie start met transparantie over data. Organisaties leggen uit welke workflows op eigen servers blijven, welke tools bronmateriaal anonimiseren en hoe elke interactie wordt gelogd voor audits. Door teams te trainen in de mogelijkheden en beperkingen van grote taalmodellen behouden leiders het vertrouwen terwijl doorlooptijden korter worden.",
+            "Implementatie reikt verder dan vertaalgeheugens of standaardchatbots. High-performance teams onderhouden neurale glossaria die contextuele hints geven tijdens live-interpretaties, combineren samenvattingsengines met menselijke reviewers voor beleidsklare memo’s en trainen classificatiemodellen om culturele of wettelijke risico’s vroeg te signaleren. Elk proces krijgt menselijke checkpoints en herleidbare metadata.",
+            "Menselijke beoordeling blijft de ruggengraat van verantwoord AI-gebruik. Automatisering levert een eerste concept; vakspecialisten voegen nuance toe, corrigeren en lichten hun keuzes toe voor klanten of besluitvormers. Die dialoog wordt trainingsdata—zonder het afgeschermde netwerk te verlaten—waardoor organisaties leren zonder vertrouwelijke informatie prijs te geven.",
+            "Kortom, AI functioneert het best als gedisciplineerde assistent. Bedrijven die investeren in veiligheid, transparantie en verandermanagement profiteren van automatisering zonder in te leveren op discretie of empathie. De passage hierboven vraagt om een vertaling die dat evenwicht weerspiegelt: de energie van innovatie én de verantwoordelijkheid van mensgericht werken.",
+          ],
+          languageLabel: "Doeltaal",
+          languagePlaceholder: "Kies de taal waarin u vertaalt",
+          submissionLabel: "Uw vertaling",
+          notes: "Lever uw vertaling in de gekozen taal aan. We scoren automatisch de nauwkeurigheid en tonen eventuele risico’s in het portaal.",
+        },
+        validation: {
+          teacherLanguage: "Selecteer eerst de toetstaal.",
+          teacherIncomplete: "Beantwoord alle 100 vragen en vul beide korte antwoorden in.",
+          translatorLanguage: "Kies een doeltaal voor de vertaalopdracht.",
+          translatorText: "Voer uw vertaling in voordat u verstuurt.",
+        },
+      },
     },
     footer: {
       tagline: "Remote-first en wereldwijd beschikbaar voor projectmatige samenwerking.",
@@ -887,6 +983,7 @@ export const copy = {
       trips: "Voyages linguistiques",
       contact: "Contact",
       aboutJb: "Rencontrez notre PDG",
+      careers: "Carrières",
       viewAllDestinations: "Voir toutes les destinations",
       viewAllStaff: "Tout voir",
       ctaLabel: "Demander un devis",
@@ -899,6 +996,7 @@ export const copy = {
       ctaSecondary: "Découvrir les services",
       meetJB: "Rencontrer Jonathan Brooks",
       highlights: [
+        "Enregistrée sous JB Linguistics LLC (Floride) et JB Linguistics GmbH (Allemagne) afin de servir les clients aux États-Unis et en Europe.",
         "Tous les services sont virtuels, sauf si vous réservez une Linguistic Learning Trip.",
         "Traductions certifiées de documents et de sites web avec contrôle qualité rigoureux.",
         "Programmes disponibles en néerlandais, anglais, français, allemand, mandarin, espagnol et suédois.",
@@ -1268,6 +1366,13 @@ export const copy = {
         "Les formateurs issus de l’aérien, de l’entreprise ou du diplomatique sont intégrés plus vite.",
         "Prestations 100 % à distance avec grilles tarifaires transparentes et paiement rapide.",
       ],
+      perks: [
+        "Horaires flexibles adaptés aux fenêtres clients.",
+        "Workflows 100 % distants avec salles virtuelles sécurisées.",
+        "Formation linguistique gratuite pour employés et prestataires.",
+        "Services de traduction à tarif réduit pour le personnel et leurs familles.",
+        "Programme d’onboarding et de formation IA gratuit une fois embauché.",
+      ],
       ctaPrimary: "Accéder à la page carrières",
       ctaSecondary: "Recommander un confrère",
       cardTitle: "Remote-first, multilingue et conforme",
@@ -1302,6 +1407,45 @@ export const copy = {
         success: "Merci ! Nous vous contacterons dès qu’une mission correspond.",
         error: "Envoi impossible pour le moment. Réessayez bientôt.",
       },
+      assessments: {
+        teacher: {
+          heading: "Évaluation formateur (obligatoire)",
+          intro:
+            "Choisissez la langue que vous souhaitez enseigner. Répondez aux 100 questions de grammaire (B2–C2) et rédigez deux réponses sur votre gestion de classe.",
+          languageLabel: "Langue de l’évaluation",
+          languagePlaceholder: "Sélectionnez la langue d’enseignement",
+          answeredLabel: "Réponses",
+          shortResponseHeading: "Réponses ouvertes",
+          conflictPrompt:
+            "Si un apprenant crée régulièrement des tensions, comment intervenez-vous immédiatement et comment évitez-vous que cela se reproduise ?",
+          attendancePrompt:
+            "Si les apprenants manquent souvent les séances, quelles actions mettez-vous en place pour relancer l’engagement et adapter votre approche pédagogique ?",
+          requirementNote: "Les 100 questions et les deux réponses écrites sont obligatoires pour les rôles d’enseignant.",
+        },
+        translator: {
+          heading: "Exercice de traduction (obligatoire)",
+          intro:
+            "Lisez le passage anglais sur l’adoption de l’IA. Choisissez la langue vers laquelle vous traduisez et saisissez votre traduction.",
+          storyHeading: "Texte source",
+          story: [
+            "L’intelligence artificielle apporte le plus de valeur lorsqu’elle libère les collaborateurs des tâches répétitives. Une mise en œuvre réfléchie commence par une promesse claire : l’IA vient renforcer les professionnels, non les remplacer. Les organisations qui testent de petits pilotes et fixent des garde-fous stricts peuvent automatiser la transcription, la préparation de glossaires ou les conversions de fichiers pour consacrer davantage de temps à l’analyse.",
+            "Une adoption réussie commence aussi par des briefings transparents sur la gestion des données. Les équipes expliquent quels flux restent sur des serveurs sécurisés, quels outils anonymisent les contenus et comment chaque interaction est consignée pour audit. En formant les collaborateurs aux forces et limites des grands modèles de langage, les dirigeants gagnent en confiance tout en accélérant les délais de livraison.",
+            "L’implémentation dépasse largement les mémoires de traduction. Les équipes performantes entretiennent des glossaires neuronaux qui offrent des indices contextuels pendant les interprétations; elles associent moteurs de synthèse et relecteurs humains pour condenser les débats parlementaires; et elles entraînent des classificateurs pour détecter les risques culturels ou réglementaires avant qu’un document n’arrive sur le bureau d’un décideur.",
+            "La relecture humaine demeure la pierre angulaire des programmes responsables. L’automatisation produit un premier jet, puis les experts le commentent, résolvent les nuances locales et expliquent leur raisonnement. Ce dialogue devient un corpus d’apprentissage sans quitter l’environnement sécurisé, afin de progresser sans exposer d’informations sensibles.",
+            "En conclusion, l’IA agit comme un assistant discipliné. Les organisations qui investissent dans la sécurité, la transparence et la conduite du changement profitent d’une automatisation maîtrisée, sans sacrifier la confidentialité ni l’empathie. Traduire ce texte requiert ce même équilibre : l’enthousiasme de l’innovation marié à la rigueur d’une approche humaine et responsable.",
+          ],
+          languageLabel: "Langue cible",
+          languagePlaceholder: "Sélectionnez la langue de traduction",
+          submissionLabel: "Votre traduction",
+          notes: "Merci d’envoyer votre traduction dans la langue choisie. Un score automatique mettra en évidence les risques potentiels.",
+        },
+        validation: {
+          teacherLanguage: "Sélectionnez d’abord la langue d’évaluation.",
+          teacherIncomplete: "Répondez aux 100 questions et remplissez les deux réponses ouvertes.",
+          translatorLanguage: "Choisissez une langue cible pour l’exercice.",
+          translatorText: "Ajoutez votre traduction avant de soumettre.",
+        },
+      },
     },
     footer: {
       tagline: "Remote-first, disponible dans le monde entier pour des projets sur mesure.",
@@ -1319,6 +1463,7 @@ export const copy = {
       trips: "Språkresor",
       contact: "Kontakt",
       aboutJb: "Möt vår vd",
+      careers: "Karriär",
       viewAllDestinations: "Visa alla destinationer",
       viewAllStaff: "Visa alla",
       ctaLabel: "Begär offert",
@@ -1331,6 +1476,7 @@ export const copy = {
       ctaSecondary: "Utforska tjänster",
       meetJB: "Möt Jonathan Brooks",
       highlights: [
+        "Registrerat som JB Linguistics LLC i Florida och JB Linguistics GmbH i Tyskland för att stödja kunder i USA och Europa.",
         "Alla tjänster är virtuella om du inte bokar en Linguistic Learning Trip.",
         "Certifierade dokument- och webböversättningar med strikt kvalitetssäkring.",
         "Program på nederländska, engelska, franska, tyska, mandarin, spanska och svenska.",
@@ -1700,6 +1846,13 @@ export const copy = {
         "Utbildare med erfarenhet från flyg, företag eller offentlig sektor prioriteras.",
         "Helt virtuella leveranser med tydliga arvoden och snabb utbetalning.",
       ],
+      perks: [
+        "Flexibla scheman som följer kundernas behov.",
+        "Helt distansbaserade arbetsflöden med säkra virtuella klassrum.",
+        "Kostnadsfri språkträning för anställda och konsulter.",
+        "Rabatterade översättningstjänster för personal och familjer.",
+        "Kostnadsfri onboarding och AI-inriktad utbildning efter anställning.",
+      ],
       ctaPrimary: "Öppna karriärsidan",
       ctaSecondary: "Tipsa en kollega",
       cardTitle: "Remote-first, flerspråkigt och compliant",
@@ -1734,6 +1887,45 @@ export const copy = {
         success: "Tack! Vi kontaktar dig när vi har en match.",
         error: "Det gick inte att skicka just nu. Försök igen senare.",
       },
+      assessments: {
+        teacher: {
+          heading: "Lärartest (obligatoriskt)",
+          intro:
+            "Välj språket du undervisar i. Besvara samtliga 100 grammatikfrågor (B2–C2) och skriv två korta svar om hur du hanterar klassrumssituationer.",
+          languageLabel: "Testspråk",
+          languagePlaceholder: "Välj undervisningsspråk",
+          answeredLabel: "Besvarade",
+          shortResponseHeading: "Öppna svar",
+          conflictPrompt:
+            "Om en deltagare skapar konflikter – hur agerar du direkt och vilka långsiktiga åtgärder inför du?",
+          attendancePrompt:
+            "Om deltagare ofta uteblir eller ställer in, hur vänder du trenden och justerar din metod för att öka närvaron?",
+          requirementNote: "Alla 100 frågor och båda svaren måste vara klara för roller som utbildare.",
+        },
+        translator: {
+          heading: "Översättningsövning (obligatorisk)",
+          intro:
+            "Läs den engelska texten om AI på arbetsplatsen. Välj målspråk och skriv din bästa översättning.",
+          storyHeading: "Källtext",
+          story: [
+            "Artificiell intelligens gör störst nytta när den frigör personal från repetitiva uppgifter. En genomtänkt implementering börjar med ett tydligt löfte: AI ska stötta yrkeskompetensen, inte ersätta den. Organisationer som testar kontrollerade piloter och bygger säkra ramar kan låta automatisering hantera rutiner som transkribering, ordlista eller filkonvertering så att experter får mer tid till analys och rådgivning.",
+            "Lyckad AI-adoption kräver också öppenhet om datahantering. Företag beskriver vilka arbetsflöden som ligger kvar på egna servrar, vilka verktyg som anonymiserar källtext och hur varje interaktion loggas för revision. Genom att utbilda teamen i språkmodellernas styrkor och begränsningar bevarar ledare förtroendet och kan samtidigt korta ledtiderna.",
+            "Implementeringen sträcker sig långt bortom översättningsminnen. Högpresterande team underhåller neurala ordlistor som ger kontextuella ledtrådar under live-tolkningar, kombinerar sammanfattningsmotorer med mänskliga granskare för politiska briefar och tränar klassificeringsmodeller att flagga kulturella eller juridiska risker innan ett dokument når beslutsfattare. Varje arbetsflöde kompletteras med mänskliga kontrollpunkter och spårbar metadata.",
+            "Mänsklig granskning är fortsatt kärnan i ansvarsfullt AI-arbete. Automatisering producerar ett första utkast; domänexperter kommenterar, förtydligar lokala nyanser och återkopplar till mottagaren. Dialogen blir träningsdata utan att lämna den säkra miljön, vilket gör det möjligt att förbättra utan att röja känslig information.",
+            "Sammanfattningsvis fungerar AI bäst som en disciplinerad assistent. Organisationer som investerar i säkerhet, transparens och förändringsledning kan ta till sig automatisering utan att ge avkall på integritet eller empati. Översättningen av texten ovan bör spegla denna balans: innovationens energi kombinerad med ansvarstagande, människocentrerad leverans.",
+          ],
+          languageLabel: "Målspråk",
+          languagePlaceholder: "Välj språket du översätter till",
+          submissionLabel: "Din översättning",
+          notes: "Skicka översättningen på valt språk. Vi autoscorear texten och flaggar risker i adminportalen.",
+        },
+        validation: {
+          teacherLanguage: "Välj testspråk innan du skickar.",
+          teacherIncomplete: "Besvara samtliga frågor och båda öppna svaren.",
+          translatorLanguage: "Välj ett målspråk för översättningen.",
+          translatorText: "Klistra in din översättning innan du skickar.",
+        },
+      },
     },
     footer: {
       tagline: "Remote-first och tillgänglig globalt för projektbaserat samarbete.",
@@ -1751,6 +1943,7 @@ export const copy = {
       trips: "Viajes lingüísticos",
       contact: "Contacto",
       aboutJb: "Conoce a nuestro CEO",
+      careers: "Carreras",
       viewAllDestinations: "Ver todos los destinos",
       viewAllStaff: "Ver todo",
       ctaLabel: "Solicitar presupuesto",
@@ -1763,6 +1956,7 @@ export const copy = {
       ctaSecondary: "Explorar servicios",
       meetJB: "Conozca a Jonathan Brooks",
       highlights: [
+        "Registrada como JB Linguistics LLC (Florida) y JB Linguistics GmbH (Alemania) para atender a clientes en Estados Unidos y Europa.",
         "Todos los servicios son virtuales salvo que reserve un Linguistic Learning Trip.",
         "Traducciones certificadas de documentos y sitios web con control de calidad riguroso.",
         "Programas disponibles en neerlandés, inglés, francés, alemán, mandarín, español y sueco.",
@@ -2132,6 +2326,13 @@ export const copy = {
         "Formadores con experiencia corporativa, aeronáutica o gubernamental pasan por fast-track.",
         "Entrega 100 % virtual con tarifas transparentes y pagos rápidos.",
       ],
+      perks: [
+        "Horarios flexibles ajustados a las ventanas de demanda del cliente.",
+        "Flujos totalmente remotos con aulas virtuales seguras.",
+        "Beneficios gratuitos de aprendizaje de idiomas para empleados y contratistas.",
+        "Servicios de traducción con descuento para el personal y sus familias.",
+        "Onboarding y formación enfocada en IA sin costo al incorporarse.",
+      ],
       ctaPrimary: "Ir a la página de carreras",
       ctaSecondary: "Referir a un colega",
       cardTitle: "Operación remota, multilingüe y compliant",
@@ -2166,6 +2367,45 @@ export const copy = {
         success: "Gracias. Le contactaremos cuando haya una coincidencia.",
         error: "No pudimos enviar la solicitud. Intente nuevamente en unos minutos.",
       },
+      assessments: {
+        teacher: {
+          heading: "Evaluación para docentes (obligatoria)",
+          intro:
+            "Elija el idioma que desea impartir. Responda las 100 preguntas de gramática (B2–C2) y escriba dos respuestas sobre cómo gestiona el aula.",
+          languageLabel: "Idioma de la evaluación",
+          languagePlaceholder: "Seleccione el idioma en el que enseña",
+          answeredLabel: "Respondidas",
+          shortResponseHeading: "Respuestas abiertas",
+          conflictPrompt:
+            "Si un alumno crea conflictos con frecuencia, ¿cómo interviene en el momento y qué medidas toma para evitar que se repita?",
+          attendancePrompt:
+            "Si los alumnos faltan o cancelan seguido, ¿qué estrategia aplicaría para revertir la situación y ajustar su metodología?",
+          requirementNote: "Las 100 preguntas y las dos respuestas escritas son obligatorias para roles docentes.",
+        },
+        translator: {
+          heading: "Ejercicio de traducción (obligatorio)",
+          intro:
+            "Lea el texto en inglés sobre el uso de la IA en el trabajo. Seleccione el idioma objetivo y escriba su traducción.",
+          storyHeading: "Texto fuente",
+          story: [
+            "La inteligencia artificial aporta más valor cuando libera a los equipos de las tareas repetitivas que saturan cada proyecto. Una implantación cuidadosa comienza con una promesa: la IA complementa a los profesionales, no los reemplaza. Las organizaciones que prueban pilotos controlados y fijan límites estrictos dejan que la automatización se encargue de la transcripción, los glosarios o las conversiones de archivos, para que los especialistas se concentren en el análisis.",
+            "El éxito también depende de la transparencia en el tratamiento de datos. Las empresas describen qué flujos permanecen en servidores seguros, qué herramientas anonimizan los textos y cómo cada interacción se registra para auditorías. Al capacitar a los equipos sobre las fortalezas y limitaciones de los modelos de lenguaje, los líderes mantienen la confianza mientras aceleran los plazos de entrega.",
+            "La implementación va más allá de las memorias de traducción. Los equipos de alto rendimiento mantienen glosarios neuronales que aportan pistas contextuales durante interpretaciones en vivo, combinan motores de resumen con revisores humanos para convertir debates parlamentarios en informes breves y entrenan clasificadores que detectan riesgos culturales o regulatorios antes de llegar a un responsable.",
+            "La revisión humana sigue siendo la base de un programa responsable. La automatización produce un borrador; los expertos anotan, resuelven las particularidades locales y explican su razonamiento a clientes o directivos. Ese diálogo genera datos de entrenamiento sin abandonar el perímetro seguro, de modo que la organización aprende sin exponer información sensible.",
+            "En conclusión, la IA funciona mejor como un asistente disciplinado. Las empresas que invierten en seguridad, transparencia y gestión del cambio adoptan la automatización sin sacrificar confidencialidad ni empatía. La traducción del texto anterior debe reflejar ese equilibrio: innovación con responsabilidad y un enfoque centrado en las personas.",
+          ],
+          languageLabel: "Idioma destino",
+          languagePlaceholder: "Seleccione el idioma al que traduce",
+          submissionLabel: "Su traducción",
+          notes: "Presente su traducción en el idioma elegido. El sistema asignará una puntuación automática y mostrará riesgos en el portal.",
+        },
+        validation: {
+          teacherLanguage: "Seleccione primero el idioma de la evaluación.",
+          teacherIncomplete: "Responda las 100 preguntas y las dos respuestas abiertas.",
+          translatorLanguage: "Seleccione un idioma destino para la traducción.",
+          translatorText: "Pegue su traducción antes de enviar.",
+        },
+      },
     },
     footer: {
       tagline: "Remote-first y disponible en todo el mundo para proyectos a medida.",
@@ -2183,6 +2423,7 @@ export const copy = {
       trips: "语言旅行",
       contact: "联系我们",
       aboutJb: "认识我们的首席执行官",
+      careers: "加入我们",
       viewAllDestinations: "查看所有目的地",
       viewAllStaff: "查看全部",
       ctaLabel: "获取报价",
@@ -2195,6 +2436,7 @@ export const copy = {
       ctaSecondary: "浏览服务",
       meetJB: "了解 Jonathan Brooks",
       highlights: [
+        "以佛罗里达注册的 JB Linguistics LLC 与德国注册的 JB Linguistics GmbH 两家实体运营，服务美国及欧洲客户。",
         "除语言旅行外，其余服务全部在线完成。",
         "严格质控的认证文件与网站翻译，由宣誓译员负责。",
         "项目可覆盖荷兰语、英语、法语、德语、普通话、西班牙语和瑞典语。",
@@ -2555,6 +2797,13 @@ export const copy = {
         "拥有航空、企业或政府经验的讲师将获得快速审核。",
         "完全线上交付，费率透明，结算迅速。",
       ],
+      perks: [
+        "排班灵活，可根据客户需求调整。",
+        "完全远程的安全虚拟课堂工作流。",
+        "为员工与合同顾问提供免费的语言学习福利。",
+        "员工及其家属可享受优惠翻译服务。",
+        "入职后提供免费的入职指导和 AI 专项培训。",
+      ],
       ctaPrimary: "打开招聘页面",
       ctaSecondary: "推荐同事",
       cardTitle: "远程优先 · 多语言 · 符合合规",
@@ -2589,6 +2838,42 @@ export const copy = {
         success: "感谢申请！合适项目出现时我们会联系您。",
         error: "暂时无法提交，请稍后再试。",
       },
+      assessments: {
+        teacher: {
+          heading: "讲师测评（必填）",
+          intro:
+            "请选择希望教授的语言。答完 100 道 B2–C2 级别的语法题，并填写两个与课堂管理相关的开放式问题。",
+          languageLabel: "测评语言",
+          languagePlaceholder: "请选择授课语言",
+          answeredLabel: "已完成",
+          shortResponseHeading: "开放式回答",
+          conflictPrompt: "若有学员在课堂上持续制造冲突，您会如何即时处理并避免后续再发生？",
+          attendancePrompt: "若学员频繁缺课或临时取消，您会如何扭转状况并调整教学方式以提升参与度？",
+          requirementNote: "申请教学角色必须完成全部 100 道题与两道开放式问题。",
+        },
+        translator: {
+          heading: "翻译测试（必填）",
+          intro: "阅读关于“AI 在职场应用”的英文短文，选择目标语言并提交您的译文。",
+          storyHeading: "英文原文",
+          story: [
+            "人工智能在减少团队重复性工作时价值最大。要成功导入 AI，需要向员工承诺：AI 用于增强岗位能力，而非替代人。企业通常通过受控试点与严格安全边界，让自动化集中处理转录、术语表及文件转换等工作，从而释放专家时间。",
+            "成功应用 AI 必须以透明数据治理为前提。公司解释哪些流程保留在本地服务器、哪些工具匿名化文本、以及为什么每一步都记录在案。通过培训员工了解大型语言模型的优势与局限，管理层能够加快交付并保持客户信任。",
+            "实践远不止翻译记忆或聊天机器人。领先团队维护神经术语库，为现场口译提供背景提示；他们将摘要引擎与人工审校结合，以便迅速生成政策摘要；他们也会训练分类模型，在材料送至决策者之前就提示文化或监管风险。每条流程都配置人工检查点与可追溯的元数据。",
+            "人工审校依然是负责的 AI 方案的核心。自动化产出初稿，专家负责注释、补充在地语境，并向客户说明理由。上述对话本身也会成为训练素材，但始终保留在受控环境，确保隐私不外泄。",
+            "总之，AI 最适合作为一名纪律严明的助手。投资于安全、透明度和变更管理的组织，能够在不牺牲保密性或同理心的前提下拥抱自动化。请在翻译时体现这种平衡：既传达创新热情，也突出以人为本的交付。",
+          ],
+          languageLabel: "目标语言",
+          languagePlaceholder: "请选择翻译方向",
+          submissionLabel: "您的译文",
+          notes: "请使用所选语言提交译文，系统会自动评分并在后台标注潜在风险。",
+        },
+        validation: {
+          teacherLanguage: "请先选择测评语言。",
+          teacherIncomplete: "请完成 100 道题并填写两个开放式回答。",
+          translatorLanguage: "请选择翻译的目标语言。",
+          translatorText: "请粘贴译文后再提交。",
+        },
+      },
     },
     footer: {
       tagline: "Remote-first，面向全球提供项目型合作。",
@@ -2606,6 +2891,7 @@ export const copy = {
       trips: "Sprachreisen",
       contact: "Kontakt",
       aboutJb: "Lernen Sie unseren CEO kennen",
+      careers: "Karriere",
       viewAllDestinations: "Alle Destinationen",
       viewAllStaff: "Alle anzeigen",
       ctaLabel: "Angebot anfragen",
@@ -2618,6 +2904,7 @@ export const copy = {
       ctaSecondary: "Leistungen entdecken",
       meetJB: "Jonathan Brooks kennenlernen",
       highlights: [
+        "Registriert als JB Linguistics LLC in Florida und JB Linguistics GmbH in Deutschland, um Kunden in den USA und Europa zu betreuen.",
         "Alle Leistungen sind virtuell – außer Sie buchen eine Linguistic Learning Trip-Reise.",
         "Beglaubigte Dokument- und Website-Übersetzungen mit strenger Qualitätssicherung.",
         "Programme in Niederländisch, Englisch, Französisch, Deutsch, Mandarin, Spanisch und Schwedisch.",
@@ -3020,6 +3307,45 @@ export const copy = {
         submit: "Bewerbung senden",
         success: "Vielen Dank! Wir melden uns bei passender Gelegenheit.",
         error: "Senden derzeit nicht möglich. Bitte später erneut versuchen.",
+      },
+      assessments: {
+        teacher: {
+          heading: "Lehrer*innen-Assessment (Pflicht)",
+          intro:
+            "Wählen Sie die Sprache, die Sie unterrichten möchten. Beantworten Sie alle 100 Grammatikfragen (B2–C2) und verfassen Sie zwei Antworten zu Ihrem Classroom-Management.",
+          languageLabel: "Sprache des Assessments",
+          languagePlaceholder: "Unterrichtssprache wählen",
+          answeredLabel: "Beantwortet",
+          shortResponseHeading: "Freitextantworten",
+          conflictPrompt:
+            "Wie reagieren Sie, wenn ein*e Teilnehmer*in wiederholt Konflikte auslöst, und welche langfristigen Maßnahmen setzen Sie um?",
+          attendancePrompt:
+            "Wenn Teilnehmende häufig absagen oder fehlen, wie drehen Sie die Situation und passen Ihre Methode an, um Engagement zu erhöhen?",
+          requirementNote: "Alle 100 Fragen und beide Freitextantworten sind für Lehrrollen verpflichtend.",
+        },
+        translator: {
+          heading: "Übersetzungsübung (Pflicht)",
+          intro:
+            "Lesen Sie den englischen Text über KI am Arbeitsplatz, wählen Sie die Zielsprache und liefern Sie Ihre Übersetzung.",
+          storyHeading: "Ausgangstext",
+          story: [
+            "Künstliche Intelligenz stiftet den größten Nutzen, wenn sie Mitarbeitende von repetitiven Aufgaben entlastet. Eine durchdachte Einführung beginnt mit der Zusage, dass AI Fachkräfte unterstützt statt sie zu ersetzen. Unternehmen, die kontrollierte Pilotprojekte durchführen und klare Sicherheitsgrenzen setzen, lassen Automatisierung Routinearbeiten wie Transkription, Glossarerstellung oder Dateikonvertierung übernehmen – so bleibt mehr Raum für Analyse und Beratung.",
+            "Erfolgreiche Einführung erfordert Transparenz beim Umgang mit Daten. Firmen erläutern, welche Abläufe auf eigenen Servern verbleiben, welche Tools Texte anonymisieren und wie jede Interaktion protokolliert wird. Wer Teams in Stärken und Grenzen großer Sprachmodelle schult, verkürzt Durchlaufzeiten und bewahrt Vertrauen.",
+            "Die Umsetzung geht weit über Übersetzungsspeicher hinaus. Leistungsstarke Teams pflegen neuronale Glossare für kontextuelle Hinweise während Live-Dolmetschen, kombinieren Zusammenfassungs-Engines mit menschlichen Prüfern und trainieren Klassifikatoren, die kulturelle oder regulatorische Risiken melden, bevor ein Dokument einen Entscheidungsträger erreicht. Jedes Workflow wird mit menschlichen Kontrollpunkten und nachvollziehbarer Metadata abgesichert.",
+            "Die manuelle Prüfung bleibt Kernstück verantwortungsvoller AI-Programme. Automatisierung erstellt den Erstentwurf, danach kommentieren Fachleute, ergänzen kulturelle Nuancen und erläutern ihr Vorgehen. Der Dialog dient als Trainingsmaterial, ohne die gesicherte Umgebung zu verlassen – so lernt das Unternehmen, ohne sensible Informationen preiszugeben.",
+            "Kurz gesagt: AI ist ein disziplinierter Assistent. Organisationen, die in Sicherheit, Transparenz und Change-Management investieren, nutzen Automatisierung, ohne Vertraulichkeit oder Empathie zu verlieren. Die Übersetzung des obigen Textes sollte dieses Gleichgewicht widerspiegeln: Innovationsfreude kombiniert mit einer verantwortungsvollen, menschenzentrierten Umsetzung.",
+          ],
+          languageLabel: "Zielsprache",
+          languagePlaceholder: "Zielsprache auswählen",
+          submissionLabel: "Ihre Übersetzung",
+          notes: "Bitte reichen Sie den Text in der gewählten Sprache ein. Wir bewerten automatisch und markieren Risiken im Portal.",
+        },
+        validation: {
+          teacherLanguage: "Bitte wählen Sie zuerst die Assessment-Sprache.",
+          teacherIncomplete: "Alle 100 Fragen und beide Antworten müssen ausgefüllt werden.",
+          translatorLanguage: "Wählen Sie eine Zielsprache für die Übersetzung.",
+          translatorText: "Fügen Sie Ihre Übersetzung ein, bevor Sie senden.",
+        },
       },
     },
     footer: {

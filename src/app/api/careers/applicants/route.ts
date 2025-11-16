@@ -6,8 +6,9 @@ export async function GET(request: Request) {
     const token = request.headers.get("x-admin-token") ?? undefined;
     requireAdmin(token);
     const applications = await listApplications();
-    const sanitized = applications.map(({ resume, ...rest }) => ({
+    const sanitized = applications.map(({ resume, resumeInsights, ...rest }) => ({
       ...rest,
+      resumeInsights,
       resume: {
         filename: resume.filename,
         mimeType: resume.mimeType,

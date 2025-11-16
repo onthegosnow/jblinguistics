@@ -1,8 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  teacherAssessmentLanguages,
+  type TeacherAssessmentLanguage,
+  type TeacherAssessmentScore,
+  type TeacherAssessmentAnswer,
+} from "@/lib/teacher-assessment";
+import { translatorLanguages, type TranslatorExerciseLanguage } from "@/lib/translator-exercise";
 
 const STORAGE_KEY = "jb_assessment_admin_token";
+const teacherLanguageLabels = teacherAssessmentLanguages.reduce(
+  (acc, lang) => {
+    acc[lang.id] = lang.label;
+    return acc;
+  },
+  {} as Record<TeacherAssessmentLanguage, string>
+);
+const translatorLanguageLabels = translatorLanguages.reduce(
+  (acc, lang) => {
+    acc[lang.id] = lang.label;
+    return acc;
+  },
+  {} as Record<TranslatorExerciseLanguage, string>
+);
 
 type SubmissionRecord = {
   id: string;
@@ -45,7 +66,28 @@ type ApplicantRecord = {
   availability?: string;
   message?: string;
   roles: string[];
+  workingLanguages?: TeacherAssessmentLanguage[];
   resume: { filename: string; mimeType: string; size: number };
+  resumeInsights?: {
+    summary: string;
+    keywords: string[];
+    score: number;
+    verdict: "strong" | "review";
+    reasoning: string;
+  };
+  teacherAssessments?: Array<{
+    language: TeacherAssessmentLanguage;
+    seed: number;
+    answers: TeacherAssessmentAnswer[];
+    responses: { conflict: string; attendance: string };
+    score: TeacherAssessmentScore;
+  }>;
+  translatorExercise?: {
+    language: TranslatorExerciseLanguage;
+    submission: string;
+    score: number | null;
+    missingTokens: string[];
+  };
 };
 
 type PortalUserAdmin = {
@@ -530,6 +572,92 @@ export default function AssessmentsAdminPage() {
                     <p className="mt-2 text-xs text-slate-400">
                       Submitted {new Date(applicant.submittedAt).toLocaleDateString()} — Roles: {applicant.roles.join(", ")}
                     </p>
+                    {applicant.workingLanguages?.length ? (
+                      <p className="text-xs text-slate-500">
+                        Working languages: {applicant.workingLanguages.map((lang) => teacherLanguageLabels[lang] ?? lang).join(", ")}
+                      </p>
+                    ) : null}
+                    {applicant.resumeInsights && (
+                      <div
+                        className={`mt-3 rounded-2xl border p-4 text-sm ${
+                          applicant.resumeInsights.verdict === "strong"
+                            ? "border-emerald-500/40 bg-emerald-500/10"
+                            : "border-rose-500/40 bg-rose-500/10"
+                        }`}
+                      >
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-200">Auto bio summary</p>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                              applicant.resumeInsights.verdict === "strong"
+                                ? "bg-emerald-500/20 text-emerald-100"
+                                : "bg-rose-500/20 text-rose-100"
+                            }`}
+                            aria-label={
+                              applicant.resumeInsights.verdict === "strong"
+                                ? "Strong applicant"
+                                : "Needs closer review"
+                            }
+                          >
+                            <span aria-hidden>{applicant.resumeInsights.verdict === "strong" ? "👍" : "👎"}</span>
+                            {applicant.resumeInsights.verdict === "strong" ? "Strong candidate" : "Needs review"}
+                          </span>
+                        </div>
+                        <p className="mt-3 text-slate-100">{applicant.resumeInsights.summary}</p>
+                        <p className="mt-2 text-xs text-slate-300">
+                          Score: {applicant.resumeInsights.score}%{" "}
+                          {applicant.resumeInsights.keywords?.length
+                            ? `• Keywords: ${applicant.resumeInsights.keywords.join(", ")}`
+                            : ""}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">{applicant.resumeInsights.reasoning}</p>
+                      </div>
+                    )}
+                    {applicant.teacherAssessments?.length ? (
+                      <div className="mt-3 space-y-3">
+                        {applicant.teacherAssessments.map((assessment, index) => (
+                          <div
+                            key={`${assessment.language}-${index}`}
+                            className="rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-1"
+                          >
+                            <p className="font-semibold text-white">
+                              Educator assessment ({teacherLanguageLabels[assessment.language]})
+                            </p>
+                            <p>
+                              Score: {assessment.score.totalCorrect}/{assessment.score.totalQuestions} ({assessment.score.percentage}%)
+                            </p>
+                            <p className="text-slate-400">
+                              Breakdown: {Object.entries(assessment.score.breakdown)
+                                .map(([level, data]) => `${level} ${data.correct}/${data.total}`)
+                                .join(" · ")}
+                            </p>
+                            <p className="text-slate-400">Conflict plan: {assessment.responses.conflict}</p>
+                            <p className="text-slate-400">Attendance plan: {assessment.responses.attendance}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {applicant.translatorExercise && (
+                      <div className="mt-3 rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-2">
+                        <p className="font-semibold text-white">
+                          Translator exercise ({translatorLanguageLabels[applicant.translatorExercise.language] ?? applicant.translatorExercise.language})
+                        </p>
+                        <p>
+                          Score:{" "}
+                          {typeof applicant.translatorExercise.score === "number"
+                            ? `${applicant.translatorExercise.score}%`
+                            : "Not auto-scored"}
+                        </p>
+                        {applicant.translatorExercise.missingTokens.length > 0 && (
+                          <p className="text-amber-200">
+                            Missing keywords: {applicant.translatorExercise.missingTokens.join(", ")}
+                          </p>
+                        )}
+                        <div className="rounded-2xl border border-slate-700 bg-slate-900/40 p-3 text-slate-100 whitespace-pre-wrap">
+                          {applicant.translatorExercise.submission}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
 import { destinations } from "@/lib/trips";
 import { useLanguage } from "@/lib/language-context";
 
@@ -35,45 +34,43 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
   const referenceLength = availableLengths.includes(14) ? 14 : availableLengths[0];
   const nights = Math.max(referenceLength - 1, referenceLength);
 
-  const pricingRows: PricingRow[] = useMemo(() => {
-    const lodging = nights * 260;
-    const coaching = referenceLength * 320;
-    const excursions = referenceLength * 150;
-    const transit = referenceLength * 80;
-    return [
-      { label: "Round-trip airfare", amount: FLIGHT_ESTIMATE, description: "Frankfurt ↔ destination, economy class estimate." },
-      {
-        label: "4★ accommodations & breakfasts",
-        amount: lodging,
-        description: `${nights} nights in business-class hotels or villas.`,
-      },
-      {
-        label: "Daily coaching & facilitation",
-        amount: coaching,
-        description: `${referenceLength} days · 2–3 hours of instructor-led coaching, assessments, and materials.`,
-      },
-      {
-        label: "Excursions & admissions",
-        amount: excursions,
-        description: "Cultural visits, workshops, and curated networking experiences.",
-      },
-      {
-        label: "Ground transport & logistics",
-        amount: transit,
-        description: "Airport transfers, ground coach, and city transit passes.",
-      },
-      {
-        label: "Program operations & compliance",
-        amount: OPERATIONS_FEE,
-        description: "Staffing, documentation, Bildungsurlaub paperwork, and on-call support.",
-      },
-      {
-        label: "Insurance buffer",
-        amount: INSURANCE_BUFFER,
-        description: "Recommended reserve for supplemental travel medical policies.",
-      },
-    ];
-  }, [nights, referenceLength]);
+  const lodging = nights * 260;
+  const coaching = referenceLength * 320;
+  const excursions = referenceLength * 150;
+  const transit = referenceLength * 80;
+  const pricingRows: PricingRow[] = [
+    { label: "Round-trip airfare", amount: FLIGHT_ESTIMATE, description: "Frankfurt ↔ destination, economy class estimate." },
+    {
+      label: "4★ accommodations & breakfasts",
+      amount: lodging,
+      description: `${nights} nights in business-class hotels or villas.`,
+    },
+    {
+      label: "Daily coaching & facilitation",
+      amount: coaching,
+      description: `${referenceLength} days · 2–3 hours of instructor-led coaching, assessments, and materials.`,
+    },
+    {
+      label: "Excursions & admissions",
+      amount: excursions,
+      description: "Cultural visits, workshops, and curated networking experiences.",
+    },
+    {
+      label: "Ground transport & logistics",
+      amount: transit,
+      description: "Airport transfers, ground coach, and city transit passes.",
+    },
+    {
+      label: "Program operations & compliance",
+      amount: OPERATIONS_FEE,
+      description: "Staffing, documentation, Bildungsurlaub paperwork, and on-call support.",
+    },
+    {
+      label: "Insurance buffer",
+      amount: INSURANCE_BUFFER,
+      description: "Recommended reserve for supplemental travel medical policies.",
+    },
+  ];
 
   const estimatedTotal = pricingRows.reduce((sum, row) => sum + row.amount, 0);
 

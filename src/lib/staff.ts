@@ -9,6 +9,7 @@ export type StaffMember = {
   langs?: string[];           // structured list for filters
   image: string;
   imageFocus?: string;
+  imageFit?: "cover" | "contain";
   tagline: string;
   overview: string;
   background: string[];
@@ -46,7 +47,7 @@ export const staff: StaffMember[] = [
       "Conversation",
     ],
     image: "/images/staff/IMG_3166.WEBP",
-    imageFocus: "50% 5%",
+    imageFocus: "50% 25%",
     tagline: "Founder of JB Linguistics LLC and global language educator.",
     overview:
       "Jonathan is an international affairs specialist and language educator who has worked in 102 countries with international volunteer groups, airlines, and government partners.",
@@ -77,7 +78,7 @@ export const staff: StaffMember[] = [
     location: "Oslo · Remote",
     specialties: ["Latin & Greek", "Norwegian Coaching", "Translation", "Literary Projects", "Grammar Workshops"],
     image: "/images/staff/Lauren_Allen.jpeg",
-    imageFocus: "50% 12%",
+    imageFocus: "50% 40%",
     tagline: "Classicist and Norwegian coach focused on precise grammar, meaningful resources, and joyful learning.",
     overview:
       "Lauren is a UC San Diego history graduate who has spent the last decade immersed in classical languages—teaching Latin and Attic Greek since 2014, studying Old English, Old Norse, and Gothic, and writing resources that make canonical texts accessible. After relocating to Norway with her family, she became fluent in Norwegian and now volunteers as a Red Cross Norwegian coach for immigrants and refugees, drawing on her own experience acquiring the language as an adult.",
@@ -132,7 +133,8 @@ export const staff: StaffMember[] = [
     location: "Global / Remote",
     specialties: ["Business English", "French Instruction", "German Instruction", "Document Translation", "Interpreting"],
     image: "/images/staff/daniela-leonhardt-2025.jpg",
-    imageFocus: "50% 0%",
+    imageFocus: "50% 50%",
+    imageFit: "contain",
     tagline: "Trilingual instructor and interpreter raised across Foreign Service posts.",
     overview:
       "Having grown up across U.S. Foreign Service postings, Daniela experienced languages, ceremonies, and customs on nearly every continent. Her French and German degrees let her move among English, French, and German as a native speaker, and she supports executives, expatriates, and diplomatic families with the same flexibility in both classrooms and translation assignments.",
@@ -159,7 +161,8 @@ export const staff: StaffMember[] = [
     location: "Los Angeles · Milan (virtual)",
     specialties: ["Italian Instruction", "English Coaching", "Translation", "Interview Prep", "Business English"],
     image: "/images/staff/Stephanie_Hirsch.JPEG.jpg",
-    imageFocus: "50% 12%",
+    imageFocus: "50% 55%",
+    imageFit: "contain",
     tagline: "English and Italian instructor with flight operations and CILS-certified translation experience.",
     overview:
       "Stephanie fell in love with Italian long before moving there in her twenties for a three-month solo backpacking immersion. She formally studied Italian at Los Angeles Pierce College and California State University Northridge, tutored university cohorts, and later relocated to northern Italy to continue her education while teaching English. She holds a CILS C1 credential through a University of Siena affiliated institution and blends classroom rigor with the empathy earned from supporting passengers worldwide as a flight attendant.",
@@ -186,7 +189,8 @@ export const staff: StaffMember[] = [
     location: "Bonn / Remote",
     specialties: ["Legal/Compliance", "Government & Policy", "Terminology Management", "Conference Support"],
     image:
-      "https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&dpr=2&w=900",
+      "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=900&q=80",
+    imageFocus: "50% 35%",
     tagline:
       "Specialized in legal, governmental, and policy translation between German and English.",
     overview:
@@ -212,7 +216,8 @@ export const staff: StaffMember[] = [
     location: "Milan / Remote",
     specialties: ["Conference Interpreting", "Corporate Communications", "Workshops", "Simultaneous/Consecutive"],
     image:
-      "https://images.pexels.com/photos/4065876/pexels-photo-4065876.jpeg?auto=compress&dpr=2&w=900",
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80",
+    imageFocus: "50% 30%",
     tagline:
       "Translator and interpreter for corporate and conference settings.",
     overview:
