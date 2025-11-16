@@ -126,7 +126,7 @@ function LanguageMenu({
   setLang: (lang: Lang) => void;
   open: boolean;
   setOpen: (value: boolean) => void;
-  langRef: React.RefObject<HTMLDivElement>;
+  langRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
     <div className="relative" ref={langRef}>

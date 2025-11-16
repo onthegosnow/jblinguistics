@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getApplicationById, requireAdmin } from "@/lib/server/storage";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const token = request.headers.get("x-admin-token") ?? undefined;
     requireAdmin(token);
-    const record = await getApplicationById(params.id);
+    const { id } = await params;
+    const record = await getApplicationById(id);
     if (!record) {
       return NextResponse.json({ message: "Application not found." }, { status: 404 });
     }
@@ -18,7 +19,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
       },
     });
   } catch (err) {
-    const status = (err as NodeJS.ErrnoException).statusCode || 500;
+    const status =
+      typeof (err as { statusCode?: number }).statusCode === "number"
+        ? (err as { statusCode?: number }).statusCode!
+        : 500;
     return NextResponse.json({ message: err instanceof Error ? err.message : "Unable to download resume." }, { status });
   }
 }

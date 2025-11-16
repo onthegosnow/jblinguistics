@@ -3274,6 +3274,13 @@ export const copy = {
         "Trainer*innen mit Luftfahrt-, Unternehmens- oder Regierungserfahrung werden beschleunigt aufgenommen.",
         "Komplett virtuelle Lieferung mit transparenten Honoraren und schneller Abrechnung.",
       ],
+      perks: [
+        "Flexible Einsatzplanung passend zu Kundenfenstern.",
+        "Komplett remote Workflows mit sicheren virtuellen Klassenzimmern.",
+        "Kostenlose Sprachlernleistungen für Mitarbeitende und Contractors.",
+        "Vergünstigte Übersetzungsservices für Mitarbeitende und deren Familien.",
+        "Kostenloses Onboarding inklusive KI-Schulungen nach Vertragsstart.",
+      ],
       ctaPrimary: "Zur Karriereseite",
       ctaSecondary: "Kolleg*in empfehlen",
       cardTitle: "Remote-first, mehrsprachig, compliant",

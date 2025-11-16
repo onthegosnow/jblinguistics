@@ -4,12 +4,13 @@ import { buildAssignmentDetail } from "@/lib/server/portal-helpers";
 import { appendAssignmentUpload, requirePortalUserFromToken } from "@/lib/server/storage";
 
 type Params = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const { id } = await params;
   const user = await requirePortalUserFromToken(request.headers.get("x-portal-token") ?? undefined);
-  const detail = await buildAssignmentDetail(params.id, user);
+  const detail = await buildAssignmentDetail(id, user);
   if (!detail) {
     return NextResponse.json({ message: "Assignment not found." }, { status: 404 });
   }
@@ -38,6 +39,6 @@ export async function POST(request: NextRequest, { params }: Params) {
     uploadedAt: new Date().toISOString(),
   });
 
-  const updated = await buildAssignmentDetail(params.id, user);
+  const updated = await buildAssignmentDetail(id, user);
   return NextResponse.json(updated);
 }

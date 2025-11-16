@@ -15,6 +15,10 @@ type FilterKey = typeof ALL | Len;
 export default function TripsIndex() {
   const { t } = useLanguage();
   const tripsCopy = t.tripsPage;
+  const cardPricingLabel =
+    "cardPricingLink" in tripsCopy && typeof tripsCopy.cardPricingLink === "string"
+      ? tripsCopy.cardPricingLink
+      : "View sample pricing";
   const daySuffix = tripsCopy.daySuffix ?? "days";
   const formatDays = (len: number) => `${len} ${daySuffix}`;
   const localizedDestinations = useMemo(() => t.destinations ?? {}, [t]);
@@ -261,7 +265,7 @@ export default function TripsIndex() {
                     href={`/trips/${d.slug}/pricing`}
                     className="inline-flex items-center justify-center rounded-full px-3.5 py-2 text-sm font-semibold border border-slate-300 text-sky-900 hover:bg-slate-50 transition"
                   >
-                    {tripsCopy.cardPricingLink ?? "View sample pricing"}
+                    {cardPricingLabel}
                   </Link>
                 </div>
 

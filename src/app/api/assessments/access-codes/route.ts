@@ -13,7 +13,10 @@ export async function GET(request: Request) {
     const codes = await listAccessCodes();
     return NextResponse.json({ codes });
   } catch (err) {
-    const status = (err as NodeJS.ErrnoException).statusCode || 500;
+    const status =
+      typeof (err as { statusCode?: number }).statusCode === "number"
+        ? (err as { statusCode?: number }).statusCode!
+        : 500;
     return NextResponse.json({ message: err instanceof Error ? err.message : "Unable to load access codes." }, { status });
   }
 }
@@ -44,7 +47,10 @@ export async function POST(request: Request) {
     await saveAccessCodes(codes);
     return NextResponse.json({ code: record });
   } catch (err) {
-    const status = (err as NodeJS.ErrnoException).statusCode || 500;
+    const status =
+      typeof (err as { statusCode?: number }).statusCode === "number"
+        ? (err as { statusCode?: number }).statusCode!
+        : 500;
     return NextResponse.json({ message: err instanceof Error ? err.message : "Unable to create access code." }, { status });
   }
 }

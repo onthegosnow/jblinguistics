@@ -34,13 +34,15 @@ export default function CareersPage() {
   const requiresTeacherAssessment = selectedRoles.includes("educator") || selectedRoles.includes("both");
   const requiresTranslatorExercise = selectedRoles.includes("translator") || selectedRoles.includes("both");
   const [selectedLanguages, setSelectedLanguages] = useState<TeacherAssessmentLanguage[]>([]);
-  const [languageSeeds, setLanguageSeeds] = useState<Record<TeacherAssessmentLanguage, number>>({});
+  const [languageSeeds, setLanguageSeeds] = useState<Record<TeacherAssessmentLanguage, number>>(
+    {} as Record<TeacherAssessmentLanguage, number>
+  );
   const [answersByLanguage, setAnswersByLanguage] = useState<
     Record<TeacherAssessmentLanguage, Record<string, number>>
-  >({});
+  >({} as Record<TeacherAssessmentLanguage, Record<string, number>>);
   const [responsesByLanguage, setResponsesByLanguage] = useState<
     Record<TeacherAssessmentLanguage, { conflict: string; attendance: string }>
-  >({});
+  >({} as Record<TeacherAssessmentLanguage, { conflict: string; attendance: string }>);
   const [translatorLanguage, setTranslatorLanguage] = useState<TranslatorExerciseLanguage | "">("");
   const [translatorText, setTranslatorText] = useState("");
 
@@ -90,9 +92,9 @@ export default function CareersPage() {
   useEffect(() => {
     if (!requiresTeacherAssessment) {
       setSelectedLanguages([]);
-      setLanguageSeeds({});
-      setAnswersByLanguage({});
-      setResponsesByLanguage({});
+      setLanguageSeeds({} as Record<TeacherAssessmentLanguage, number>);
+      setAnswersByLanguage({} as Record<TeacherAssessmentLanguage, Record<string, number>>);
+      setResponsesByLanguage({} as Record<TeacherAssessmentLanguage, { conflict: string; attendance: string }>);
     }
     if (!requiresTranslatorExercise) {
       setTranslatorLanguage("");
@@ -229,9 +231,9 @@ export default function CareersPage() {
       form.reset();
       setSelectedRoles(["translator"]);
       setSelectedLanguages([]);
-      setLanguageSeeds({});
-      setAnswersByLanguage({});
-      setResponsesByLanguage({});
+      setLanguageSeeds({} as Record<TeacherAssessmentLanguage, number>);
+      setAnswersByLanguage({} as Record<TeacherAssessmentLanguage, Record<string, number>>);
+      setResponsesByLanguage({} as Record<TeacherAssessmentLanguage, { conflict: string; attendance: string }>);
       setTranslatorLanguage("");
       setTranslatorText("");
       setStatus("success");

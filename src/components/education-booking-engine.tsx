@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { languages } from "@/lib/copy";
+import { languages, type Lang } from "@/lib/copy";
 
 const serviceOptions = [
   { value: "coaching", label: "1:1 or cohort coaching" },
@@ -30,7 +30,7 @@ const timezoneOptions = [
 
 export default function EducationBookingEngine({ compact = false }: { compact?: boolean }) {
   const [serviceType, setServiceType] = useState(serviceOptions[0].value);
-  const [preferredLanguage, setPreferredLanguage] = useState(languages[0]);
+  const [preferredLanguage, setPreferredLanguage] = useState<Lang>(languages[0]);
   const [timezone, setTimezone] = useState(timezoneOptions[1]);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -92,7 +92,7 @@ export default function EducationBookingEngine({ compact = false }: { compact?: 
             <span className="block mb-1 font-semibold">Preferred language</span>
             <select
               value={preferredLanguage}
-              onChange={(e) => setPreferredLanguage(e.target.value)}
+              onChange={(e) => setPreferredLanguage(e.target.value as Lang)}
               className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               {languages.map((code) => (

@@ -137,8 +137,8 @@ export async function getApplicationById(id: string): Promise<CareerApplicationR
 
 export function requireAdmin(headerValue?: string) {
   if (!headerValue || headerValue.trim() !== ADMIN_SECRET) {
-    const error = new Error("Unauthorized");
-    (error as NodeJS.ErrnoException).statusCode = 401;
+    const error = new Error("Unauthorized") as Error & { statusCode?: number };
+    error.statusCode = 401;
     throw error;
   }
 }
@@ -364,15 +364,15 @@ export async function getPortalSession(token?: string): Promise<PortalSessionRec
 export async function requirePortalUserFromToken(token?: string): Promise<PortalUserRecord> {
   const session = await getPortalSession(token);
   if (!session) {
-    const error = new Error("Unauthorized");
-    (error as NodeJS.ErrnoException).statusCode = 401;
+    const error = new Error("Unauthorized") as Error & { statusCode?: number };
+    error.statusCode = 401;
     throw error;
   }
   const users = await listPortalUsers();
   const user = users.find((u) => u.id === session.userId && u.active);
   if (!user) {
-    const error = new Error("Unauthorized");
-    (error as NodeJS.ErrnoException).statusCode = 401;
+    const error = new Error("Unauthorized") as Error & { statusCode?: number };
+    error.statusCode = 401;
     throw error;
   }
   return user;

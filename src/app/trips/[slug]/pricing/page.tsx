@@ -17,6 +17,14 @@ const INSURANCE_BUFFER = 250;
 export default function TripPricingPage({ params }: { params: { slug: string } }) {
   const { t } = useLanguage();
   const tripsCopy = t.tripsPage;
+  const cardPricingLabel =
+    "cardPricingLink" in tripsCopy && typeof tripsCopy.cardPricingLink === "string"
+      ? tripsCopy.cardPricingLink
+      : "Sample pricing";
+  const pricingDisclaimer =
+    "pricingDisclaimer" in tripsCopy && typeof tripsCopy.pricingDisclaimer === "string"
+      ? tripsCopy.pricingDisclaimer
+      : "Pricing varies by cohort size, travel dates, and the time between booking and departure. Use this estimate for planning; confirmed totals are provided once flights, hotels, and excursions are reserved.";
   const destination = destinations.find((d) => d.slug === params.slug);
 
   if (!destination) {
@@ -80,9 +88,9 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-teal-600 font-semibold">Linguistic Learning Trips</p>
           <h1 className="text-3xl font-extrabold text-sky-900">{destination.name}</h1>
-          <p className="text-sm text-slate-600">
-            {tripsCopy.cardPricingLink ?? "Sample pricing"} · {referenceLength}-day cohort (max 10 travelers)
-          </p>
+        <p className="text-sm text-slate-600">
+          {cardPricingLabel} · {referenceLength}-day cohort (max 10 travelers)
+        </p>
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -111,10 +119,7 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
           </table>
         </div>
 
-        <p className="text-sm text-slate-600">
-          {tripsCopy.pricingDisclaimer ??
-            "Pricing varies by cohort size, travel dates, and the time between booking and departure. Use this estimate for planning; confirmed totals are provided once flights, hotels, and excursions are reserved."}
-        </p>
+        <p className="text-sm text-slate-600">{pricingDisclaimer}</p>
 
         <div className="flex flex-wrap gap-3">
           <Link

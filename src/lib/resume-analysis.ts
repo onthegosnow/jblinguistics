@@ -48,8 +48,10 @@ async function extractResumeText(buffer: Buffer, options: AnalysisOptions): Prom
   const extension = ((options.filename && path.extname(options.filename)) || "").toLowerCase();
   try {
     if (mime.includes("pdf") || extension === ".pdf") {
-      const pdfModule = await import("pdf-parse/lib/pdf-parse.js");
-      const pdfParse = (pdfModule as { default?: (data: Buffer) => Promise<{ text: string }> }).default ?? (pdfModule as unknown as (data: Buffer) => Promise<{ text: string }>);
+      const pdfModule = await import("pdf-parse");
+      const pdfParse =
+        (pdfModule as { default?: (data: Buffer) => Promise<{ text: string }> }).default ??
+        (pdfModule as unknown as (data: Buffer) => Promise<{ text: string }>);
       const parsed = await pdfParse(buffer);
       return collapseWhitespace(parsed?.text || "");
     }

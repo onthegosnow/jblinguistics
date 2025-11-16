@@ -17,7 +17,10 @@ export async function GET(request: Request) {
     }));
     return NextResponse.json({ applicants: sanitized });
   } catch (err) {
-    const status = (err as NodeJS.ErrnoException).statusCode || 500;
+    const status =
+      typeof (err as { statusCode?: number }).statusCode === "number"
+        ? (err as { statusCode?: number }).statusCode!
+        : 500;
     return NextResponse.json({ message: err instanceof Error ? err.message : "Unable to load applicants." }, { status });
   }
 }

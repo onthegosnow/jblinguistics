@@ -54,6 +54,18 @@ export default function TripDetail({ params }: { params: { slug: string } }) {
   const sampleSubheading = tripsCopy.sampleSubheading ?? "";
   const includes = tripsCopy.includes ?? [];
   const extras = tripsCopy.extras ?? [];
+  const cardPricingLabel =
+    "cardPricingLink" in tripsCopy && typeof tripsCopy.cardPricingLink === "string"
+      ? tripsCopy.cardPricingLink
+      : "View sample pricing";
+  const waiverHeading =
+    "waiverHeading" in tripsCopy && typeof tripsCopy.waiverHeading === "string"
+      ? tripsCopy.waiverHeading
+      : "Travel & liability notice";
+  const waiverText =
+    "waiverText" in tripsCopy && typeof tripsCopy.waiverText === "string"
+      ? tripsCopy.waiverText
+      : "Participants must obtain supplemental travel medical and trip cancellation insurance. JB Linguistics LLC and JB Linguistics GmbH coordinate logistics but are not liable for injuries, accidents, or disruptions occurring during travel. Proof of coverage and signed waivers are required prior to departure.";
   const lessonLabel = tripsCopy.lessonLabel ?? "Lesson";
   const activityLabel = tripsCopy.activityLabel ?? "Activity";
   const aboutTripText =
@@ -124,7 +136,7 @@ export default function TripDetail({ params }: { params: { slug: string } }) {
               href={`/trips/${dest.slug}/pricing`}
               className="mt-3 inline-block rounded-full border border-white/40 text-white px-4 py-2 text-sm font-semibold hover:bg-white/10 transition"
             >
-              {t.tripsPage.cardPricingLink ?? "View sample pricing"}
+              {cardPricingLabel}
             </Link>
           </div>
 
@@ -232,11 +244,10 @@ export default function TripDetail({ params }: { params: { slug: string } }) {
 
         <div className="mt-8 rounded-3xl border border-rose-300/50 bg-rose-950/30 p-5 text-slate-100">
           <p className="text-sm font-semibold text-rose-200 uppercase tracking-wide">
-            {tripsCopy.waiverHeading ?? "Travel & liability notice"}
+            {waiverHeading}
           </p>
           <p className="mt-2 text-sm text-slate-100">
-            {tripsCopy.waiverText ??
-              "Participants must obtain supplemental travel medical and trip cancellation insurance. JB Linguistics LLC and JB Linguistics GmbH coordinate logistics but are not liable for injuries, accidents, or disruptions occurring during travel. Proof of coverage and signed waivers are required prior to departure."}
+            {waiverText}
           </p>
         </div>
       </section>

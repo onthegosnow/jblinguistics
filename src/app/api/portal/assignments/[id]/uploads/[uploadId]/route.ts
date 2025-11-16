@@ -4,18 +4,19 @@ import { listAssignmentUploads, requirePortalUserFromToken } from "@/lib/server/
 import { listAssignmentsForUser } from "@/lib/server/portal-helpers";
 
 type Params = {
-  params: { id: string; uploadId: string };
+  params: Promise<{ id: string; uploadId: string }>;
 };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const { id, uploadId } = await params;
   const user = await requirePortalUserFromToken(request.headers.get("x-portal-token") ?? undefined);
   const assignments = await listAssignmentsForUser(user);
-  const allowed = assignments.some((assignment) => assignment.id === params.id);
+  const allowed = assignments.some((assignment) => assignment.id === id);
   if (!allowed) {
     return NextResponse.json({ message: "Not found." }, { status: 404 });
   }
   const uploads = await listAssignmentUploads();
-  const upload = uploads.find((u) => u.id === params.uploadId && u.assignmentId === params.id && u.userId === user.id);
+  const upload = uploads.find((u) => u.id === uploadId && u.assignmentId === id && u.userId === user.id);
   if (!upload) {
     return NextResponse.json({ message: "Upload not found." }, { status: 404 });
   }

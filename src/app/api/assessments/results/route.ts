@@ -8,7 +8,10 @@ export async function GET(request: Request) {
     const results = await listSubmissions();
     return NextResponse.json({ results });
   } catch (err) {
-    const status = (err as NodeJS.ErrnoException).statusCode || 500;
+    const status =
+      typeof (err as { statusCode?: number }).statusCode === "number"
+        ? (err as { statusCode?: number }).statusCode!
+        : 500;
     return NextResponse.json({ message: err instanceof Error ? err.message : "Unable to load results." }, { status });
   }
 }
