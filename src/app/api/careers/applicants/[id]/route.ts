@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { deleteApplicationById, requireAdmin } from "@/lib/server/storage";
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const token = request.headers.get("x-admin-token") ?? undefined;
     requireAdmin(token);
-    const { id } = params;
+    const { id } = await context.params;
     if (!id) {
       return NextResponse.json({ message: "Missing applicant id" }, { status: 400 });
     }
@@ -22,4 +24,3 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     return NextResponse.json({ message: err instanceof Error ? err.message : "Unable to delete applicant." }, { status });
   }
 }
-
