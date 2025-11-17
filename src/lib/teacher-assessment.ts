@@ -590,6 +590,10 @@ export function getReflectionPrompts(language: TeacherAssessmentLanguage) {
   return reflectionPrompts[language] ?? reflectionPrompts.english;
 }
 
+function translateFragment(language: TeacherAssessmentLanguage, value: string) {
+  return assessmentTranslations[language]?.fragments?.[value] ?? value;
+}
+
 function interpolate(template: string, replacements: Record<string, string>) {
   return template.replace(/\{(.*?)\}/g, (_, key) => replacements[key] ?? "");
 }
@@ -599,7 +603,10 @@ function buildPromptLocalization(kind: PromptKind, replacements: Record<string, 
   teacherAssessmentLanguages.forEach(({ id }) => {
     const template = promptTemplates[kind]?.[id];
     if (template) {
-      map[id] = interpolate(template, replacements);
+      const localized = Object.fromEntries(
+        Object.entries(replacements).map(([key, value]) => [key, translateFragment(id, value)])
+      );
+      map[id] = interpolate(template, localized);
     }
   });
   return map;
@@ -1201,7 +1208,8 @@ function generateConditionalQuestions(limit = 240): TeacherAssessmentQuestion[] 
         const optionsByLang: Partial<Record<TeacherAssessmentLanguage, [string, string, string, string]>> = {};
         teacherAssessmentLanguages.forEach(({ id }) => {
           const templates = conditionalOptionTemplates[id] ?? conditionalOptionTemplates.english;
-          optionsByLang[id] = templates.map((template) => template.replace("{result}", result)) as [
+          const localizedResult = translateFragment(id, result);
+          optionsByLang[id] = templates.map((template) => template.replace("{result}", localizedResult)) as [
             string,
             string,
             string,
@@ -1229,7 +1237,8 @@ function generateInversionQuestions(limit = 120): TeacherAssessmentQuestion[] {
     const optionsByLang: Partial<Record<TeacherAssessmentLanguage, [string, string, string, string]>> = {};
     teacherAssessmentLanguages.forEach(({ id }) => {
       const templates = inversionOptionTemplates[id] ?? inversionOptionTemplates.english;
-      optionsByLang[id] = templates.map((template) => template.replace("{focus}", focus)) as [
+      const localizedFocus = translateFragment(id, focus);
+      optionsByLang[id] = templates.map((template) => template.replace("{focus}", localizedFocus)) as [
         string,
         string,
         string,

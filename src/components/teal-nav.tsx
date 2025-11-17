@@ -55,6 +55,10 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
     return () => document.removeEventListener("pointerdown", handlePointer);
   }, [langOpen]);
 
+  const closeMobileMenu = () => {
+    setMobileOpen(false);
+    setExpandedService(null);
+  };
   return (
     <header
       className={`sticky top-0 z-30 bg-[#0fb5b3] border-b border-[#0a8c8a]/80 text-sky-900 backdrop-blur ${className}`}
@@ -77,7 +81,13 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
         <div className="flex flex-1 items-center justify-end gap-3 md:hidden">
           <button
             type="button"
-            onClick={() => setMobileOpen((prev) => !prev)}
+            onClick={() =>
+              setMobileOpen((prev) => {
+                const next = !prev;
+                if (!next) setExpandedService(null);
+                return next;
+              })
+            }
             className="inline-flex items-center gap-1 rounded-full border border-white/60 bg-white/10 px-4 py-2 text-sm font-semibold text-white"
             aria-expanded={mobileOpen}
           >
@@ -153,13 +163,13 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
 {mobileOpen && (
   <div className="md:hidden border-t border-white/20 bg-[#0b9a98] text-white">
           <div className="px-4 py-4 space-y-2 text-sm font-semibold">
-            <Link href="/" className="block rounded-2xl bg-white/10 px-4 py-2" onClick={() => setMobileOpen(false)}>
+            <Link href="/" className="block rounded-2xl bg-white/10 px-4 py-2" onClick={closeMobileMenu}>
               Home
             </Link>
             <Link
               href="/services/linguistic-learning"
               className="block rounded-2xl bg-white/10 px-4 py-2"
-              onClick={() => setMobileOpen(false)}
+              onClick={closeMobileMenu}
             >
               {t.nav.teacher}
             </Link>
@@ -179,39 +189,33 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
                     <div className="mt-2 rounded-2xl bg-white/10 p-3 space-y-2 text-[12px]">
                       <p className="text-white/80">{item.summary}</p>
                       <div className="flex flex-wrap gap-2">
-                        <Link
-                          href={item.infoHref}
-                          className="inline-flex items-center rounded-full bg-white/90 text-sky-900 px-3 py-1 font-semibold"
-                          onClick={() => {
-                            setMobileOpen(false);
-                            setExpandedService(null);
-                          }}
-                        >
-                          Overview
-                        </Link>
-                        <Link
-                          href={item.requestHref}
-                          className="inline-flex items-center rounded-full border border-white/50 px-3 py-1 font-semibold"
-                          onClick={() => {
-                            setMobileOpen(false);
-                            setExpandedService(null);
-                          }}
-                        >
-                          Request
-                        </Link>
-                      </div>
+                    <Link
+                      href={item.infoHref}
+                      className="inline-flex items-center rounded-full bg-white/90 text-sky-900 px-3 py-1 font-semibold"
+                      onClick={closeMobileMenu}
+                    >
+                      Overview
+                    </Link>
+                    <Link
+                      href={item.requestHref}
+                      className="inline-flex items-center rounded-full border border-white/50 px-3 py-1 font-semibold"
+                      onClick={closeMobileMenu}
+                    >
+                      Request
+                    </Link>
+                  </div>
                     </div>
                   )}
                 </div>
               ))}
             </div>
-            <Link href="/trips" className="block rounded-2xl bg-white/10 px-4 py-2" onClick={() => setMobileOpen(false)}>
+            <Link href="/trips" className="block rounded-2xl bg-white/10 px-4 py-2" onClick={closeMobileMenu}>
               {t.nav.trips}
             </Link>
             <Link
               href="/teachers/jonathan-brooks"
               className="block rounded-2xl bg-white/10 px-4 py-2"
-              onClick={() => setMobileOpen(false)}
+              onClick={closeMobileMenu}
             >
               {t.nav.aboutJb}
             </Link>
@@ -225,7 +229,7 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
                       key={person.slug}
                       href={person.profilePath ?? `/teachers/${person.slug}`}
                       className="block rounded-2xl bg-white/10 px-3 py-2"
-                      onClick={() => setMobileOpen(false)}
+                      onClick={closeMobileMenu}
                     >
                       {person.name}
                     </Link>
@@ -240,7 +244,7 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
                       key={person.slug}
                       href={person.profilePath ?? `/translators/${person.slug}`}
                       className="block rounded-2xl bg-white/10 px-3 py-2"
-                      onClick={() => setMobileOpen(false)}
+                      onClick={closeMobileMenu}
                     >
                       {person.name}
                     </Link>
@@ -251,14 +255,14 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
             <Link
               href="/careers"
               className="block rounded-2xl bg-white/10 px-4 py-2"
-              onClick={() => setMobileOpen(false)}
+              onClick={closeMobileMenu}
             >
               {t.nav.careers}
             </Link>
             <Link
               href={sectionHref("contact")}
               className="block rounded-2xl bg-white text-center text-sky-900 px-4 py-2 shadow"
-              onClick={() => setMobileOpen(false)}
+              onClick={closeMobileMenu}
             >
               {t.nav.ctaLabel}
             </Link>

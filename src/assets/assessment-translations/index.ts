@@ -13,6 +13,7 @@ import swedish from "./swedish.json";
 export type AssessmentTranslationFile = {
   questions: Record<string, { prompt: string; options: [string, string, string, string] }>;
   reflections: { conflict: string; attendance: string };
+  fragments?: Record<string, string>;
 };
 
 function asTranslation(data: unknown): AssessmentTranslationFile {

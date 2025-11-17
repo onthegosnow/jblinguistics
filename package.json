@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "export:assessment-phrases": "tsx scripts/export-assessment-phrases.ts",
-    "translate:assessments": "tsx scripts/translate-assessment-phrases.ts"
+    "translate:assessments": "tsx scripts/translate-assessment-phrases.ts",
+    "translate:fragments": "tsx scripts/translate-assessment-fragments.ts"
   },
   "dependencies": {
     "mammoth": "^1.11.0",
