@@ -60,35 +60,6 @@ export default function CareersPage() {
     return map;
   }, [selectedLanguages, languageSeeds]);
 
-  const teacherAssessmentsComplete = useMemo(() => {
-    if (!requiresTeacherAssessment) return true;
-    if (selectedLanguages.length === 0) return false;
-    return selectedLanguages.every((language) => {
-      const seed = languageSeeds[language];
-      if (typeof seed !== "number") return false;
-      const questions =
-        teacherQuestionSets[language] ?? getTeacherAssessment(language, { seed, sampleSize: QUESTIONS_PER_ASSESSMENT });
-      const answers = answersByLanguage[language] ?? {};
-      const responses = responsesByLanguage[language] ?? { conflict: "", attendance: "" };
-      return (
-        questions.length === QUESTIONS_PER_ASSESSMENT &&
-        Object.keys(answers).length === questions.length &&
-        responses.conflict.trim().length > 0 &&
-        responses.attendance.trim().length > 0
-      );
-    });
-  }, [
-    requiresTeacherAssessment,
-    selectedLanguages,
-    languageSeeds,
-    teacherQuestionSets,
-    answersByLanguage,
-    responsesByLanguage,
-  ]);
-
-  const translatorExerciseComplete = requiresTranslatorExercise ? Boolean(translatorLanguage && translatorText.trim()) : true;
-  const canUploadResume = teacherAssessmentsComplete && translatorExerciseComplete;
-
   useEffect(() => {
     if (!requiresTeacherAssessment) {
       setSelectedLanguages([]);
@@ -407,17 +378,9 @@ export default function CareersPage() {
                 type="file"
                 required
                 accept=".pdf,.doc,.docx,.rtf,.txt"
-                disabled={!canUploadResume}
-                className={`rounded-2xl border border-dashed px-4 py-3 text-sm ${
-                  canUploadResume ? "border-teal-400 bg-teal-50" : "border-slate-300 bg-slate-100 text-slate-400"
-                }`}
+                className="rounded-2xl border border-dashed border-teal-400 bg-teal-50 px-4 py-3 text-sm"
               />
               <span className="text-xs text-slate-500">{formCopy.resumeHint}</span>
-              {!canUploadResume && (
-                <span className="text-xs text-rose-600">
-                  Complete the required assessments before uploading your resume.
-                </span>
-              )}
             </label>
             <button
               type="submit"
