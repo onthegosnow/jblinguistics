@@ -38,7 +38,7 @@ export type TeacherAssessmentScore = {
   breakdown: Record<"B2" | "C1" | "C2", { total: number; correct: number }>;
 };
 
-export const QUESTIONS_PER_ASSESSMENT = 100;
+export const QUESTIONS_PER_ASSESSMENT = 50;
 
 const ARTICLE_OPTIONS: [string, string, string, string] = ["a", "an", "the", "no article"];
 const MODAL_OPTIONS: [string, string, string, string] = ["must", "should", "could", "might"];
@@ -1290,7 +1290,7 @@ function generateIdiomQuestions(limit = 150): TeacherAssessmentQuestion[] {
   });
 }
 
-const QUESTION_BANK: TeacherAssessmentQuestion[] = [
+const RAW_QUESTION_BANK: TeacherAssessmentQuestion[] = [
   ...generateArticleQuestions(),
   ...generateTenseQuestions(),
   ...generateModalQuestions(),
@@ -1298,6 +1298,8 @@ const QUESTION_BANK: TeacherAssessmentQuestion[] = [
   ...generateInversionQuestions(),
   ...generateIdiomQuestions(),
 ];
+
+const QUESTION_BANK: TeacherAssessmentQuestion[] = RAW_QUESTION_BANK.map(shuffleQuestionOptions);
 
 export const __questionBank = QUESTION_BANK;
 
@@ -1362,6 +1364,26 @@ function computeLevelTargets(sampleSize: number): Record<LevelKey, number> {
       });
   }
   return counts;
+}
+
+function shuffleQuestionOptions(question: TeacherAssessmentQuestion): TeacherAssessmentQuestion {
+  const seed = question.id.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const order = shuffleWithSeed([0, 1, 2, 3], seed);
+  const reorder = (options: [string, string, string, string]) =>
+    order.map((index) => options[index]) as [string, string, string, string];
+  const options = reorder(question.options);
+  const answerIndex = order.indexOf(question.answerIndex);
+  const optionsByLang = question.optionsByLang
+    ? (Object.fromEntries(
+        Object.entries(question.optionsByLang).map(([lang, opts]) => [lang, reorder(opts)])
+      ) as Partial<Record<TeacherAssessmentLanguage, [string, string, string, string]>>)
+    : undefined;
+  return {
+    ...question,
+    options,
+    answerIndex,
+    optionsByLang,
+  };
 }
 
 function localizeQuestionForLanguage(
