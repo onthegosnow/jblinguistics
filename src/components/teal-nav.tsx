@@ -19,6 +19,7 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
   const sectionHref = (id: string) => (usePageAnchors ? `#${id}` : `/#${id}`);
   const [langOpen, setLangOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileServicesOpen, setMobileServicesOpen] = useState(false);
   const [expandedService, setExpandedService] = useState<string | null>(null);
   const langRef = useRef<HTMLDivElement | null>(null);
   const translationItems = useMemo(() => {
@@ -57,6 +58,7 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
 
   const closeMobileMenu = () => {
     setMobileOpen(false);
+    setMobileServicesOpen(false);
     setExpandedService(null);
   };
   return (
@@ -84,7 +86,10 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
             onClick={() =>
               setMobileOpen((prev) => {
                 const next = !prev;
-                if (!next) setExpandedService(null);
+                if (!next) {
+                  setMobileServicesOpen(false);
+                  setExpandedService(null);
+                }
                 return next;
               })
             }
@@ -160,8 +165,8 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
           />
         </nav>
       </div>
-{mobileOpen && (
-  <div className="md:hidden border-t border-white/20 bg-[#0b9a98] text-white">
+      {mobileOpen && (
+        <div className="md:hidden border-t border-white/20 bg-[#0b9a98] text-white max-h-[80vh] overflow-y-auto overscroll-contain">
           <div className="px-4 py-4 space-y-2 text-sm font-semibold">
             <Link href="/" className="block rounded-2xl bg-white/10 px-4 py-2" onClick={closeMobileMenu}>
               Home
@@ -174,40 +179,57 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
               {t.nav.teacher}
             </Link>
             <div className="rounded-2xl bg-white/10 px-4 py-3 space-y-3">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/70 mb-2">{t.nav.translator}</p>
-              {translationItems.map((item) => (
-                <div key={item.key}>
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-between rounded-2xl bg-white/5 px-3 py-2 text-left"
-                    onClick={() => setExpandedService((prev) => (prev === item.key ? null : item.key))}
-                  >
-                    <span className="text-sm font-semibold">{item.label}</span>
-                    <span aria-hidden>{expandedService === item.key ? "−" : "+"}</span>
-                  </button>
-                  {expandedService === item.key && (
-                    <div className="mt-2 rounded-2xl bg-white/10 p-3 space-y-2 text-[12px]">
-                      <p className="text-white/80">{item.summary}</p>
-                      <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={item.infoHref}
-                      className="inline-flex items-center rounded-full bg-white/90 text-sky-900 px-3 py-1 font-semibold"
-                      onClick={closeMobileMenu}
-                    >
-                      Overview
-                    </Link>
-                    <Link
-                      href={item.requestHref}
-                      className="inline-flex items-center rounded-full border border-white/50 px-3 py-1 font-semibold"
-                      onClick={closeMobileMenu}
-                    >
-                      Request
-                    </Link>
-                  </div>
+              <button
+                type="button"
+                className="w-full flex items-center justify-between text-left text-xs uppercase tracking-[0.3em] text-white/70"
+                onClick={() => {
+                  setMobileServicesOpen((prev) => {
+                    const next = !prev;
+                    if (!next) setExpandedService(null);
+                    return next;
+                  });
+                }}
+              >
+                <span>{t.nav.translator}</span>
+                <span aria-hidden>{mobileServicesOpen ? "−" : "+"}</span>
+              </button>
+              {mobileServicesOpen && (
+                <div className="space-y-3">
+                  {translationItems.map((item) => (
+                    <div key={item.key}>
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between rounded-2xl bg-white/5 px-3 py-2 text-left"
+                        onClick={() => setExpandedService((prev) => (prev === item.key ? null : item.key))}
+                      >
+                        <span className="text-sm font-semibold">{item.label}</span>
+                        <span aria-hidden>{expandedService === item.key ? "−" : "+"}</span>
+                      </button>
+                      {expandedService === item.key && (
+                        <div className="mt-2 rounded-2xl bg-white/10 p-3 space-y-2 text-[12px]">
+                          <p className="text-white/80">{item.summary}</p>
+                          <div className="flex flex-wrap gap-2">
+                            <Link
+                              href={item.infoHref}
+                              className="inline-flex items-center rounded-full bg-white/90 text-sky-900 px-3 py-1 font-semibold"
+                              onClick={closeMobileMenu}
+                            >
+                              Overview
+                            </Link>
+                            <Link
+                              href={item.requestHref}
+                              className="inline-flex items-center rounded-full border border-white/50 px-3 py-1 font-semibold"
+                              onClick={closeMobileMenu}
+                            >
+                              Request
+                            </Link>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
             <Link href="/trips" className="block rounded-2xl bg-white/10 px-4 py-2" onClick={closeMobileMenu}>
               {t.nav.trips}
