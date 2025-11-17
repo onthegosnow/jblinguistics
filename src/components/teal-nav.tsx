@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { languages, type Lang } from "@/lib/copy";
 import { useLanguage } from "@/lib/language-context";
 import { hasRole, staff, type StaffMember } from "@/lib/staff";
 import { destinations, type Destination } from "@/lib/trips";
+import { translationServices } from "@/lib/translation-services";
 
 interface TealNavProps extends React.HTMLAttributes<HTMLElement> {
   usePageAnchors?: boolean;
@@ -19,6 +20,27 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
   const [langOpen, setLangOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const langRef = useRef<HTMLDivElement | null>(null);
+  const translationItems = useMemo(() => {
+    const cards = t.services?.cards ?? [];
+    const titleFor = (key: string, fallback: string) =>
+      cards.find((card) => card.key === key)?.title ?? fallback;
+    return translationServices.map((service) => {
+      let localizedLabel = service.name;
+      if (service.slug === "websites") localizedLabel = titleFor("translation", service.name);
+      if (service.slug === "documents") localizedLabel = titleFor("documents", service.name);
+      return {
+        key: service.slug,
+        label: localizedLabel,
+        summary: service.summary,
+        infoHref: service.infoHref,
+        requestHref: service.requestHref,
+      };
+    });
+  }, [t.services?.cards]);
+  const teachers = useMemo(() => staff.filter((member) => hasRole(member, "teacher")), []);
+  const translators = useMemo(() => staff.filter((member) => hasRole(member, "translator")), []);
+  const topTeachers = teachers.slice(0, 3);
+  const topTranslators = translators.slice(0, 3);
 
   useEffect(() => {
     if (!langOpen) return;
@@ -83,12 +105,7 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
             >
               {t.nav.teacher}
             </Link>
-            <Link
-              href="/services/translation-localization"
-              className="px-3 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
-            >
-              {t.nav.translator}
-            </Link>
+            <TranslationDropdown label={t.nav.translator} items={translationItems} />
             <TripsDropdown
               label={t.nav.trips}
               baseHref="/trips"
@@ -100,8 +117,8 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
             label={t.nav.staff}
             teachersLabel={t.nav.teacher}
             translatorsLabel={t.nav.translator}
-            teachers={staff.filter((p) => hasRole(p, "teacher"))}
-            translators={staff.filter((p) => hasRole(p, "translator"))}
+            teachers={teachers}
+            translators={translators}
           />
           <Link
             href="/teachers/jonathan-brooks"
@@ -144,13 +161,33 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
             >
               {t.nav.teacher}
             </Link>
-            <Link
-              href="/services/translation-localization"
-              className="block rounded-2xl bg-white/10 px-4 py-2"
-              onClick={() => setMobileOpen(false)}
-            >
-              {t.nav.translator}
-            </Link>
+            <div className="rounded-2xl bg-white/10 px-4 py-3 space-y-3">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/70 mb-2">{t.nav.translator}</p>
+              {translationItems.map((item) => (
+                <div key={item.key} className="rounded-2xl bg-white/5 p-3 space-y-2">
+                  <div>
+                    <p className="text-sm font-semibold">{item.label}</p>
+                    <p className="text-[12px] text-white/80">{item.summary}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[12px]">
+                    <Link
+                      href={item.infoHref}
+                      className="inline-flex items-center rounded-full bg-white/90 text-sky-900 px-3 py-1 font-semibold"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Overview
+                    </Link>
+                    <Link
+                      href={item.requestHref}
+                      className="inline-flex items-center rounded-full border border-white/50 px-3 py-1 font-semibold"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Request
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
             <Link href="/trips" className="block rounded-2xl bg-white/10 px-4 py-2" onClick={() => setMobileOpen(false)}>
               {t.nav.trips}
             </Link>
@@ -161,6 +198,39 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
             >
               {t.nav.aboutJb}
             </Link>
+            <div className="rounded-2xl bg-white/10 px-4 py-3 space-y-3">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/70">{t.nav.staff}</p>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-white/60 mb-1">{t.nav.teacher}</p>
+                <div className="space-y-1 text-[13px]">
+                  {topTeachers.map((person) => (
+                    <Link
+                      key={person.slug}
+                      href={person.profilePath ?? `/teachers/${person.slug}`}
+                      className="block rounded-2xl bg-white/10 px-3 py-2"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {person.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-white/60 mb-1">{t.nav.translator}</p>
+                <div className="space-y-1 text-[13px]">
+                  {topTranslators.map((person) => (
+                    <Link
+                      key={person.slug}
+                      href={person.profilePath ?? `/translators/${person.slug}`}
+                      className="block rounded-2xl bg-white/10 px-3 py-2"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {person.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
             <Link
               href="/careers"
               className="block rounded-2xl bg-white/10 px-4 py-2"
@@ -248,6 +318,69 @@ function NavDropdown({
       {open && (
         <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-white shadow-xl p-4 text-xs text-slate-700 z-20">
           <p>{summary}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TranslationDropdown({
+  label,
+  items,
+}: {
+  label: string;
+  items: { key: string; label: string; summary: string; infoHref: string; requestHref: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointer = (event: PointerEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointer);
+    return () => document.removeEventListener("pointerdown", handlePointer);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="inline-flex items-center gap-1 px-3 py-2 text-sky-900 whitespace-nowrap hover:bg-white/30 hover:text-sky-950 rounded-full transition"
+      >
+        {label}
+        <span aria-hidden className="text-[10px]">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-[360px] rounded-2xl bg-white shadow-xl p-4 text-xs text-slate-700 z-40">
+          <div className="space-y-3">
+            {items.map((item) => (
+              <div key={item.key} className="rounded-2xl border border-slate-100 p-3">
+                <p className="text-sm font-semibold text-sky-900">{item.label}</p>
+                <p className="mt-1 text-[12px] text-slate-600">{item.summary}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                  <Link
+                    href={item.infoHref}
+                    className="inline-flex items-center rounded-full bg-slate-900 text-white px-3 py-1 hover:bg-slate-800"
+                    onClick={() => setOpen(false)}
+                  >
+                    Overview
+                  </Link>
+                  <Link
+                    href={item.requestHref}
+                    className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1 text-sky-900 hover:bg-slate-50"
+                    onClick={() => setOpen(false)}
+                  >
+                    Request
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

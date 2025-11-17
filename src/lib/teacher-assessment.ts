@@ -207,7 +207,7 @@ const tenseOptionTemplates: Record<TeacherAssessmentLanguage, [string, string, s
   swedish: [
     "hade {participle} {object}",
     "har {participle} {object}",
-    "har {participle} {object}",
+    "ha {participle} {object}",
     "{participle} {object}",
   ],
   spanish: [
@@ -229,9 +229,9 @@ const tenseOptionTemplates: Record<TeacherAssessmentLanguage, [string, string, s
     "{participle} {object}",
   ],
   mandarin: [
-    "已经 {participle}{object}",
-    "已经 {participle}{object}",
-    "已经 {participle}{object}",
+    "已经{participle}{object}了",
+    "已经{participle}{object}",
+    "曾经{participle}{object}",
     "{participle}{object}",
   ],
   japanese: [
@@ -1321,20 +1321,81 @@ export const __assessmentSource = {
   reflectionPrompts: reflectionPrompts.english,
 };
 
+type LevelKey = "B2" | "C1" | "C2";
+
+const QUESTIONS_BY_LEVEL: Record<LevelKey, TeacherAssessmentQuestion[]> = {
+  B2: [],
+  C1: [],
+  C2: [],
+};
+
+QUESTION_BANK.forEach((question) => {
+  if (question.level === "B2" || question.level === "C1" || question.level === "C2") {
+    QUESTIONS_BY_LEVEL[question.level].push(question);
+  }
+});
+
+const LEVEL_WEIGHTS: Record<LevelKey, number> = {
+  B2: 0.3,
+  C1: 0.35,
+  C2: 0.35,
+};
+
+const LEVEL_PRIORITY: LevelKey[] = ["C2", "C1", "B2"];
+
+function computeLevelTargets(sampleSize: number): Record<LevelKey, number> {
+  const rawTargets = LEVEL_PRIORITY.map((level) => ({
+    level,
+    exact: sampleSize * LEVEL_WEIGHTS[level],
+  }));
+  const counts: Record<LevelKey, number> = { B2: 0, C1: 0, C2: 0 };
+  let assigned = 0;
+  rawTargets.forEach(({ level, exact }) => {
+    const base = Math.floor(exact);
+    counts[level] = base;
+    assigned += base;
+  });
+  let remainder = sampleSize - assigned;
+  if (remainder > 0) {
+    rawTargets
+      .slice()
+      .sort((a, b) => b.exact % 1 - a.exact % 1)
+      .forEach(({ level }) => {
+        if (remainder <= 0) return;
+        counts[level] += 1;
+        remainder -= 1;
+      });
+  }
+  return counts;
+}
+
+function ensureUniqueOptionTexts(options: [string, string, string, string]): [string, string, string, string] {
+  const seen = new Map<string, number>();
+  return options.map((text) => {
+    const key = text.trim().toLowerCase();
+    const count = seen.get(key) ?? 0;
+    seen.set(key, count + 1);
+    if (count === 0) return text;
+    return `${text} (${count + 1})`;
+  }) as [string, string, string, string];
+}
+
 function localizeQuestionForLanguage(
   question: TeacherAssessmentQuestion,
   language: TeacherAssessmentLanguage
 ): TeacherAssessmentQuestion {
   const translation = assessmentTranslations[language]?.questions?.[question.id];
   const localizedPrompt = translation?.prompt ?? question.promptByLang?.[language] ?? question.prompt;
-  let localizedOptions = question.optionsByLang?.[language] ?? question.options;
-  if (translation?.options) {
-    const normalized = translation.options.map((option) => option.trim().toLowerCase());
-    const hasDuplicates = new Set(normalized).size !== translation.options.length;
-    if (!hasDuplicates) {
-      localizedOptions = translation.options;
-    }
+  let localizedOptions = (question.optionsByLang?.[language] ?? question.options) as [
+    string,
+    string,
+    string,
+    string,
+  ];
+  if (translation?.options && translation.options.length === 4) {
+    localizedOptions = translation.options as [string, string, string, string];
   }
+  localizedOptions = ensureUniqueOptionTexts(localizedOptions);
   return {
     ...question,
     prompt: localizedPrompt,
@@ -1348,8 +1409,31 @@ export function getTeacherAssessment(
 ): TeacherAssessmentQuestion[] {
   const sampleSize = options?.sampleSize ?? QUESTIONS_PER_ASSESSMENT;
   const seedBase = options?.seed ?? language.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const shuffled = shuffleWithSeed(QUESTION_BANK, seedBase);
-  return shuffled.slice(0, sampleSize).map((question) => localizeQuestionForLanguage(question, language));
+  const targets = computeLevelTargets(sampleSize);
+  const selected: TeacherAssessmentQuestion[] = [];
+  const selectedIds = new Set<string>();
+  LEVEL_PRIORITY.forEach((level, index) => {
+    const count = targets[level];
+    if (count <= 0) return;
+    const pool = shuffleWithSeed(QUESTIONS_BY_LEVEL[level], seedBase + (index + 1) * 997);
+    for (let i = 0; i < pool.length && selected.length < sampleSize && i < count; i += 1) {
+      const question = pool[i];
+      if (selectedIds.has(question.id)) continue;
+      selected.push(question);
+      selectedIds.add(question.id);
+    }
+  });
+  if (selected.length < sampleSize) {
+    const fallback = shuffleWithSeed(QUESTION_BANK, seedBase + 7919);
+    for (const question of fallback) {
+      if (selectedIds.has(question.id)) continue;
+      selected.push(question);
+      selectedIds.add(question.id);
+      if (selected.length >= sampleSize) break;
+    }
+  }
+  const ordered = shuffleWithSeed(selected, seedBase).slice(0, sampleSize);
+  return ordered.map((question) => localizeQuestionForLanguage(question, language));
 }
 
 export function scoreTeacherAssessment(

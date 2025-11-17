@@ -35,7 +35,7 @@ export const staff: StaffMember[] = [
     roles: ["teacher", "translator"],
     name: "Jonathan Brooks",
     languages:
-      "English (native), German (B2+), French (B2+), Russian (B1), Dutch (B1), Swedish (B1), Danish (B1)",
+      "English (native), German (B2+/C1), French (B2+/C1), Russian (B1), Dutch (B1), Swedish (B1), Danish (B1)",
     langs: ["English", "German", "French", "Russian", "Dutch", "Swedish", "Danish"],
     region: "Germany",
     location: "Berlin / Remote",
@@ -48,9 +48,9 @@ export const staff: StaffMember[] = [
     ],
     image: "/images/staff/IMG_3166.WEBP",
     imageFocus: "50% 25%",
-    tagline: "Founder of JB Linguistics LLC and global language educator.",
+    tagline: "Founder, CEO, and TEFL-certified linguist trusted by governments, airlines, and Fortune 500 teams.",
     overview:
-      "Jonathan is an international affairs specialist and language educator who has worked in 102 countries with international volunteer groups, airlines, and government partners.",
+      "Jonathan is an international affairs specialist, certified linguist, and aviation leader who has built multilingual programs for NATO-aligned NGOs, Lufthansa-adjacent departments, and German governmental partners across 102 countries. He oversees every JB Linguistics curriculum, certified translation, and interpretation engagement to keep delivery fast, secure, and audit-ready.",
     profilePath: "/teachers/jonathan-brooks",
     background: [
       "B.Sc. in World Religion Studies with minor in Biblical Historical Studies",
@@ -58,13 +58,14 @@ export const staff: StaffMember[] = [
       "168-hour TEFL certification",
       "13+ years leading in-flight operations and international program management",
       "Private pilot licenses (EASA & FAA, IFR rated) with Airbus/Boeing exposure",
-      "Built and managed global teams of 150+ linguists for German government contracts",
-      "Trusted partner for sensitive German government and aviation projects",
+      "Builder of 150+ person linguist collectives supporting Bundestag-adjacent and Lufthansa programs",
+      "Advises on multilingual crisis command centers, language governance, and compliance documentation",
+      "Trusted partner for German governmental, aviation, and humanitarian initiatives requiring sworn linguists",
     ],
     linguistics: [
-      "Designs custom language programs for corporate teams and diplomats",
-      "Special focus on English for international relations, aviation, and cross-cultural work",
-      "Experience coordinating translation and interpretation across 20+ languages",
+      "Designs rapid language programs for executives, diplomats, NATO volunteers, and airline crews",
+      "Architects certified translation, localization, and interpretation workflows across 20+ languages",
+      "Provides executive advisement on compliance-ready learning ecosystems and multilingual crisis response",
     ],
   },
   {

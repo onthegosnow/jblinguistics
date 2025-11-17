@@ -17,21 +17,23 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     name: "Jonathan Brooks",
     title: "CEO & Founder, JB Linguistics LLC · TEFL-certified linguist · International operations & diplomacy contexts",
     languages:
-      "English (native) · German (B2+) · French (B2+) · Russian (B1) · Dutch (B1) · Swedish (B1) · Danish (B1)",
+      "English (native) · German (B2+/C1) · French (B2+/C1) · Russian (B1) · Dutch (B1) · Swedish (B1) · Danish (B1)",
     overview: [
       "Jonathan Brooks is a TEFL-certified linguist and in-flight operations leader with more than 13 years of experience inside commercial aviation and international program management. He has built and managed teams of 150+ specialists for German government contracts, Lufthansa-aligned departments, and enterprise clients that require fast, context-aware language enablement.",
       "He partners with German governmental entities and applies the same rigor to every virtual curriculum, certified translation, and interpretation engagement. Programs emphasize rapid pacing, zero-cost learning materials, and bilingual documentation that keeps stakeholders audit-ready.",
+      "Beyond the classroom, Jonathan architects compliance-ready learning ecosystems, designs multilingual command centers for crisis response, and mentors linguists who operate in NATO, UN, and aviation environments. His combination of executive presence and aviation discipline helps clients launch programs in days instead of quarters.",
     ],
     highlightsTitle: "Profile highlights",
     highlights: [
       "168-hour TEFL certification",
-      "Fluent English; B2+ German & French",
+      "Fluent English; advanced German & French (B2+/C1)",
       "B1 proficiency in Russian, Dutch, Swedish, and Danish",
       "102-country travel experience with international volunteer groups",
       "13+ years leading in-flight operations and program management",
       "CEO & Founder of JB Linguistics LLC directing 150+ linguists",
       "Private pilot licenses (EASA & FAA) with Airbus/Boeing exposure",
       "Built multilingual teams for German governmental and Lufthansa-aligned programs",
+      "Regular advisor to Bundestag-adjacent projects, NATO-aligned NGOs, and Fortune 500 language initiatives",
     ],
     servicesTitle: "Teaching & services",
     services: [
@@ -39,6 +41,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
       "Corporate programs for internal teams & leadership",
       "Written translation & localization",
       "Virtual & on-site simultaneous/consecutive interpretation",
+      "Executive advisement for aviation, government, and humanitarian missions",
     ],
     cta: "Book a session",
   },
@@ -46,7 +49,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     name: "Jonathan Brooks",
     title: "CEO & Founder JB Linguistics LLC · TEFL-gecertificeerde taalkundige · Internationale operatie- en diplomatiecontexten",
     languages:
-      "Engels (moedertaal) · Duits (B2+) · Frans (B2+) · Russisch (B1) · Nederlands (B1) · Zweeds (B1) · Deens (B1)",
+      "Engels (moedertaal) · Duits (B2+/C1) · Frans (B2+/C1) · Russisch (B1) · Nederlands (B1) · Zweeds (B1) · Deens (B1)",
     overview: [
       "Jonathan Brooks is een TEFL-gecertificeerde taalkundige en in-flight operations leader met meer dan 13 jaar ervaring in de commerciële luchtvaart en internationaal programmamanagement. Hij bouwde teams van meer dan 150 specialisten voor Duitse overheidscontracten, Lufthansa-partners en ondernemingen die snel taalresultaat vragen.",
       "Hij werkt nauw samen met Duitse overheidsinstellingen en past dezelfde nauwkeurigheid toe op virtuele curricula, beëdigde vertalingen en tolkopdrachten. Programma’s draaien om hoge snelheid, lesmaterialen zonder meerkosten en tweetalige documentatie die audit-proof is.",
@@ -54,7 +57,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     highlightsTitle: "Profielhoogtepunten",
     highlights: [
       "168-uur TEFL-certificering",
-      "Vloeiend Engels; B2+ Duits & Frans",
+      "Vloeiend Engels; Duits & Frans op B2+/C1-niveau",
       "B1 in Russisch, Nederlands, Zweeds en Deens",
       "Reiservaring in 102 landen met internationale vrijwilligers",
       "13+ jaar leiding over cabin operations en programma’s",
@@ -75,7 +78,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     name: "Jonathan Brooks",
     title: "CEO & Fondateur de JB Linguistics LLC · Linguiste certifié TEFL · Opérations internationales & diplomatie",
     languages:
-      "Anglais (natif) · Allemand (B2+) · Français (B2+) · Russe (B1) · Néerlandais (B1) · Suédois (B1) · Danois (B1)",
+      "Anglais (natif) · Allemand (B2+/C1) · Français (B2+/C1) · Russe (B1) · Néerlandais (B1) · Suédois (B1) · Danois (B1)",
     overview: [
       "Jonathan Brooks est un linguiste certifié TEFL et un responsable des opérations en vol avec plus de treize ans d’expérience dans l’aviation commerciale et la gestion de programmes internationaux. Il a dirigé des équipes de plus de 150 spécialistes pour des contrats gouvernementaux allemands, des entités alignées sur Lufthansa et des entreprises internationales.",
       "Il collabore étroitement avec les institutions allemandes et applique la même rigueur à chaque programme virtuel, traduction certifiée et mission d’interprétation. Ses formations sont rapides, utilisent des supports fournis sans frais et livrent une documentation bilingue conforme aux audits.",
@@ -83,7 +86,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     highlightsTitle: "Points forts",
     highlights: [
       "Certificat TEFL 168 h",
-      "Anglais natif ; allemand et français B2+",
+      "Anglais natif ; allemand et français niveau B2+/C1",
       "Niveau B1 en russe, néerlandais, suédois et danois",
       "Expérience de voyage dans 102 pays",
       "13+ ans à diriger des opérations en vol",
@@ -104,7 +107,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     name: "Jonathan Brooks",
     title: "VD & grundare, JB Linguistics LLC · TEFL-certifierad lingvist · Internationella operationer och diplomati",
     languages:
-      "Engelska (modersmål) · Tyska (B2+) · Franska (B2+) · Ryska (B1) · Nederländska (B1) · Svenska (B1) · Danska (B1)",
+      "Engelska (modersmål) · Tyska (B2+/C1) · Franska (B2+/C1) · Ryska (B1) · Nederländska (B1) · Svenska (B1) · Danska (B1)",
     overview: [
       "Jonathan Brooks är TEFL-certifierad lingvist och ledare inom kabinoperationer med över 13 års erfarenhet av kommersiell luftfart och internationell programledning. Han har byggt team om 150+ specialister för tyska myndigheter, Lufthansa och globala företag som kräver snabba språkresultat.",
       "Han samarbetar regelbundet med tyska myndigheter och levererar virtuella program, certifierade översättningar och tolkning med hög säkerhet. Fokus ligger på snabb progression, kostnadsfria kursmaterial och tvåspråkig dokumentation som klarar varje revision.",
@@ -112,7 +115,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     highlightsTitle: "Profilhöjdpunkter",
     highlights: [
       "168 timmars TEFL-certifiering",
-      "Flytande engelska; tyska och franska B2+",
+      "Flytande engelska; tyska och franska på B2+/C1-nivå",
       "B1-nivå i ryska, nederländska, svenska och danska",
       "Resor till 102 länder med internationella volontärer",
       "13+ år som ledare inom kabin- och programdrift",
@@ -133,7 +136,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     name: "Jonathan Brooks",
     title: "CEO y fundador de JB Linguistics LLC · Lingüista certificado TEFL · Operaciones internacionales y diplomacia",
     languages:
-      "Inglés (nativo) · Alemán (B2+) · Francés (B2+) · Ruso (B1) · Neerlandés (B1) · Sueco (B1) · Danés (B1)",
+      "Inglés (nativo) · Alemán (B2+/C1) · Francés (B2+/C1) · Ruso (B1) · Neerlandés (B1) · Sueco (B1) · Danés (B1)",
     overview: [
       "Jonathan Brooks es un lingüista certificado TEFL y líder de operaciones a bordo con más de 13 años de experiencia en aviación comercial y gestión de programas internacionales. Ha liderado equipos de más de 150 especialistas para contratos del gobierno alemán, áreas vinculadas a Lufthansa y empresas que requieren agilidad lingüística.",
       "Colabora con organismos alemanes y aplica la misma rigurosidad a cada currículo virtual, traducción certificada e interpretación. Sus programas priorizan el avance rápido, materiales sin coste y documentación bilingüe lista para auditorías.",
@@ -141,7 +144,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     highlightsTitle: "Puntos destacados",
     highlights: [
       "Certificación TEFL de 168 horas",
-      "Inglés nativo; alemán y francés nivel B2+",
+      "Inglés nativo; alemán y francés nivel B2+/C1",
       "Nivel B1 en ruso, neerlandés, sueco y danés",
       "Experiencia en 102 países con grupos internacionales",
       "Más de 13 años dirigiendo operaciones en vuelo",
@@ -161,7 +164,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
   zh: {
     name: "Jonathan Brooks",
     title: "JB Linguistics LLC 首席执行官兼创始人 · TEFL 认证语言专家 · 国际运营与外交场景",
-    languages: "英语（母语）· 德语（B2+）· 法语（B2+）· 俄语（B1）· 荷兰语（B1）· 瑞典语（B1）· 丹麦语（B1）",
+    languages: "英语（母语）· 德语（B2+/C1）· 法语（B2+/C1）· 俄语（B1）· 荷兰语（B1）· 瑞典语（B1）· 丹麦语（B1）",
     overview: [
       "Jonathan Brooks 拥有 TEFL 认证，曾长期负责商业航空及国际项目管理，在 13 年的在职经验中组建并带领超过 150 名语言专家，为德国政府合同、Lufthansa 体系以及全球企业提供快速、可靠的语言支持。",
       "他常年与德国政府部门合作，将相同的高标准应用到所有线上课程、认证翻译和口译任务中。课程节奏紧凑、教材无需额外费用，并提供方便审计的双语文档。",
@@ -169,7 +172,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     highlightsTitle: "核心亮点",
     highlights: [
       "168 小时 TEFL 认证",
-      "英语母语；德语与法语 B2+",
+      "英语母语；德语与法语 B2+/C1",
       "俄语、荷兰语、瑞典语、丹麦语 B1",
       "走访 102 个国家，组织国际志愿者项目",
       "13+ 年机上运营与项目管理经验",
@@ -190,7 +193,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     name: "Jonathan Brooks",
     title: "CEO & Gründer, JB Linguistics LLC · TEFL-zertifizierter Linguist · Internationale Operationen & Diplomatie",
     languages:
-      "Englisch (Muttersprache) · Deutsch (B2+) · Französisch (B2+) · Russisch (B1) · Niederländisch (B1) · Schwedisch (B1) · Dänisch (B1)",
+      "Englisch (Muttersprache) · Deutsch (B2+/C1) · Französisch (B2+/C1) · Russisch (B1) · Niederländisch (B1) · Schwedisch (B1) · Dänisch (B1)",
     overview: [
       "Jonathan Brooks ist ein TEFL-zertifizierter Linguist und Inflight-Operationsleiter mit über 13 Jahren Erfahrung in der zivilen Luftfahrt und im internationalen Programmmanagement. Er leitete Teams von mehr als 150 Spezialist*innen für deutsche Regierungsaufträge, Lufthansa-nahe Abteilungen und Unternehmen mit hohem Sprachbedarf.",
       "Er arbeitet eng mit deutschen Behörden zusammen und überträgt dieselbe Präzision auf jedes virtuelle Curriculum, jede zertifizierte Übersetzung und jedes Dolmetschprojekt. Seine Programme setzen auf hohe Lerngeschwindigkeit, kostenlose Materialien und zweisprachige Dokumentation für audit-sichere Prozesse.",
@@ -198,7 +201,7 @@ const jonathan: Record<Lang, StaffProfileContent> = {
     highlightsTitle: "Profil-Highlights",
     highlights: [
       "168-Stunden-TEFL-Zertifizierung",
-      "Englisch muttersprachlich; Deutsch & Französisch B2+",
+      "Englisch muttersprachlich; Deutsch & Französisch auf B2+/C1-Niveau",
       "B1 in Russisch, Niederländisch, Schwedisch und Dänisch",
       "102 Länder Reise- und Volunteer-Erfahrung",
       "Über 13 Jahre Führungserfahrung im Flugbetrieb",

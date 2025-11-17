@@ -298,7 +298,9 @@ export default function CareersPage() {
       </section>
       <section id="apply" className="max-w-5xl mx-auto px-4 py-12 space-y-10">
         <div className="rounded-3xl bg-white border border-teal-100 shadow-xl p-6 md:p-10">
-          <p className="text-xs uppercase tracking-[0.3em] text-teal-500 font-semibold">Careers</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-teal-500 font-semibold">
+            {t.nav.careers.toUpperCase()}
+          </p>
           <h1 className="mt-3 text-3xl md:text-4xl font-extrabold text-sky-900">{copy.title}</h1>
           <p className="mt-4 text-sm md:text-base text-slate-700 leading-relaxed">{copy.intro}</p>
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">

@@ -86,7 +86,7 @@ export default async function TeacherProfilePage({ params }: Props) {
                   </li>
                   <li className="flex gap-2">
                     <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-teal-500" />
-                    <span>Fluent in English; B2+ German &amp; French</span>
+                    <span>Fluent in English; German &amp; French at B2+/C1 levels</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-teal-500" />

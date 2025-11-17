@@ -305,7 +305,7 @@ export default function Home() {
               </div>
               <p className="mt-3 text-xs text-teal-100/90">{t.trips.note}</p>
             </div>
-            <div className="rounded-3xl overflow-hidden shadow-2xl shadow-sky-900/40 border border-white/20 bg-white/10 p-1">
+            <div className="hidden md:block rounded-3xl overflow-hidden shadow-2xl shadow-sky-900/40 border border-white/20 bg-white/10 p-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
                 {tripCollageImages.map((image) => (
                   <div key={image.alt} className="relative w-full aspect-[4/3] overflow-hidden rounded-2xl">
