@@ -1,5 +1,4 @@
 import type { AssessmentLevel } from "./assessments";
-import { assessmentTranslations } from "@/assets/assessment-translations";
 
 export type TeacherAssessmentQuestion = {
   id: string;
@@ -582,10 +581,6 @@ const reflectionPrompts: Record<TeacherAssessmentLanguage, { conflict: string; a
 };
 
 export function getReflectionPrompts(language: TeacherAssessmentLanguage) {
-  const translated = assessmentTranslations[language]?.reflections;
-  if (translated) {
-    return translated;
-  }
   return reflectionPrompts[language] ?? reflectionPrompts.english;
 }
 
@@ -1369,33 +1364,17 @@ function computeLevelTargets(sampleSize: number): Record<LevelKey, number> {
   return counts;
 }
 
-function ensureUniqueOptionTexts(options: [string, string, string, string]): [string, string, string, string] {
-  const seen = new Map<string, number>();
-  return options.map((text) => {
-    const key = text.trim().toLowerCase();
-    const count = seen.get(key) ?? 0;
-    seen.set(key, count + 1);
-    if (count === 0) return text;
-    return `${text} (${count + 1})`;
-  }) as [string, string, string, string];
-}
-
 function localizeQuestionForLanguage(
   question: TeacherAssessmentQuestion,
   language: TeacherAssessmentLanguage
 ): TeacherAssessmentQuestion {
-  const translation = assessmentTranslations[language]?.questions?.[question.id];
-  const localizedPrompt = translation?.prompt ?? question.promptByLang?.[language] ?? question.prompt;
-  let localizedOptions = (question.optionsByLang?.[language] ?? question.options) as [
+  const localizedPrompt = question.promptByLang?.[language] ?? question.prompt;
+  const localizedOptions = (question.optionsByLang?.[language] ?? question.options) as [
     string,
     string,
     string,
     string,
   ];
-  if (translation?.options && translation.options.length === 4) {
-    localizedOptions = translation.options as [string, string, string, string];
-  }
-  localizedOptions = ensureUniqueOptionTexts(localizedOptions);
   return {
     ...question,
     prompt: localizedPrompt,
