@@ -1,4 +1,5 @@
 import type { AssessmentLevel } from "./assessments";
+import { assessmentTranslations } from "@/assets/assessment-translations";
 
 export type TeacherAssessmentQuestion = {
   id: string;
@@ -26,6 +27,7 @@ export const teacherAssessmentLanguages = [
 ] as const;
 
 export type TeacherAssessmentLanguage = (typeof teacherAssessmentLanguages)[number]["id"];
+
 
 export type TeacherAssessmentAnswer = { questionId: string; selected: number };
 
@@ -581,6 +583,10 @@ const reflectionPrompts: Record<TeacherAssessmentLanguage, { conflict: string; a
 };
 
 export function getReflectionPrompts(language: TeacherAssessmentLanguage) {
+  const translated = assessmentTranslations[language]?.reflections;
+  if (translated) {
+    return translated;
+  }
   return reflectionPrompts[language] ?? reflectionPrompts.english;
 }
 
@@ -1195,13 +1201,12 @@ function generateConditionalQuestions(limit = 240): TeacherAssessmentQuestion[] 
         const optionsByLang: Partial<Record<TeacherAssessmentLanguage, [string, string, string, string]>> = {};
         teacherAssessmentLanguages.forEach(({ id }) => {
           const templates = conditionalOptionTemplates[id] ?? conditionalOptionTemplates.english;
-          const localized = templates.map((template) => template.replace("{result}", result)) as [
+          optionsByLang[id] = templates.map((template) => template.replace("{result}", result)) as [
             string,
             string,
             string,
             string,
           ];
-          optionsByLang[id] = localized;
         });
         questions.push({
           id: `CON-${String(questions.length + 1).padStart(4, "0")}`,
@@ -1290,6 +1295,34 @@ function generateIdiomQuestions(limit = 150): TeacherAssessmentQuestion[] {
   });
 }
 
+const normalizeText = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
+
+function applyTranslationOverrides(question: TeacherAssessmentQuestion): TeacherAssessmentQuestion {
+  let promptByLang = question.promptByLang;
+  let optionsByLang = question.optionsByLang;
+  let changed = false;
+  teacherAssessmentLanguages.forEach(({ id }) => {
+    const translation = assessmentTranslations[id]?.questions?.[question.id];
+    if (!translation) return;
+    if (translation.prompt && normalizeText(translation.prompt) !== normalizeText(question.prompt)) {
+      promptByLang = { ...(promptByLang ?? {}), [id]: translation.prompt };
+      changed = true;
+    }
+    const allowOptionOverride =
+      !question.id.startsWith("ART") && !question.id.startsWith("MOD") && !question.id.startsWith("IDI");
+    if (allowOptionOverride && translation.options && translation.options.length === 4) {
+      const normalizedTranslated = translation.options.map((option) => normalizeText(option));
+      const normalizedBase = question.options.map((option) => normalizeText(option));
+      const differs = normalizedTranslated.some((value, index) => value !== normalizedBase[index]);
+      if (differs) {
+        optionsByLang = { ...(optionsByLang ?? {}), [id]: translation.options };
+        changed = true;
+      }
+    }
+  });
+  return changed ? { ...question, promptByLang, optionsByLang } : question;
+}
+
 const RAW_QUESTION_BANK: TeacherAssessmentQuestion[] = [
   ...generateArticleQuestions(),
   ...generateTenseQuestions(),
@@ -1297,7 +1330,7 @@ const RAW_QUESTION_BANK: TeacherAssessmentQuestion[] = [
   ...generateConditionalQuestions(),
   ...generateInversionQuestions(),
   ...generateIdiomQuestions(),
-];
+].map(applyTranslationOverrides);
 
 const QUESTION_BANK: TeacherAssessmentQuestion[] = RAW_QUESTION_BANK.map(shuffleQuestionOptions);
 

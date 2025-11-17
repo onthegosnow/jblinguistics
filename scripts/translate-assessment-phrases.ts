@@ -17,13 +17,19 @@ const LANGUAGE_TARGETS: Record<string, string> = {
 };
 
 const BASE_URL = process.env.LIBRETRANSLATE_URL || "http://127.0.0.1:5000";
+const LANG_FILTER = (process.env.LANGS || process.env.LANG || "")
+  .split(",")
+  .map((value) => value.trim().toLowerCase())
+  .filter(Boolean);
 type TranslationFile = {
   questions: Record<string, { prompt: string; options: [string, string, string, string] }>;
   reflections: { conflict: string; attendance: string };
 };
 
-async function translateRaw(text: string, target: string) {
-  const body = { q: text, source: "en", target, format: "text" };
+type TranslateResponse = { translatedText: string | string[] };
+
+async function translateChunk(texts: string[], target: string) {
+  const body = { q: texts, source: "en", target, format: "text" };
   const response = await fetch(`${BASE_URL}/translate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -33,48 +39,63 @@ async function translateRaw(text: string, target: string) {
     const errorText = await response.text().catch(() => "");
     throw new Error(`Translation failed (${response.status}): ${errorText}`);
   }
-  const data = (await response.json()) as { translatedText: string };
-  return data.translatedText;
-}
-
-function escapeRegExp(text: string) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-async function cleanTranslation(text: string, target: string) {
-  const segments = Array.from(new Set(text.match(/[A-Za-z][A-Za-z\s,'-]*/g) ?? []));
-  let current = text;
-  for (const segment of segments) {
-    const trimmed = segment.trim();
-    if (!trimmed) continue;
-    const translatedSegment = await translateRaw(trimmed, target);
-    current = current.replace(new RegExp(escapeRegExp(segment), "g"), translatedSegment);
+  const data = (await response.json()) as TranslateResponse;
+  const translated = Array.isArray(data.translatedText) ? data.translatedText : [data.translatedText];
+  if (translated.length !== texts.length) {
+    throw new Error(`Translation length mismatch. Expected ${texts.length}, received ${translated.length}.`);
   }
-  return current;
-}
-
-async function translateSingle(text: string, target: string) {
-  const raw = await translateRaw(text, target);
-  return cleanTranslation(raw, target);
+  return translated;
 }
 
 async function translateQuestionsForLanguage(langId: string, targetCode: string): Promise<TranslationFile> {
   const output: TranslationFile = { questions: {}, reflections: { conflict: "", attendance: "" } };
-  for (const question of __questionBank) {
-    const translatedPrompt = await translateSingle(question.prompt, targetCode);
-    const translatedOptions = await Promise.all(
-      question.options.map((option) => translateSingle(option, targetCode))
-    );
-    output.questions[question.id] = {
-      prompt: translatedPrompt,
-      options: translatedOptions as [string, string, string, string],
-    };
-  }
-  const englishReflections = getReflectionPrompts("english");
-  output.reflections = {
-    conflict: await translateSingle(englishReflections.conflict, targetCode),
-    attendance: await translateSingle(englishReflections.attendance, targetCode),
+  const uniqueTexts = new Map<string, string>();
+  const textsToTranslate: string[] = [];
+  const enqueue = (text: string) => {
+    if (!uniqueTexts.has(text)) {
+      uniqueTexts.set(text, "");
+      textsToTranslate.push(text);
+    }
   };
+
+  __questionBank.forEach((question) => {
+    enqueue(question.prompt);
+    question.options.forEach((option) => enqueue(option));
+  });
+  const englishReflections = getReflectionPrompts("english");
+  enqueue(englishReflections.conflict);
+  enqueue(englishReflections.attendance);
+
+  const chunkSize = 400;
+  for (let i = 0; i < textsToTranslate.length; i += chunkSize) {
+    if (i === 0) {
+      console.log(`Translating ${textsToTranslate.length} strings into ${langId}...`);
+    }
+    const chunk = textsToTranslate.slice(i, i + chunkSize);
+    const translated = await translateChunk(chunk, targetCode);
+    chunk.forEach((original, index) => {
+      uniqueTexts.set(original, translated[index]);
+    });
+  }
+
+  __questionBank.forEach((question) => {
+    const translatedOptions = question.options.map((option) => uniqueTexts.get(option) ?? option) as [
+      string,
+      string,
+      string,
+      string,
+    ];
+    output.questions[question.id] = {
+      prompt: uniqueTexts.get(question.prompt) ?? question.prompt,
+      options: translatedOptions,
+    };
+  });
+
+  output.reflections = {
+    conflict: uniqueTexts.get(englishReflections.conflict) ?? englishReflections.conflict,
+    attendance: uniqueTexts.get(englishReflections.attendance) ?? englishReflections.attendance,
+  };
+
   return output;
 }
 
@@ -83,6 +104,9 @@ async function main() {
   await fs.mkdir(outputDir, { recursive: true });
   for (const lang of teacherAssessmentLanguages) {
     if (lang.id === "english") {
+      continue;
+    }
+    if (LANG_FILTER.length > 0 && !LANG_FILTER.includes(lang.id)) {
       continue;
     }
     const target = LANGUAGE_TARGETS[lang.id];
