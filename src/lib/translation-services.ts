@@ -68,9 +68,27 @@ export const translationServices: TranslationService[] = [
       "Executive-ready updates on velocity and quality",
     ],
   },
+  {
+    slug: "interpretation",
+    name: "Simultaneous interpretation",
+    summary: "Remote simultaneous and consecutive interpretation for board briefings, tenders, and high-stakes negotiations.",
+    description:
+      "Deploy interpreter teams familiar with UN, EU, aviation, and enterprise protocols. We stage multilingual briefings, tenders, and emergency calls through secure virtual booths, pair human interpreters with AI note takers, and deliver bilingual documentation immediately after the session.",
+    infoHref: "/services/simultaneous-interpretation",
+    requestHref: "/services/translation-requests/interpretation",
+    highlights: [
+      "Virtual booths with ISO-certified audio and redundant channels",
+      "Interpreters cleared for airlines, governments, and Fortune 500 teams",
+      "Bilingual notes and transcripts delivered minutes after each session",
+    ],
+    deliverables: [
+      "Pre-brief with agendas, glossaries, and risk flags",
+      "Live simultaneous + consecutive coverage with relay support",
+      "Post-event bilingual notes, recordings, and compliance-ready transcripts",
+    ],
+  },
 ];
 
 export function getTranslationService(slug: string) {
   return translationServices.find((service) => service.slug === slug);
 }
-

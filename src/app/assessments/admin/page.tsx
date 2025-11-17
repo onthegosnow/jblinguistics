@@ -146,6 +146,7 @@ export default function AssessmentsAdminPage() {
     assignedTo: [] as string[],
   });
   const [assignmentFiles, setAssignmentFiles] = useState<FileList | null>(null);
+  const [deletingApplicantId, setDeletingApplicantId] = useState<string | null>(null);
 
   const hasToken = Boolean(token);
 
@@ -197,6 +198,31 @@ export default function AssessmentsAdminPage() {
       setLoading(false);
     }
   }, [token]);
+
+  const deleteApplicant = useCallback(
+    async (applicant: ApplicantRecord) => {
+      if (!token) return;
+      const confirmed = typeof window === "undefined" ? true : window.confirm(`Remove ${applicant.name}'s application?`);
+      if (!confirmed) return;
+      setDeletingApplicantId(applicant.id);
+      try {
+        const response = await fetch(`/api/careers/applicants/${applicant.id}`, {
+          method: "DELETE",
+          headers: { "x-admin-token": token },
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.message || "Unable to delete applicant");
+        }
+        setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to delete applicant.");
+      } finally {
+        setDeletingApplicantId(null);
+      }
+    },
+    [token]
+  );
 
   useEffect(() => {
     if (!hasToken) return;
@@ -556,18 +582,32 @@ export default function AssessmentsAdminPage() {
               <div className="mt-4 space-y-4">
                 {applicants.map((applicant) => (
                   <div key={applicant.id} className="rounded-2xl border border-slate-700 p-4">
-                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                       <div>
                         <p className="font-semibold text-white">{applicant.name}</p>
                         <p className="text-xs text-slate-400">{applicant.email}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => downloadResume(applicant)}
-                        className="mt-2 inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-600"
-                      >
-                        Download resume
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => downloadResume(applicant)}
+                          className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-600"
+                        >
+                          Download resume
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteApplicant(applicant)}
+                          disabled={deletingApplicantId === applicant.id}
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                            deletingApplicantId === applicant.id
+                              ? "bg-rose-900/50 text-rose-200 cursor-not-allowed"
+                              : "bg-rose-600 text-white hover:bg-rose-500"
+                          }`}
+                        >
+                          {deletingApplicantId === applicant.id ? "Removing…" : "Delete"}
+                        </button>
+                      </div>
                     </div>
                     <p className="mt-2 text-xs text-slate-400">
                       Submitted {new Date(applicant.submittedAt).toLocaleDateString()} — Roles: {applicant.roles.join(", ")}

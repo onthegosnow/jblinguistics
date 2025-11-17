@@ -28,6 +28,7 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
       let localizedLabel = service.name;
       if (service.slug === "websites") localizedLabel = titleFor("translation", service.name);
       if (service.slug === "documents") localizedLabel = titleFor("documents", service.name);
+      if (service.slug === "interpretation") localizedLabel = titleFor("interpretation", service.name);
       return {
         key: service.slug,
         label: localizedLabel,

@@ -130,6 +130,16 @@ export async function listApplications(): Promise<CareerApplicationRecord[]> {
   return readJsonFile<CareerApplicationRecord[]>(APPLICATIONS_FILE, []);
 }
 
+export async function deleteApplicationById(id: string): Promise<boolean> {
+  const applications = await listApplications();
+  const next = applications.filter((app) => app.id !== id);
+  if (next.length === applications.length) {
+    return false;
+  }
+  await writeJsonFile(APPLICATIONS_FILE, next);
+  return true;
+}
+
 export async function getApplicationById(id: string): Promise<CareerApplicationRecord | undefined> {
   const applications = await listApplications();
   return applications.find((app) => app.id === id);
