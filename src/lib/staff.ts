@@ -114,6 +114,7 @@ export const staff: StaffMember[] = [
     background: [
       "168-hour TEFL certification with executive communication focus",
       "Seven university degrees spanning clinical psychology, rehabilitation counseling, business administration, and executive career counseling",
+      "Holder of 11 post-graduate certificates spanning clinical modalities, executive leadership, and advanced linguistics pedagogy",
       "40+ years of linguistics teaching for medical providers, psychologists, academics, and business leaders",
       "Executive advisement for first-responder and humanitarian missions",
       "Global volunteer work with international medical and mental health teams",
