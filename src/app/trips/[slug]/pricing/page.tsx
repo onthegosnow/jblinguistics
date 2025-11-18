@@ -169,13 +169,13 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
                   </tr>
                   <tr className="bg-slate-50 border-t border-slate-200 text-sky-900 text-base font-bold">
                     <td className="px-3 py-3">Single occupancy total</td>
-                    <td className="px-3 py-3">{sheet.totalSingle}</td>
+                    <td className="px-3 py-3">{sheet.singleRoom}</td>
                     <td className="px-3 py-3">Includes flights, lodging, instruction, excursions, and logistics.</td>
                   </tr>
-                  {sheet.totalShared ? (
+                  {sheet.sharedRoom ? (
                     <tr className="bg-slate-50 border-t border-slate-200 text-sky-900 text-base font-bold">
                       <td className="px-3 py-3">Shared room total</td>
-                      <td className="px-3 py-3">{sheet.totalShared}</td>
+                      <td className="px-3 py-3">{sheet.sharedRoom}</td>
                       <td className="px-3 py-3">Per traveler when sharing with one roommate.</td>
                     </tr>
                   ) : null}
