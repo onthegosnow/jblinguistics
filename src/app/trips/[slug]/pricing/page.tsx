@@ -14,6 +14,23 @@ type PricingRow = {
 const FLIGHT_ESTIMATE = 1200;
 const OPERATIONS_FEE = 800;
 const INSURANCE_BUFFER = 250;
+const PACKAGE_INCLUDES = [
+  "Round-trip flights in main cabin with one checked bag from Frankfurt",
+  "4★ accommodations in either a private room or a shared room (pricing reflects the selection)",
+  "Daily language learning hours plus certification upon completion",
+  "Breakfast every morning",
+  "Group-selected excursions chosen from a curated list shared post-booking",
+  "Transportation: airport transfers and local transit support",
+];
+
+const PACKAGE_EXCLUDES = [
+  "Supplemental excursions or upgrades beyond the group-selected options",
+  "Lunches, dinners, snacks, and beverages",
+  "Souvenirs and personal shopping",
+  "Travel and health insurance (must be purchased prior to travel)",
+  "Meals on travel days to and from the learning destination",
+];
+const PRICING_UPDATED = "November 2025";
 
 export default function TripPricingPage({ params }: { params: { slug: string } }) {
   const { t } = useLanguage();
@@ -95,6 +112,30 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
         </p>
         </div>
 
+        <p className="text-xs text-slate-600">
+          Pricing subject to change; last updated {PRICING_UPDATED}. Estimates assume cohorts of up to eight travelers
+          departing Frankfurt together—airfare and lodging may fluctuate when bookings are finalized.
+        </p>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-4 space-y-2 text-sm text-slate-700">
+            <h2 className="text-xs uppercase tracking-[0.3em] text-sky-900 font-semibold">Included</h2>
+            <ul className="space-y-1.5 list-disc list-inside">
+              {PACKAGE_INCLUDES.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-4 space-y-2 text-sm text-slate-700">
+            <h2 className="text-xs uppercase tracking-[0.3em] text-sky-900 font-semibold">Not included</h2>
+            <ul className="space-y-1.5 list-disc list-inside">
+              {PACKAGE_EXCLUDES.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
         {customSheets.length ? (
           customSheets.map((sheet) => (
             <div
@@ -141,30 +182,16 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
             </div>
           ))
         ) : (
-        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-sm text-slate-700">
-            <thead>
-              <tr className="text-left bg-slate-50 text-slate-500 uppercase text-xs tracking-wide">
-                <th className="px-4 py-3">Cost component</th>
-                <th className="px-4 py-3">Estimate</th>
-                <th className="px-4 py-3">Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pricingRows.map((row) => (
-                <tr key={row.label} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-semibold text-sky-900">{row.label}</td>
-                  <td className="px-4 py-3 font-semibold">${row.amount.toLocaleString()}</td>
-                  <td className="px-4 py-3">{row.description}</td>
-                </tr>
-              ))}
-              <tr className="bg-slate-50 border-t border-slate-200 text-sky-900 text-base font-bold">
-                <td className="px-4 py-4">Estimated total (per traveler)</td>
-                <td className="px-4 py-4">${estimatedTotal.toLocaleString()}</td>
-                <td className="px-4 py-4">Subject to vendor availability and booking window.</td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-6 text-sm text-slate-700">
+          <h2 className="text-xl font-semibold text-sky-900">Illustrative package estimate</h2>
+          <p className="mt-2">
+            Based on recent cohorts, a single-occupancy package lands near{" "}
+            <strong>${estimatedTotal.toLocaleString()}</strong>. Shared rooms typically reduce the total by roughly 10%.
+          </p>
+          <p className="mt-2 text-slate-600">
+            Actual airfare and lodging quotes may shift depending on booking windows and cohort capacity. Reach out for a
+            formal quote tailored to your travel dates.
+          </p>
         </div>
         )}
 
@@ -186,11 +213,14 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-          <p className="font-semibold text-sky-900">Payment cadence</p>
+          <p className="font-semibold text-sky-900">Booking & payment terms</p>
           <ul className="mt-2 space-y-1.5 list-disc list-inside">
-            <li>40% deposit at signature (locks travel hold and instructor assignments).</li>
-            <li>Remaining balance due 14 days prior to departure unless otherwise negotiated.</li>
-            <li>Split invoicing available for education stipends, Bildungsurlaub, or departmental budgets.</li>
+            <li>
+              A non-refundable 40% commitment is due upfront. You’ll receive a contract detailing inclusions before the
+              deposit is invoiced.
+            </li>
+            <li>The remaining balance is due two months before departure.</li>
+            <li>Invoices can be split for company reimbursement, stipends, or Bildungsurlaub documentation.</li>
           </ul>
         </div>
       </section>
