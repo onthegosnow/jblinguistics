@@ -1,0 +1,202 @@
+export type TripPricingSheet = {
+  slug: string;
+  label: string;
+  dates: string;
+  duration: string;
+  breakdown: { label: string; value: string; notes?: string }[];
+  totalSingle: string;
+  totalShared?: string;
+  notes?: string;
+};
+
+export const tripPricingSheets: TripPricingSheet[] = [
+  {
+    slug: "florida-immersion-autumn",
+    label: "Frankfurt → Tampa Intensive",
+    dates: "Aug 14 – 22",
+    duration: "2 weeks",
+    breakdown: [
+      { label: "Round-trip flights", value: "$1,160", notes: "Frankfurt ↔ Tampa · main cabin with 1 checked bag" },
+      { label: "Housing", value: "$750 single / $375 shared", notes: "14 nights in Tampa business-class hotel" },
+      { label: "Teacher facilitation", value: "$820", notes: "€6,500 cohort total ÷ 8 participants" },
+      { label: "Breakfasts", value: "$120", notes: "Hotel or partner café credit" },
+      { label: "Excursions", value: "$400", notes: "Clearwater Beach immersion, museum admissions" },
+      { label: "Teacher expenses", value: "$150", notes: "Per-participant allocation" },
+      { label: "Local transportation", value: "$250", notes: "Airport transfers + rideshare budget" },
+    ],
+    totalSingle: "$3,650",
+    totalShared: "$3,275",
+    notes: "Pricing assumes minimum eight travelers departing FRA on the same itinerary.",
+  },
+  {
+    slug: "florida-immersion-autumn",
+    label: "Florida Autumn Cohort",
+    dates: "Sep 19 – Oct 3",
+    duration: "2 weeks",
+    breakdown: [
+      { label: "Round-trip flights", value: "$900", notes: "Frankfurt ↔ Tampa main cabin" },
+      { label: "Housing", value: "$750 single / $375 shared", notes: "St. Petersburg + Tampa boutique hotels" },
+      { label: "Teacher facilitation", value: "$820" },
+      { label: "Breakfasts", value: "$120" },
+      { label: "Excursions", value: "$400", notes: "Everglades, Dali Museum, NGO service project" },
+      { label: "Teacher expenses", value: "$150" },
+      { label: "Local transportation", value: "$250" },
+    ],
+    totalSingle: "$3,650",
+    totalShared: "$3,275",
+  },
+  {
+    slug: "florida-immersion-winter",
+    label: "Florida Mini Intensive",
+    dates: "Oct 3 – 11",
+    duration: "1 week",
+    breakdown: [
+      { label: "Round-trip flights", value: "$900", notes: "Frankfurt ↔ Tampa main cabin" },
+      { label: "Housing", value: "$375 single / $187.50 shared", notes: "7 nights" },
+      { label: "Teacher facilitation", value: "$410", notes: "€3,250 ÷ 8 participants" },
+      { label: "Breakfasts", value: "$60" },
+      { label: "Excursions", value: "$200" },
+      { label: "Teacher expenses", value: "$75" },
+      { label: "Local transportation", value: "$125" },
+    ],
+    totalSingle: "$2,145",
+    totalShared: "$1,960",
+  },
+  {
+    slug: "florida-bermuda",
+    label: "Florida + Nassau Extension",
+    dates: "Aug 22 – Sep 4",
+    duration: "2 weeks",
+    breakdown: [
+      { label: "Flights", value: "$949 FRA–TPA + $500 TPA–NAS–TPA", notes: "Main cabin · 1 checked bag" },
+      { label: "Florida housing", value: "$375 single / $187.50 shared" },
+      { label: "Bahamas housing", value: "$1,083 single / $600 shared" },
+      { label: "Teacher facilitation", value: "$820" },
+      { label: "Breakfasts", value: "$120" },
+      { label: "Excursions", value: "$400 – $700", notes: "Harbor cruise, Junkanoo heritage lab" },
+      { label: "Teacher expenses", value: "$200" },
+      { label: "Local transportation", value: "$125" },
+    ],
+    totalSingle: "$4,580",
+    totalShared: "$3,905",
+  },
+  {
+    slug: "florida-nyc",
+    label: "Frankfurt → JFK + Tampa",
+    dates: "Sep 4 – 19",
+    duration: "2 weeks",
+    breakdown: [
+      { label: "Flights", value: "$600 FRA–JFK + $450 JFK–TPA", notes: "Main cabin" },
+      { label: "NYC housing", value: "$1,400 single / $700 shared" },
+      { label: "Florida housing", value: "$375 single / $187.50 shared" },
+      { label: "Teacher facilitation", value: "$820" },
+      { label: "Breakfasts", value: "$120" },
+      { label: "Excursions", value: "$400", notes: "Broadway, museum, Clearwater Beach" },
+      { label: "Teacher expenses", value: "$200" },
+      { label: "Local transportation", value: "$125" },
+    ],
+    totalSingle: "$4,500",
+    totalShared: "$3,605",
+  },
+  {
+    slug: "long-beach-ca",
+    label: "Long Beach California Residency",
+    dates: "Feb 6 – 21",
+    duration: "2 weeks",
+    breakdown: [
+      { label: "Flights", value: "$900", notes: "Frankfurt ↔ LAX main cabin" },
+      { label: "Housing", value: "$1,700 single / $840 shared", notes: "Waterfront hotel" },
+      { label: "Teacher facilitation", value: "$820" },
+      { label: "Breakfasts", value: "$120" },
+      { label: "Excursions", value: "$400", notes: "LA/OC/San Diego outings" },
+      { label: "Teacher expenses", value: "$150" },
+    ],
+    totalSingle: "$4,090",
+    totalShared: "$3,230",
+  },
+  {
+    slug: "long-beach-hawaii",
+    label: "Long Beach + Kauai",
+    dates: "Feb 21 – Mar 7",
+    duration: "2 weeks",
+    breakdown: [
+      { label: "Flights", value: "$900 FRA–LAX + $505 LAX–LIH", notes: "Main cabin" },
+      { label: "Long Beach housing", value: "$840 single / $420 shared" },
+      { label: "Hawaii housing", value: "$2,200 single / $1,100 shared" },
+      { label: "Teacher facilitation", value: "$820" },
+      { label: "Breakfasts", value: "$120" },
+      { label: "Excursions", value: "$400 – $700", notes: "Helicopter tour, reef days" },
+      { label: "Teacher expenses", value: "$250" },
+    ],
+    totalSingle: "$6,040",
+    totalShared: "$4,520",
+  },
+  {
+    slug: "dublin-heritage",
+    label: "Dublin Heritage Immersion",
+    dates: "Weekly departures · Mar 14 – Apr 4",
+    duration: "1 week",
+    breakdown: [
+      { label: "Flights", value: "$280", notes: "Frankfurt ↔ Dublin · Lufthansa" },
+      { label: "Housing", value: "$640", notes: "City-centre lodging" },
+      { label: "Teacher facilitation", value: "$410", notes: "€3,250 ÷ 8 participants" },
+      { label: "Breakfasts", value: "$60" },
+      { label: "Excursions", value: "$200" },
+      { label: "Teacher expenses", value: "$75" },
+      { label: "Local transportation", value: "$140" },
+    ],
+    totalSingle: "$1,810",
+  },
+  {
+    slug: "dublin-business",
+    label: "Dublin Business & Tech",
+    dates: "Weekly departures · Mar 14 – Apr 4",
+    duration: "1 week",
+    breakdown: [
+      { label: "Flights", value: "$280" },
+      { label: "Housing", value: "$640" },
+      { label: "Teacher facilitation", value: "$410" },
+      { label: "Breakfasts", value: "$60" },
+      { label: "Excursions", value: "$200" },
+      { label: "Teacher expenses", value: "$75" },
+      { label: "Local transportation", value: "$140" },
+    ],
+    totalSingle: "$1,810",
+  },
+  {
+    slug: "dublin-startup",
+    label: "Dublin Startup Sprint",
+    dates: "Weekly departures · Mar 14 – Apr 4",
+    duration: "1 week",
+    breakdown: [
+      { label: "Flights", value: "$280" },
+      { label: "Housing", value: "$640" },
+      { label: "Teacher facilitation", value: "$410" },
+      { label: "Breakfasts", value: "$60" },
+      { label: "Excursions", value: "$200" },
+      { label: "Teacher expenses", value: "$75" },
+      { label: "Local transportation", value: "$140" },
+    ],
+    totalSingle: "$1,810",
+  },
+  {
+    slug: "dublin-heritage",
+    label: "Dublin Two-Week Session",
+    dates: "Mar 14 – 28 or Mar 21 – Apr 4",
+    duration: "2 weeks",
+    breakdown: [
+      { label: "Flights", value: "$280", notes: "Frankfurt ↔ Dublin · Lufthansa" },
+      { label: "Housing", value: "$1,280", notes: "14 nights city-centre lodging" },
+      { label: "Teacher facilitation", value: "$820" },
+      { label: "Breakfasts", value: "$120" },
+      { label: "Excursions", value: "$400" },
+      { label: "Teacher expenses", value: "$150" },
+      { label: "Local transportation", value: "$280" },
+    ],
+    totalSingle: "$3,330",
+  },
+];
+
+export function getTripPricingSheets(slug: string) {
+  return tripPricingSheets.filter((sheet) => sheet.slug === slug);
+}

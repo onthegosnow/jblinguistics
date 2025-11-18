@@ -1,15 +1,15 @@
 // src/lib/trips.ts
 export type Destination = {
-    slug: string;
-    name: string;
-    region?: string;
-    hero?: string;
-    heroSplit?: { left: string; right: string; altLeft?: string; altRight?: string };
-    blurb?: string;
-    lengths?: number[]; // default: 14
-    highlights?: string[];
-    customItinerary?: Record<number, { title: string; lesson: string; activity: string }[]>;
-  };
+  slug: string;
+  name: string;
+  region?: string;
+  hero?: string;
+  heroSplit?: { left: string; right: string; altLeft?: string; altRight?: string };
+  blurb?: string;
+  lengths?: number[]; // default: 14
+  highlights?: string[];
+  customItinerary?: Record<number, { title: string; lesson: string; activity: string }[]>;
+};
   
 export const DEFAULT_LENGTHS = [7, 10, 14];
 

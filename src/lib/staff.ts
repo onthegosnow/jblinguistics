@@ -110,7 +110,7 @@ export const staff: StaffMember[] = [
     imageFocus: "50% 35%",
     tagline: "TEFL-certified linguist delivering executive, medical, and professional English with pragmatic warmth.",
     overview:
-      "Michelle pairs 40+ years of linguistics instruction with deep experience in medicine, mental health, academia, and corporate leadership. She is TEFL-certified, holds seven university degrees, and designs English programs that mirror the realities of hospitals, boardrooms, and humanitarian teams. Learners appreciate her personable, engaging coaching style and her commitment to practical language growth that drives professional confidence.",
+      "Michelle pairs 40+ years of linguistics instruction with deep experience in medicine, mental health, academia, and corporate leadership. She is TEFL-certified, holds seven university degrees plus 11 post-graduate certificates, and designs English programs that mirror the realities of hospitals, boardrooms, and humanitarian teams. Learners appreciate her personable, engaging coaching style and her commitment to practical language growth that drives professional confidence.",
     background: [
       "168-hour TEFL certification with executive communication focus",
       "Seven university degrees spanning clinical psychology, rehabilitation counseling, business administration, and executive career counseling",

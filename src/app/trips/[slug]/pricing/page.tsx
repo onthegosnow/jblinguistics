@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { destinations } from "@/lib/trips";
+import { getTripPricingSheets } from "@/lib/trip-pricing";
 import { useLanguage } from "@/lib/language-context";
 
 type PricingRow = {
@@ -38,6 +39,7 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
     );
   }
 
+  const customSheets = getTripPricingSheets(destination.slug);
   const availableLengths = destination.lengths?.length ? destination.lengths : [14];
   const referenceLength = availableLengths.includes(14) ? 14 : availableLengths[0];
   const nights = Math.max(referenceLength - 1, referenceLength);
@@ -93,6 +95,52 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
         </p>
         </div>
 
+        {customSheets.length ? (
+          customSheets.map((sheet) => (
+            <div
+              key={sheet.label}
+              className="rounded-3xl border border-slate-200 bg-white shadow-sm space-y-4 p-4 md:p-6"
+            >
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500 font-semibold">
+                  {sheet.dates} · {sheet.duration}
+                </p>
+                <h2 className="text-xl font-semibold text-sky-900 mt-2">{sheet.label}</h2>
+              </div>
+              <table className="w-full text-sm text-slate-700">
+                <thead>
+                  <tr className="text-left bg-slate-50 text-slate-500 uppercase text-xs tracking-wide">
+                    <th className="px-3 py-2">Cost component</th>
+                    <th className="px-3 py-2">Estimate</th>
+                    <th className="px-3 py-2">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sheet.breakdown.map((row) => (
+                    <tr key={`${sheet.label}-${row.label}`} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-semibold text-sky-900">{row.label}</td>
+                      <td className="px-3 py-2 font-semibold">{row.value}</td>
+                      <td className="px-3 py-2">{row.notes}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-slate-50 border-t border-slate-200 text-sky-900 text-base font-bold">
+                    <td className="px-3 py-3">Single occupancy total</td>
+                    <td className="px-3 py-3">{sheet.totalSingle}</td>
+                    <td className="px-3 py-3">Includes flights, lodging, instruction, excursions, and logistics.</td>
+                  </tr>
+                  {sheet.totalShared ? (
+                    <tr className="bg-slate-50 border-t border-slate-200 text-sky-900 text-base font-bold">
+                      <td className="px-3 py-3">Shared room total</td>
+                      <td className="px-3 py-3">{sheet.totalShared}</td>
+                      <td className="px-3 py-3">Per traveler when sharing with one roommate.</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+              {sheet.notes ? <p className="text-xs text-slate-500">{sheet.notes}</p> : null}
+            </div>
+          ))
+        ) : (
         <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm text-slate-700">
             <thead>
@@ -118,6 +166,7 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
             </tbody>
           </table>
         </div>
+        )}
 
         <p className="text-sm text-slate-600">{pricingDisclaimer}</p>
 
