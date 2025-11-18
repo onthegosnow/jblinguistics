@@ -139,14 +139,14 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
         {customSheets.length ? (
           customSheets.map((sheet) => (
             <div
-              key={sheet.label}
+              key={sheet.title}
               className="rounded-3xl border border-slate-200 bg-white shadow-sm space-y-4 p-4 md:p-6"
             >
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500 font-semibold">
                   {sheet.dates} · {sheet.duration}
                 </p>
-                <h2 className="text-xl font-semibold text-sky-900 mt-2">{sheet.label}</h2>
+                <h2 className="text-xl font-semibold text-sky-900 mt-2">{sheet.title}</h2>
               </div>
               <table className="w-full text-sm text-slate-700">
                 <thead>
@@ -157,13 +157,16 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
                   </tr>
                 </thead>
                 <tbody>
-                  {sheet.breakdown.map((row) => (
-                    <tr key={`${sheet.label}-${row.label}`} className="border-t border-slate-100">
-                      <td className="px-3 py-2 font-semibold text-sky-900">{row.label}</td>
-                      <td className="px-3 py-2 font-semibold">{row.value}</td>
-                      <td className="px-3 py-2">{row.notes}</td>
-                    </tr>
-                  ))}
+                  <tr className="border-t border-slate-100">
+                    <td className="px-3 py-2 font-semibold text-sky-900">What’s included</td>
+                    <td className="px-3 py-2 font-semibold">
+                      {sheet.singleRoom} single{sheet.sharedRoom ? ` / ${sheet.sharedRoom} shared` : ""}
+                    </td>
+                    <td className="px-3 py-2">
+                      Round-trip flights, 4★ lodging, language hours + certification, breakfasts, curated excursions, and
+                      transportation.
+                    </td>
+                  </tr>
                   <tr className="bg-slate-50 border-t border-slate-200 text-sky-900 text-base font-bold">
                     <td className="px-3 py-3">Single occupancy total</td>
                     <td className="px-3 py-3">{sheet.totalSingle}</td>
@@ -178,7 +181,7 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
                   ) : null}
                 </tbody>
               </table>
-              {sheet.notes ? <p className="text-xs text-slate-500">{sheet.notes}</p> : null}
+              {sheet.note ? <p className="text-xs text-slate-500">{sheet.note}</p> : null}
             </div>
           ))
         ) : (
