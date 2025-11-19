@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { appendApplication } from "@/lib/server/storage";
+import nodemailer from "nodemailer";
+import type { CareerApplicationRecord } from "@/lib/server/storage";
+import { saveCareerApplicationToSupabase } from "@/lib/server/careers-supabase";
 import {
   getTeacherAssessment,
   scoreTeacherAssessment,
@@ -148,6 +150,8 @@ export async function POST(request: Request) {
       };
     }
 
+    const resumeFilename = resume.name || "resume.pdf";
+    const resumeMimeType = resume.type || "application/octet-stream";
     const buffer = Buffer.from(await resume.arrayBuffer());
     let resumeInsights;
     try {
@@ -173,8 +177,8 @@ export async function POST(request: Request) {
       landing,
       roles: roles.length ? roles : ["translator"],
       resume: {
-        filename: resume.name || "resume.pdf",
-        mimeType: resume.type || "application/octet-stream",
+        filename: resumeFilename,
+        mimeType: resumeMimeType,
         size: resume.size,
         data: buffer.toString("base64"),
       },
@@ -183,11 +187,88 @@ export async function POST(request: Request) {
       translatorExercise,
     };
 
-    await appendApplication(record);
+    await saveCareerApplicationToSupabase({
+      record,
+      resumeBuffer: buffer,
+      resumeFilename,
+      resumeMimeType,
+    });
+    await sendApplicationEmail({
+      record,
+      resumeBuffer: buffer,
+      resumeFilename,
+      resumeMimeType,
+    });
 
     return NextResponse.json({ success: true, message: "Application received." });
   } catch (err) {
     console.error("Careers application error", err);
     return NextResponse.json({ message: "Unable to submit application." }, { status: 500 });
+  }
+}
+
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = Number(process.env.SMTP_PORT ?? "587");
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const SMTP_FROM = process.env.SMTP_FROM;
+const APPLICATION_INBOX = process.env.CAREER_APPLICATION_EMAIL ?? "jblinguisticsllc@gmail.com";
+
+async function sendApplicationEmail({
+  record,
+  resumeBuffer,
+  resumeFilename,
+  resumeMimeType,
+}: {
+  record: CareerApplicationRecord;
+  resumeBuffer: Buffer;
+  resumeFilename: string;
+  resumeMimeType: string;
+}) {
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+    console.warn("SMTP credentials not configured; skipping applicant email.");
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  });
+
+  const summaryLines = [
+    `Name: ${record.name}`,
+    `Email: ${record.email ?? "n/a"}`,
+    `Roles: ${record.roles.join(", ")}`,
+    `Location: ${record.location ?? "n/a"}`,
+    `Languages: ${record.languages ?? "n/a"}`,
+    `Working languages: ${record.workingLanguages?.join(", ") ?? "n/a"}`,
+    `Availability: ${record.availability ?? "n/a"}`,
+    `Message: ${record.message ?? "n/a"}`,
+    record.translatorExercise
+      ? `Translator exercise: ${record.translatorExercise.language}, score ${record.translatorExercise.score ?? "pending"}`
+      : undefined,
+  ].filter(Boolean) as string[];
+
+  try {
+    await transporter.sendMail({
+      from: SMTP_FROM ?? APPLICATION_INBOX ?? SMTP_USER,
+      to: APPLICATION_INBOX,
+      subject: `New JB Linguistics application — ${record.name}`,
+      text: summaryLines.join("\n"),
+      attachments: [
+        {
+          filename: resumeFilename,
+          content: resumeBuffer,
+          contentType: resumeMimeType,
+        },
+      ],
+    });
+  } catch (err) {
+    console.error("Unable to send application email", err);
   }
 }

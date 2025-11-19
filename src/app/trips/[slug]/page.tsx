@@ -2,17 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { use } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { destinations, itineraryFor } from "@/lib/trips";
 import { useLanguage } from "@/lib/language-context";
 
-export default function TripDetail({ params }: { params: { slug: string } }) {
+export default function TripDetail({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = use(params);
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { t } = useLanguage();
   const tripsCopy = t.tripsPage;
   const localizedDestinations = t.destinations ?? {};
-  const dest = destinations.find((d) => d.slug === params.slug);
+  const dest = destinations.find((d) => d.slug === resolvedParams.slug);
 
   if (!dest) {
     const notFoundTitle = tripsCopy.notFoundTitle ?? "Destination not found";

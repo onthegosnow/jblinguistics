@@ -3,11 +3,39 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState, type FormEvent } from "react";
 import { TealNav } from "@/components/teal-nav";
 import { useLanguage } from "@/lib/language-context";
 
 export default function Home() {
   const { t } = useLanguage();
+  const [inquiryStatus, setInquiryStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [inquiryMessage, setInquiryMessage] = useState<string | null>(null);
+
+  const handleInquirySubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    formData.set("source", "home_contact");
+    setInquiryStatus("loading");
+    setInquiryMessage(null);
+    try {
+      const response = await fetch("/api/inquiries", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to send your message.");
+      }
+      form.reset();
+      setInquiryStatus("success");
+      setInquiryMessage("Thank you — our team will reach out shortly.");
+    } catch (err) {
+      setInquiryStatus("error");
+      setInquiryMessage(err instanceof Error ? err.message : "Unable to send your message.");
+    }
+  };
   const tripCollageImages = [
     {
       src: "https://images.unsplash.com/photo-1636937400111-f08d1fe8af2b?auto=format&fit=crop&w=1600&q=80",
@@ -337,11 +365,10 @@ export default function Home() {
             </p>
 
             <form
-              action="mailto:info@jblinguistics.com"
-              method="post"
-              encType="text/plain"
+              onSubmit={handleInquirySubmit}
               className="mt-6 grid gap-4 text-xs md:text-sm bg-slate-900/70 border border-slate-700 rounded-3xl p-5 md:p-6"
             >
+              <input type="hidden" name="source" value="home_contact" />
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block mb-1 text-sky-100">
@@ -350,6 +377,7 @@ export default function Home() {
                   <input
                     required
                     type="text"
+                    name="name"
                     className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                   />
                 </div>
@@ -360,6 +388,7 @@ export default function Home() {
                   <input
                     required
                     type="email"
+                    name="email"
                     className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                   />
                 </div>
@@ -370,6 +399,7 @@ export default function Home() {
                   {t.contact.organization}
                 </label>
                 <input
+                  name="organization"
                   type="text"
                   className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                 />
@@ -380,7 +410,10 @@ export default function Home() {
                   <label className="block mb-1 text-sky-100">
                     {t.contact.servicesLabel}
                   </label>
-                  <select className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400">
+                  <select
+                    name="serviceType"
+                    className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  >
                     <option value="">{t.contact.servicesPlaceholder}</option>
                     {t.contact.servicesOptions.map((opt, i) => (
                       <option key={i} value={opt}>
@@ -394,6 +427,7 @@ export default function Home() {
                     {t.contact.languagesNeeded}
                   </label>
                   <input
+                    name="languages"
                     type="text"
                     placeholder={t.contact.languagesPlaceholder}
                     className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
@@ -406,6 +440,7 @@ export default function Home() {
                   {t.contact.details}
                 </label>
                 <textarea
+                  name="details"
                   rows={4}
                   className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                   placeholder={t.contact.detailsPlaceholder}
@@ -418,6 +453,7 @@ export default function Home() {
                     {t.contact.budget}
                   </label>
                   <input
+                    name="budget"
                     type="text"
                     className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                   />
@@ -427,6 +463,7 @@ export default function Home() {
                     {t.contact.timeline}
                   </label>
                   <input
+                    name="timeline"
                     type="text"
                     className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                   />
@@ -436,14 +473,22 @@ export default function Home() {
               <div className="pt-2 flex justify-between items-center gap-3">
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold bg-teal-500 hover:bg-teal-400 text-white shadow-md shadow-teal-500/40 transition"
+                  disabled={inquiryStatus === "loading"}
+                  className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold bg-teal-500 hover:bg-teal-400 text-white shadow-md shadow-teal-500/40 transition disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {t.contact.submit}
+                  {inquiryStatus === "loading" ? "Sending…" : t.contact.submit}
                 </button>
                 <p className="text-[10px] text-slate-400 max-w-xs">
                   {t.contact.disclaimer}
                 </p>
               </div>
+              {inquiryMessage && (
+                <p
+                  className={`text-xs ${inquiryStatus === "error" ? "text-rose-300" : "text-teal-200"}`}
+                >
+                  {inquiryMessage}
+                </p>
+              )}
             </form>
 
             <p className="mt-4 text-[11px] text-slate-400">

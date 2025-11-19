@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteApplicationById, requireAdmin } from "@/lib/server/storage";
+import { requireAdmin } from "@/lib/server/storage";
+import { deleteCareerApplicantFromSupabase } from "@/lib/server/careers-supabase";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -11,7 +12,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     if (!id) {
       return NextResponse.json({ message: "Missing applicant id" }, { status: 400 });
     }
-    const removed = await deleteApplicationById(id);
+    const removed = await deleteCareerApplicantFromSupabase(id);
     if (!removed) {
       return NextResponse.json({ message: "Applicant not found" }, { status: 404 });
     }

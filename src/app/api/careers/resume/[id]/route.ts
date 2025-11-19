@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApplicationById, requireAdmin } from "@/lib/server/storage";
+import { requireAdmin } from "@/lib/server/storage";
+import { downloadCareerApplicantResume } from "@/lib/server/careers-supabase";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const token = request.headers.get("x-admin-token") ?? undefined;
     requireAdmin(token);
     const { id } = await params;
-    const record = await getApplicationById(id);
-    if (!record) {
-      return NextResponse.json({ message: "Application not found." }, { status: 404 });
-    }
-    const bytes = Buffer.from(record.resume.data, "base64");
-    return new NextResponse(bytes, {
+    const resume = await downloadCareerApplicantResume(id);
+    return new NextResponse(resume.buffer, {
       headers: {
-        "Content-Type": record.resume.mimeType,
-        "Content-Length": record.resume.size.toString(),
-        "Content-Disposition": `attachment; filename="${record.resume.filename.replace(/"/g, "'")}"`,
+        "Content-Type": resume.mimeType,
+        "Content-Length": resume.size.toString(),
+        "Content-Disposition": `attachment; filename="${resume.filename.replace(/"/g, "'")}"`,
       },
     });
   } catch (err) {

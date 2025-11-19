@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
-import { listApplications, requireAdmin } from "@/lib/server/storage";
+import { requireAdmin } from "@/lib/server/storage";
+import { listCareerApplicantsFromSupabase } from "@/lib/server/careers-supabase";
 
 export async function GET(request: Request) {
   try {
     const token = request.headers.get("x-admin-token") ?? undefined;
     requireAdmin(token);
-    const applications = await listApplications();
-    const sanitized = applications.map(({ resume, resumeInsights, ...rest }) => ({
-      ...rest,
-      resumeInsights,
-      resume: {
-        filename: resume.filename,
-        mimeType: resume.mimeType,
-        size: resume.size,
-      },
-    }));
-    return NextResponse.json({ applicants: sanitized });
+    const applicants = await listCareerApplicantsFromSupabase();
+    return NextResponse.json({ applicants });
   } catch (err) {
     const status =
       typeof (err as { statusCode?: number }).statusCode === "number"

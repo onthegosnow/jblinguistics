@@ -9,9 +9,16 @@ import type {
 import type { TranslatorExerciseLanguage } from "../translator-exercise";
 import type { ResumeInsights } from "../resume-analysis";
 
-const RESULTS_FILE = process.env.ASSESSMENT_RESULTS_FILE ?? path.join(process.cwd(), "tmp", "assessment-results.json");
-const ACCESS_FILE = process.env.ASSESSMENT_ACCESS_FILE ?? path.join(process.cwd(), "tmp", "assessment-access-codes.json");
-const APPLICATIONS_FILE = process.env.CAREER_APPLICATIONS_FILE ?? path.join(process.cwd(), "tmp", "career-applications.json");
+const STORAGE_ROOT =
+  process.env.JB_STORAGE_DIR ??
+  (process.env.VERCEL ? path.join("/tmp", "jb-linguistics") : path.join(process.cwd(), "tmp"));
+
+const RESULTS_FILE =
+  process.env.ASSESSMENT_RESULTS_FILE ?? path.join(STORAGE_ROOT, "assessment-results.json");
+const ACCESS_FILE =
+  process.env.ASSESSMENT_ACCESS_FILE ?? path.join(STORAGE_ROOT, "assessment-access-codes.json");
+const APPLICATIONS_FILE =
+  process.env.CAREER_APPLICATIONS_FILE ?? path.join(STORAGE_ROOT, "career-applications.json");
 const ADMIN_SECRET = process.env.ASSESSMENT_ADMIN_SECRET ?? "jb-assessment-admin";
 
 export type AssessmentSubmissionRecord = {
@@ -48,7 +55,7 @@ type StoredResume = {
   filename: string;
   mimeType: string;
   size: number;
-  data: string;
+  data?: string;
 };
 
 export type CareerApplicationRecord = {
@@ -157,12 +164,17 @@ export function getAdminSecretHint() {
   return ADMIN_SECRET;
 }
 
-const PORTAL_USERS_FILE = process.env.PORTAL_USERS_FILE ?? path.join(process.cwd(), "tmp", "portal-users.json");
-const PORTAL_ASSIGNMENTS_FILE = process.env.PORTAL_ASSIGNMENTS_FILE ?? path.join(process.cwd(), "tmp", "portal-assignments.json");
-const PORTAL_TIME_FILE = process.env.PORTAL_TIME_FILE ?? path.join(process.cwd(), "tmp", "portal-time-entries.json");
-const PORTAL_ATTENDANCE_FILE = process.env.PORTAL_ATTENDANCE_FILE ?? path.join(process.cwd(), "tmp", "portal-attendance-records.json");
-const PORTAL_UPLOADS_FILE = process.env.PORTAL_UPLOADS_FILE ?? path.join(process.cwd(), "tmp", "portal-assignment-uploads.json");
-const PORTAL_SESSIONS_FILE = process.env.PORTAL_SESSIONS_FILE ?? path.join(process.cwd(), "tmp", "portal-sessions.json");
+const PORTAL_USERS_FILE = process.env.PORTAL_USERS_FILE ?? path.join(STORAGE_ROOT, "portal-users.json");
+const PORTAL_ASSIGNMENTS_FILE =
+  process.env.PORTAL_ASSIGNMENTS_FILE ?? path.join(STORAGE_ROOT, "portal-assignments.json");
+const PORTAL_TIME_FILE =
+  process.env.PORTAL_TIME_FILE ?? path.join(STORAGE_ROOT, "portal-time-entries.json");
+const PORTAL_ATTENDANCE_FILE =
+  process.env.PORTAL_ATTENDANCE_FILE ?? path.join(STORAGE_ROOT, "portal-attendance-records.json");
+const PORTAL_UPLOADS_FILE =
+  process.env.PORTAL_UPLOADS_FILE ?? path.join(STORAGE_ROOT, "portal-assignment-uploads.json");
+const PORTAL_SESSIONS_FILE =
+  process.env.PORTAL_SESSIONS_FILE ?? path.join(STORAGE_ROOT, "portal-sessions.json");
 
 export type PortalUserRole = "teacher" | "translator";
 

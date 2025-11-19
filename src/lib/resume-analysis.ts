@@ -48,12 +48,35 @@ async function extractResumeText(buffer: Buffer, options: AnalysisOptions): Prom
   const extension = ((options.filename && path.extname(options.filename)) || "").toLowerCase();
   try {
     if (mime.includes("pdf") || extension === ".pdf") {
-      const pdfModule = await import("pdf-parse");
-      const pdfParse =
-        (pdfModule as { default?: (data: Buffer) => Promise<{ text: string }> }).default ??
-        (pdfModule as unknown as (data: Buffer) => Promise<{ text: string }>);
-      const parsed = await pdfParse(buffer);
-      return collapseWhitespace(parsed?.text || "");
+      try {
+        const pdfNodeModule = await import("pdf-parse/node");
+        type PdfParseCtor = new (params: { data: Buffer }) => {
+          getText: () => Promise<{ text: string }>;
+          destroy: () => Promise<void>;
+        };
+        const PDFParseCtor = (pdfNodeModule as { PDFParse?: PdfParseCtor }).PDFParse;
+        if (typeof PDFParseCtor === "function") {
+          const parser = new PDFParseCtor({ data: buffer });
+          try {
+            const parsed = await parser.getText();
+            return collapseWhitespace(parsed?.text || "");
+          } finally {
+            await parser.destroy().catch(() => undefined);
+          }
+        }
+      } catch (err) {
+        console.warn("Unable to load pdf-parse/node", err);
+      }
+      try {
+        const pdfModule = await import("pdf-parse");
+        const pdfParseFn = (pdfModule as { default?: (data: Buffer) => Promise<{ text: string }> }).default;
+        if (typeof pdfParseFn === "function") {
+          const parsed = await pdfParseFn(buffer);
+          return collapseWhitespace(parsed?.text || "");
+        }
+      } catch (err) {
+        console.warn("pdf-parse fallback failed", err);
+      }
     }
     if (mime.includes("word") || extension === ".docx") {
       const mammothModule = await import("mammoth");

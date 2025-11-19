@@ -382,18 +382,8 @@ export default function CareersPage() {
               />
               <span className="text-xs text-slate-500">{formCopy.resumeHint}</span>
             </label>
-            <button
-              type="submit"
-              disabled={status === "submitting"}
-              className="inline-flex items-center rounded-full bg-teal-600 text-white px-6 py-2 text-sm font-semibold hover:bg-teal-500 transition disabled:opacity-60"
-            >
-              {status === "submitting" ? "Sending…" : formCopy.submit}
-            </button>
-            {message && (
-              <p className={`text-sm ${status === "error" ? "text-rose-600" : "text-teal-700"}`}>{message}</p>
-            )}
             <input type="hidden" name="landing" value="careers-page" />
-          </form>
+          
           {requiresTeacherAssessment && (
             <section className="mt-10 rounded-3xl border border-slate-200 bg-slate-50 p-5 space-y-6">
               <div>
@@ -549,6 +539,19 @@ export default function CareersPage() {
               </label>
             </section>
           )}
+          <div className="mt-8 flex flex-col gap-3">
+            <button
+              type="submit"
+              disabled={status === "submitting"}
+              className="inline-flex items-center justify-center rounded-full bg-teal-600 text-white px-6 py-2 text-sm font-semibold hover:bg-teal-500 transition disabled:opacity-60"
+            >
+              {status === "submitting" ? "Sending…" : formCopy.submit}
+            </button>
+            {message && (
+              <p className={`text-sm ${status === "error" ? "text-rose-600" : "text-teal-700"}`}>{message}</p>
+            )}
+          </div>
+        </form>
           <p className="mt-6 text-xs text-slate-500">{copy.supportNote}</p>
           <p className="mt-2 text-xs">
             <Link href="/">← {copy.backLink}</Link>

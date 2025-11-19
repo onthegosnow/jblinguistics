@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState, type FormEvent } from "react";
 
 const steps = [
   {
@@ -32,6 +35,34 @@ const benefits = [
 ];
 
 export default function ApplyPage() {
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    formData.set("source", "talent_page");
+    setStatus("loading");
+    setMessage(null);
+    try {
+      const response = await fetch("/api/inquiries", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to send your application.");
+      }
+      form.reset();
+      setStatus("success");
+      setMessage("Thanks! Our coordination team will follow up soon.");
+    } catch (err) {
+      setStatus("error");
+      setMessage(err instanceof Error ? err.message : "Unable to send your application.");
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 to-white text-slate-900 pb-16">
       <section className="max-w-4xl mx-auto px-4 pt-12">
@@ -92,12 +123,8 @@ export default function ApplyPage() {
             directly. We typically reply within 3 business days.
           </p>
 
-          <form
-            action="mailto:info@jblinguistics.com?subject=New%20Talent%20Application"
-            method="post"
-            encType="text/plain"
-            className="mt-5 grid gap-4 text-sm"
-          >
+          <form onSubmit={handleSubmit} className="mt-5 grid gap-4 text-sm">
+            <input type="hidden" name="source" value="talent_page" />
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block mb-1 font-medium text-slate-700">Name</label>
@@ -178,11 +205,17 @@ export default function ApplyPage() {
             <div className="text-right">
               <button
                 type="submit"
-                className="inline-flex items-center rounded-full bg-teal-600 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-500 transition shadow-md shadow-teal-600/30"
+                disabled={status === "loading"}
+                className="inline-flex items-center rounded-full bg-teal-600 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-500 transition shadow-md shadow-teal-600/30 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Submit application
+                {status === "loading" ? "Sending…" : "Submit application"}
               </button>
             </div>
+            {message && (
+              <p className={`text-xs text-right ${status === "error" ? "text-rose-500" : "text-teal-600"}`}>
+                {message}
+              </p>
+            )}
           </form>
         </div>
       </section>

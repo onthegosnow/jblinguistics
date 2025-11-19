@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/react";
 import { TealNav } from "@/components/teal-nav";
 import ChatbotWidget from "@/components/chatbot";
 import Providers from "@/components/providers";
@@ -70,6 +71,7 @@ export default function RootLayout({
           <TealNav data-layout-nav />
           {children}
           <ChatbotWidget />
+          <Analytics />
         </Providers>
       </body>
     </html>

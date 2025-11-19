@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { use } from "react";
 import { destinations } from "@/lib/trips";
 import { getTripPricingSheets } from "@/lib/trip-pricing";
 import { useLanguage } from "@/lib/language-context";
@@ -32,7 +33,8 @@ const PACKAGE_EXCLUDES = [
 ];
 const PRICING_UPDATED = "November 2025";
 
-export default function TripPricingPage({ params }: { params: { slug: string } }) {
+export default function TripPricingPage({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = use(params);
   const { t } = useLanguage();
   const tripsCopy = t.tripsPage;
   const cardPricingLabel =
@@ -43,7 +45,7 @@ export default function TripPricingPage({ params }: { params: { slug: string } }
     "pricingDisclaimer" in tripsCopy && typeof tripsCopy.pricingDisclaimer === "string"
       ? tripsCopy.pricingDisclaimer
       : "Pricing varies by cohort size, travel dates, and the time between booking and departure. Use this estimate for planning; confirmed totals are provided once flights, hotels, and excursions are reserved.";
-  const destination = destinations.find((d) => d.slug === params.slug);
+  const destination = destinations.find((d) => d.slug === resolvedParams.slug);
 
   if (!destination) {
     return (
