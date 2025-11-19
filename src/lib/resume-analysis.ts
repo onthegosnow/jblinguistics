@@ -91,7 +91,17 @@ async function extractResumeText(buffer: Buffer, options: AnalysisOptions): Prom
     console.warn("Resume text extraction failed", err);
   }
   try {
-    return new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+    const decoded = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+    const trimmed = decoded.trim();
+    if (!trimmed) {
+      return "";
+    }
+    const looksLikePdf = trimmed.startsWith("%PDF") || trimmed.includes("/Filter/FlateDecode");
+    const binaryish = /[\x00-\x08\x0E-\x1F]/.test(trimmed);
+    if (looksLikePdf || binaryish) {
+      return "";
+    }
+    return decoded;
   } catch {
     return "";
   }
