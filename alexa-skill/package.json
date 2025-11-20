@@ -1,0 +1,24 @@
+{
+  "name": "jbl-alexa-skill",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Alexa skill for JB Linguistics",
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "package": "npm run build && rm -rf .bundle && mkdir -p .bundle && cp dist/index.js package.json package-lock.json .bundle/ && cp -r node_modules .bundle/ && (cd .bundle && zip -rq ../skill.zip .) && rm -rf .bundle"
+  },
+  "dependencies": {
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-model": "^1.86.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

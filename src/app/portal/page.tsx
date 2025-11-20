@@ -48,6 +48,18 @@ type AssignmentDetail = {
   uploads: Array<{ id: string; filename: string; uploadedAt: string; size: number; category: string }>;
 };
 
+type AdminInquiry = {
+  id: string;
+  createdAt: string | null;
+  name: string;
+  email: string;
+  organization: string | null;
+  serviceType: string | null;
+  languages: string | null;
+  details: string | null;
+  source: string;
+};
+
 export default function PortalPage() {
   const [token, setToken] = useState(() => (typeof window === "undefined" ? "" : window.sessionStorage.getItem(STORAGE_KEY) ?? ""));
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
@@ -75,6 +87,9 @@ export default function PortalPage() {
     category: "support",
   });
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [adminToken, setAdminToken] = useState("");
+  const [adminInquiries, setAdminInquiries] = useState<AdminInquiry[]>([]);
+  const [adminError, setAdminError] = useState<string | null>(null);
 
   const hasAssignments = assignments.length > 0;
 
@@ -214,6 +229,30 @@ export default function PortalPage() {
       await loadAssignments();
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Unable to save hours.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAdminInquiries = async () => {
+    if (!adminToken.trim()) {
+      setAdminError("Enter the admin token to load inquiries.");
+      return;
+    }
+    setAdminError(null);
+    setLoading(true);
+    try {
+      const response = await fetch("/api/portal/admin/inquiries", {
+        headers: { "x-admin-token": adminToken.trim() },
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to load inquiries.");
+      }
+      const data = (await response.json()) as { inquiries: AdminInquiry[] };
+      setAdminInquiries(data.inquiries ?? []);
+    } catch (err) {
+      setAdminError(err instanceof Error ? err.message : "Unable to load inquiries.");
     } finally {
       setLoading(false);
     }

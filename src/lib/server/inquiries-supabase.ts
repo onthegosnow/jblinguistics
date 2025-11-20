@@ -15,6 +15,21 @@ export type InquiryPayload = {
 
 const INQUIRIES_TABLE = "inquiries";
 
+export type InquiryRecord = {
+  id: string;
+  created_at?: string;
+  name: string;
+  email: string;
+  organization?: string | null;
+  service_type?: string | null;
+  languages?: string | null;
+  details?: string | null;
+  budget?: string | null;
+  timeline?: string | null;
+  source: string;
+  metadata?: Record<string, string> | null;
+};
+
 export async function saveInquiryToSupabase(payload: InquiryPayload) {
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase.from(INQUIRIES_TABLE).insert({
@@ -32,4 +47,17 @@ export async function saveInquiryToSupabase(payload: InquiryPayload) {
   if (error) {
     throw new Error(error.message);
   }
+}
+
+export async function listInquiriesFromSupabase(): Promise<InquiryRecord[]> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from(INQUIRIES_TABLE)
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data ?? [];
 }
