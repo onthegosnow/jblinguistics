@@ -117,6 +117,18 @@ type PortalAssignmentAdmin = {
   updatedAt: string;
 };
 
+type InquiryAdmin = {
+  id: string;
+  createdAt: string | null;
+  name: string;
+  email: string;
+  organization: string | null;
+  serviceType: string | null;
+  languages: string | null;
+  details: string | null;
+  source: string;
+};
+
 export default function AssessmentsAdminPage() {
   const [token, setToken] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -126,7 +138,9 @@ export default function AssessmentsAdminPage() {
   const [results, setResults] = useState<SubmissionRecord[]>([]);
   const [codes, setCodes] = useState<AccessCodeRecord[]>([]);
   const [applicants, setApplicants] = useState<ApplicantRecord[]>([]);
-  const [activeTab, setActiveTab] = useState<"results" | "codes" | "applicants" | "assignments" | "portalUsers">("results");
+  const [activeTab, setActiveTab] = useState<
+    "results" | "codes" | "applicants" | "assignments" | "portalUsers" | "inquiries"
+  >("results");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ label: "", candidateName: "", candidateEmail: "", maxUses: 1, expiresAt: "", notes: "" });
@@ -147,6 +161,7 @@ export default function AssessmentsAdminPage() {
   });
   const [assignmentFiles, setAssignmentFiles] = useState<FileList | null>(null);
   const [deletingApplicantId, setDeletingApplicantId] = useState<string | null>(null);
+  const [inquiries, setInquiries] = useState<InquiryAdmin[]>([]);
 
   const hasToken = Boolean(token);
 
@@ -155,12 +170,13 @@ export default function AssessmentsAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const [resultsRes, codesRes, applicantsRes, usersRes, assignmentsRes] = await Promise.all([
+      const [resultsRes, codesRes, applicantsRes, usersRes, assignmentsRes, inquiriesRes] = await Promise.all([
         fetch("/api/assessments/results", { headers: { "x-admin-token": token } }),
         fetch("/api/assessments/access-codes", { headers: { "x-admin-token": token } }),
         fetch("/api/careers/applicants", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/users", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/assignments", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/inquiries", { headers: { "x-admin-token": token } }),
       ]);
       if (!resultsRes.ok) {
         const data = await resultsRes.json().catch(() => ({}));
@@ -182,16 +198,22 @@ export default function AssessmentsAdminPage() {
         const data = await assignmentsRes.json().catch(() => ({}));
         throw new Error(data.message || "Unable to load assignments");
       }
+      if (!inquiriesRes.ok) {
+        const data = await inquiriesRes.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to load inquiries");
+      }
       const resultsData = await resultsRes.json();
       const codesData = await codesRes.json();
       const applicantsData = await applicantsRes.json();
       const usersData = await usersRes.json();
       const assignmentsData = await assignmentsRes.json();
+      const inquiriesData = await inquiriesRes.json();
       setResults(resultsData.results ?? []);
       setCodes(codesData.codes ?? []);
       setApplicants(applicantsData.applicants ?? []);
       setPortalUsers(usersData.users ?? []);
       setAssignments(assignmentsData.assignments ?? []);
+      setInquiries(inquiriesData.inquiries ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load admin data.");
     } finally {
@@ -954,6 +976,71 @@ export default function AssessmentsAdminPage() {
             </div>
           </div>
         );
+      case "inquiries":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-semibold">Inquiries</h3>
+                <p className="text-sm text-slate-400">Recent contact form submissions</p>
+              </div>
+              <button
+                type="button"
+                onClick={refreshData}
+                className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
+              >
+                Refresh
+              </button>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-slate-700 bg-slate-900">
+              <table className="min-w-full text-sm text-slate-100">
+                <thead className="bg-slate-800 text-slate-400">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Name</th>
+                    <th className="px-3 py-2 text-left">Email</th>
+                    <th className="px-3 py-2 text-left">Service</th>
+                    <th className="px-3 py-2 text-left">Languages</th>
+                    <th className="px-3 py-2 text-left">Details</th>
+                    <th className="px-3 py-2 text-left">Source</th>
+                    <th className="px-3 py-2 text-left">Submitted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inquiries.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-3 py-4 text-center text-slate-400">
+                        No inquiries yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    inquiries.map((inq) => (
+                      <tr key={inq.id} className="border-t border-slate-700 align-top">
+                        <td className="px-3 py-2 font-semibold text-white">
+                          <div>{inq.name}</div>
+                          {inq.organization && <div className="text-xs text-slate-400">{inq.organization}</div>}
+                        </td>
+                        <td className="px-3 py-2">
+                          <a href={`mailto:${inq.email}`} className="text-teal-300 hover:underline">
+                            {inq.email}
+                          </a>
+                        </td>
+                        <td className="px-3 py-2 text-slate-200">{inq.serviceType ?? "—"}</td>
+                        <td className="px-3 py-2 text-slate-200">{inq.languages ?? "—"}</td>
+                        <td className="px-3 py-2 text-slate-200 max-w-xs whitespace-pre-wrap break-words">
+                          {inq.details ?? "—"}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-400">{inq.source}</td>
+                        <td className="px-3 py-2 text-xs text-slate-400">
+                          {inq.createdAt ? new Date(inq.createdAt).toLocaleString() : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -1028,6 +1115,13 @@ export default function AssessmentsAdminPage() {
                   onClick={() => setActiveTab("portalUsers")}
                 >
                   Portal users
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "inquiries" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("inquiries")}
+                >
+                  Inquiries
                 </button>
               </div>
               <button
