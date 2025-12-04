@@ -139,7 +139,7 @@ export default function AssessmentsAdminPage() {
   const [codes, setCodes] = useState<AccessCodeRecord[]>([]);
   const [applicants, setApplicants] = useState<ApplicantRecord[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "results" | "codes" | "applicants" | "assignments" | "portalUsers" | "inquiries"
+    "results" | "codes" | "applicants" | "assignments" | "portalUsers" | "inquiries" | "onboarding"
   >("results");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -161,6 +161,18 @@ export default function AssessmentsAdminPage() {
   });
   const [assignmentFiles, setAssignmentFiles] = useState<FileList | null>(null);
   const [deletingApplicantId, setDeletingApplicantId] = useState<string | null>(null);
+  const [sendingHireId, setSendingHireId] = useState<string | null>(null);
+  const [onboardingEnvelopes, setOnboardingEnvelopes] = useState<
+    Array<{
+      envelopeId: string;
+      signerName?: string | null;
+      signerEmail?: string | null;
+      completedAt?: string | null;
+      docUrl?: string;
+      resumeUrl?: string;
+      applicantId?: string | null;
+    }>
+  >([]);
   const [inquiries, setInquiries] = useState<InquiryAdmin[]>([]);
 
   const hasToken = Boolean(token);
@@ -170,13 +182,14 @@ export default function AssessmentsAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const [resultsRes, codesRes, applicantsRes, usersRes, assignmentsRes, inquiriesRes] = await Promise.all([
+      const [resultsRes, codesRes, applicantsRes, usersRes, assignmentsRes, inquiriesRes, onboardingRes] = await Promise.all([
         fetch("/api/assessments/results", { headers: { "x-admin-token": token } }),
         fetch("/api/assessments/access-codes", { headers: { "x-admin-token": token } }),
         fetch("/api/careers/applicants", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/users", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/assignments", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/inquiries", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/onboarding", { headers: { "x-admin-token": token } }),
       ]);
       if (!resultsRes.ok) {
         const data = await resultsRes.json().catch(() => ({}));
@@ -198,6 +211,10 @@ export default function AssessmentsAdminPage() {
         const data = await assignmentsRes.json().catch(() => ({}));
         throw new Error(data.message || "Unable to load assignments");
       }
+      if (!onboardingRes.ok) {
+        const data = await onboardingRes.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to load onboarding envelopes");
+      }
       if (!inquiriesRes.ok) {
         const data = await inquiriesRes.json().catch(() => ({}));
         throw new Error(data.message || "Unable to load inquiries");
@@ -208,12 +225,14 @@ export default function AssessmentsAdminPage() {
       const usersData = await usersRes.json();
       const assignmentsData = await assignmentsRes.json();
       const inquiriesData = await inquiriesRes.json();
+      const onboardingData = await onboardingRes.json();
       setResults(resultsData.results ?? []);
       setCodes(codesData.codes ?? []);
       setApplicants(applicantsData.applicants ?? []);
       setPortalUsers(usersData.users ?? []);
       setAssignments(assignmentsData.assignments ?? []);
       setInquiries(inquiriesData.inquiries ?? []);
+      setOnboardingEnvelopes(onboardingData.envelopes ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load admin data.");
     } finally {
@@ -241,6 +260,30 @@ export default function AssessmentsAdminPage() {
         setError(err instanceof Error ? err.message : "Unable to delete applicant.");
       } finally {
         setDeletingApplicantId(null);
+      }
+    },
+    [token]
+  );
+
+  const sendHire = useCallback(
+    async (applicant: ApplicantRecord) => {
+      if (!token) return;
+      setError(null);
+      setSendingHireId(applicant.id);
+      try {
+        const response = await fetch("/api/careers/hire", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-token": token },
+          body: JSON.stringify({ name: applicant.name, email: applicant.email }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.message || "Unable to send onboarding email.");
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to send onboarding email.");
+      } finally {
+        setSendingHireId(null);
       }
     },
     [token]
@@ -610,18 +653,30 @@ export default function AssessmentsAdminPage() {
                         <p className="text-xs text-slate-400">{applicant.email}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => downloadResume(applicant)}
-                          className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-600"
-                        >
-                          Download resume
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteApplicant(applicant)}
-                          disabled={deletingApplicantId === applicant.id}
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                      <button
+                        type="button"
+                        onClick={() => downloadResume(applicant)}
+                        className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-600"
+                      >
+                        Download resume
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => sendHire(applicant)}
+                        disabled={sendingHireId === applicant.id}
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                          sendingHireId === applicant.id
+                            ? "bg-amber-900/50 text-amber-100 cursor-wait"
+                            : "bg-amber-400 text-slate-900 hover:bg-amber-300"
+                        }`}
+                      >
+                        {sendingHireId === applicant.id ? "Sending…" : "Send DocuSign"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteApplicant(applicant)}
+                        disabled={deletingApplicantId === applicant.id}
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
                             deletingApplicantId === applicant.id
                               ? "bg-rose-900/50 text-rose-200 cursor-not-allowed"
                               : "bg-rose-600 text-white hover:bg-rose-500"
@@ -720,6 +775,61 @@ export default function AssessmentsAdminPage() {
                         </div>
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      case "onboarding":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6">
+            <h2 className="text-xl font-semibold">Active employees (DocuSign)</h2>
+            {onboardingEnvelopes.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-400">No completed packets yet.</p>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {onboardingEnvelopes.map((env) => (
+                  <div key={env.envelopeId} className="rounded-2xl border border-slate-700 p-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-semibold text-white">{env.signerName || "Unknown"}</p>
+                        <p className="text-xs text-slate-400">{env.signerEmail || "(no email)"}</p>
+                        <p className="text-xs text-slate-500">Envelope: {env.envelopeId}</p>
+                        {env.applicantId ? (
+                          <p className="text-xs text-emerald-300">Matched applicant: {env.applicantId}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-slate-100">
+                          Completed: {env.completedAt ? new Date(env.completedAt).toLocaleString() : "N/A"}
+                        </span>
+                        {env.docUrl ? (
+                          <a
+                            href={env.docUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center rounded-full bg-teal-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-teal-400"
+                          >
+                            Download packet
+                          </a>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-amber-900/50 px-3 py-1 text-xs font-semibold text-amber-100">
+                            No document URL
+                          </span>
+                        )}
+                        {env.resumeUrl ? (
+                          <a
+                            href={env.resumeUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-white"
+                          >
+                            View resume
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1080,7 +1190,7 @@ export default function AssessmentsAdminPage() {
         ) : (
           <div className="mt-10 space-y-8">
             <div className="flex flex-wrap items-center gap-4">
-              <div className="inline-flex rounded-3xl bg-slate-800 p-1 text-sm">
+              <div className="inline-flex rounded-3xl bg-slate-800 p-1 text-sm flex-wrap gap-1">
                 <button
                   type="button"
                   className={`px-3 py-1.5 rounded-2xl ${activeTab === "results" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
@@ -1101,6 +1211,13 @@ export default function AssessmentsAdminPage() {
                   onClick={() => setActiveTab("applicants")}
                 >
                   Applicants
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "onboarding" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("onboarding")}
+                >
+                  Active employees
                 </button>
                 <button
                   type="button"

@@ -127,9 +127,8 @@ export default function Home() {
             <div className="absolute left-10 bottom-6 h-32 w-32 rounded-full bg-amber-300/10 blur-2xl" />
             <div className="relative max-w-6xl mx-auto px-4 grid md:grid-cols-[1.1fr,0.9fr] gap-10 items-start">
               <div className="space-y-6">
-                <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-teal-100">
-                  <span className="rounded-full bg-white/10 px-3 py-1">Virtual-first collective</span>
-                  <span className="rounded-full border border-white/20 px-3 py-1 text-sky-100">
+                <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-teal-100">
+                  <span className="rounded-full border border-white/25 bg-white/5 px-3 py-1 text-sky-50">
                     Certified translation · Interpretation · Learning
                   </span>
                 </div>
@@ -152,15 +151,17 @@ export default function Home() {
                   >
                     {t.hero.ctaSecondary}
                   </a>
+                </div>
+                <p className="text-sm text-sky-100/80">
                   <Link
                     href="/teachers/jonathan-brooks"
-                    className="inline-flex items-center rounded-full border border-white/30 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-white/60"
+                    className="inline-flex items-center gap-1 rounded-full border border-white/20 px-3 py-1 font-semibold text-white transition hover:border-white/40"
                   >
                     {t.hero.meetJB ?? t.nav.aboutJb}
                   </Link>
-                </div>
+                </p>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {heroHighlights.slice(0, 4).map((item) => (
+                  {heroHighlights.slice(0, 3).map((item) => (
                     <div
                       key={item}
                       className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm leading-relaxed text-sky-50/90 shadow-sm shadow-white/10"

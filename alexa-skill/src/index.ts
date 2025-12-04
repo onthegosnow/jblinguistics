@@ -11,7 +11,7 @@ const getSlotValue = (handlerInput: HandlerInput, name: string): string | undefi
   return slot?.value?.trim();
 };
 
-type TrackKey = "german" | "business_english" | "spanish";
+type TrackKey = "german" | "business_english" | "spanish" | "french" | "dutch";
 
 type PhraseEntry = {
   phrase: string;
@@ -85,6 +85,11 @@ const tracks: Record<TrackKey, Track> = {
         expected: "gibt es noch offene punkte von gestern",
         hint: "Starts with Gibt es…",
       },
+      {
+        question: "Say 'let's capture that quickly' in German.",
+        expected: "lassen sie uns das kurz festhalten",
+        hint: "Starts with Lassen Sie…",
+      },
     ],
   },
   business_english: {
@@ -138,6 +143,83 @@ const tracks: Record<TrackKey, Track> = {
         expected: "podemos cerrar esto hoy",
         hint: "Starts with Podemos…",
       },
+      {
+        question: "Translate: Good morning, how can I help you? into Spanish.",
+        expected: "buenos dias en que puedo ayudarte",
+        hint: "Starts with Buenos días…",
+      },
+      {
+        question: "Say 'thank you for the quick response' in Spanish.",
+        expected: "gracias por la respuesta rapida",
+        hint: "Starts with Gracias…",
+      },
+    ],
+  },
+  french: {
+    label: "French",
+    morningTip: "Start with a greeting; keep sentences short and polite using vous.",
+    phrases: [
+      {
+        phrase: "Bonjour, comment puis-je vous aider aujourd'hui ?",
+        translation: "Hello, how can I help you today?",
+        context: "Opening a call or meeting.",
+        tip: "Keep a soft liaison between 'puis-je' and 'vous'.",
+      },
+      {
+        phrase: "Peut-on finaliser cela d'ici demain ?",
+        translation: "Can we finalize this by tomorrow?",
+        context: "Setting a friendly deadline.",
+      },
+      {
+        phrase: "Merci pour votre réponse rapide.",
+        translation: "Thank you for your quick reply.",
+        context: "Acknowledging responsiveness.",
+      },
+    ],
+    drills: [
+      {
+        question: "Translate: Hello, how can I help you today?",
+        expected: "bonjour comment puis je vous aider aujourd hui",
+        hint: "Starts with Bonjour…",
+      },
+      {
+        question: "Say 'thank you for your quick reply' in French.",
+        expected: "merci pour votre réponse rapide",
+        hint: "Starts with Merci…",
+      },
+    ],
+  },
+  dutch: {
+    label: "Dutch",
+    morningTip: "Keep verbs early in the sentence and stay direct but polite.",
+    phrases: [
+      {
+        phrase: "Goedemorgen, hoe kan ik u helpen?",
+        translation: "Good morning, how can I help you?",
+        context: "Opening a call or meeting.",
+      },
+      {
+        phrase: "Kunnen we dit vandaag afronden?",
+        translation: "Can we wrap this up today?",
+        context: "Setting a same-day goal.",
+      },
+      {
+        phrase: "Bedankt voor uw snelle reactie.",
+        translation: "Thank you for your quick response.",
+        context: "Polite follow-up.",
+      },
+    ],
+    drills: [
+      {
+        question: "Translate: Good morning, how can I help you? into Dutch.",
+        expected: "goedemorgen hoe kan ik u helpen",
+        hint: "Starts with Goedemorgen…",
+      },
+      {
+        question: "Say 'thank you for your quick response' in Dutch.",
+        expected: "bedankt voor uw snelle reactie",
+        hint: "Starts with Bedankt…",
+      },
     ],
   },
 };
@@ -151,7 +233,7 @@ type SessionData = {
 const defaultTrack: TrackKey = "german";
 
 const launchSpeak =
-  "Welcome to JB Linguistics. Try: 'give me my morning German phrase', 'start a quick drill', 'translate hello to German', or 'book a consultation'.";
+  "Welcome to JB Linguistics. Try: 'give me my morning German phrase', 'set my language to French or Dutch', 'start a quick drill', or 'book a consultation'.";
 
 const normalize = (value?: string) => (value ? value.toLowerCase().replace(/[^a-zA-Z\u00C0-\u024F0-9 ]+/g, "").trim() : "");
 
@@ -161,6 +243,8 @@ const resolveTrack = (raw?: string): TrackKey => {
   if (value.includes("business")) return "business_english";
   if (value.includes("english")) return "business_english";
   if (value.includes("spanish") || value.includes("español")) return "spanish";
+  if (value.includes("french") || value.includes("francais") || value.includes("français")) return "french";
+  if (value.includes("dutch") || value.includes("nederlands") || value.includes("netherlands")) return "dutch";
   return defaultTrack;
 };
 

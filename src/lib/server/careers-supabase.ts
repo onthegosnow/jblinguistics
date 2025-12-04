@@ -307,3 +307,16 @@ export async function downloadCareerApplicantResume(id: string) {
     buffer,
   };
 }
+
+export async function fetchLatestApplicationByEmail(email: string) {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from(APPLICATION_TABLE)
+    .select("id, name, email, roles, working_languages, resume_path, resume_filename, resume_mime_type")
+    .ilike("email", email)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return data ?? null;
+}

@@ -18,9 +18,16 @@ function normalizeLang(value: string | null): Lang {
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() =>
-    typeof window !== "undefined" ? normalizeLang(window.localStorage.getItem(STORAGE_KEY)) : "en"
-  );
+  const getInitialLang = () => {
+    if (typeof window === "undefined") return "en";
+    const cookieMatch = document.cookie.match(new RegExp(`${STORAGE_KEY}=([^;]+)`));
+    const stored = window.localStorage.getItem(STORAGE_KEY) || (cookieMatch ? cookieMatch[1] : null);
+    if (stored) return normalizeLang(stored);
+    const browser = navigator.language?.slice(0, 2) ?? "en";
+    return normalizeLang(browser);
+  };
+
+  const [lang, setLangState] = useState<Lang>(getInitialLang);
 
   const setLang = (next: Lang) => {
     setLangState(next);
@@ -32,6 +39,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
     if (typeof document !== "undefined") {
       document.documentElement.lang = lang;
+      const oneYear = 60 * 60 * 24 * 365;
+      document.cookie = `${STORAGE_KEY}=${lang}; path=/; max-age=${oneYear}; SameSite=Lax`;
     }
   }, [lang]);
 

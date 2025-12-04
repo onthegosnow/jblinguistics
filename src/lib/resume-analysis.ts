@@ -46,8 +46,10 @@ export async function analyzeResume(buffer: Buffer, options: AnalysisOptions = {
 async function extractResumeText(buffer: Buffer, options: AnalysisOptions): Promise<string> {
   const mime = (options.mimeType || "").toLowerCase();
   const extension = ((options.filename && path.extname(options.filename)) || "").toLowerCase();
+  let parsedText = "";
   try {
     if (mime.includes("pdf") || extension === ".pdf") {
+      // Try node-specific parser first (handles most PDFs in Node runtimes)
       try {
         const pdfNodeModule = await import("pdf-parse/node");
         type PdfParseCtor = new (params: { data: Buffer }) => {
@@ -67,12 +69,13 @@ async function extractResumeText(buffer: Buffer, options: AnalysisOptions): Prom
       } catch (err) {
         console.warn("Unable to load pdf-parse/node", err);
       }
+      // Final pdf-parse fallback
       try {
         const pdfModule = await import("pdf-parse");
         const pdfParseFn = (pdfModule as { default?: (data: Buffer) => Promise<{ text: string }> }).default;
         if (typeof pdfParseFn === "function") {
           const parsed = await pdfParseFn(buffer);
-          return collapseWhitespace(parsed?.text || "");
+          parsedText = collapseWhitespace(parsed?.text || "");
         }
       } catch (err) {
         console.warn("pdf-parse fallback failed", err);
@@ -82,14 +85,55 @@ async function extractResumeText(buffer: Buffer, options: AnalysisOptions): Prom
       const mammothModule = await import("mammoth");
       const mammoth = (mammothModule as { default?: { extractRawText: typeof import("mammoth").extractRawText } }).default ?? mammothModule;
       const extracted = await mammoth.extractRawText({ buffer });
-      return collapseWhitespace(extracted?.value || "");
+      parsedText = collapseWhitespace(extracted?.value || "");
     }
     if (mime.startsWith("text/") || extension === ".txt" || extension === ".rtf" || extension === ".md" || extension === ".doc") {
-      return buffer.toString("utf8");
+      parsedText = buffer.toString("utf8");
     }
+    if (parsedText) return parsedText;
   } catch (err) {
     console.warn("Resume text extraction failed", err);
   }
+
+  // External OCR fallback (e.g., scanned PDFs) using OCR.space
+  const ocrApiUrl = process.env.OCR_API_URL;
+  const ocrApiKey = process.env.OCR_API_KEY;
+  if (ocrApiUrl && ocrApiKey) {
+    try {
+      const formData = new FormData();
+      const filename = options.filename || (mime.includes("pdf") ? "resume.pdf" : "document");
+      const view = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+      const arrayBuffer = new ArrayBuffer(view.byteLength);
+      new Uint8Array(arrayBuffer).set(view);
+      formData.append("file", new Blob([arrayBuffer]), filename);
+      formData.append("language", "auto");
+      formData.append("OCREngine", "2");
+      formData.append("isTable", "true");
+      formData.append("scale", "true");
+
+      const res = await fetch(ocrApiUrl, {
+        method: "POST",
+        headers: { apikey: ocrApiKey },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = (await res.json().catch(() => null)) as
+          | {
+              ParsedResults?: Array<{ ParsedText?: string | null; ErrorMessage?: unknown; ErrorDetails?: unknown }>;
+              IsErroredOnProcessing?: boolean;
+            }
+          | null;
+        const parsed = data?.ParsedResults?.[0]?.ParsedText ?? "";
+        const collapsed = collapseWhitespace(parsed || "");
+        if (collapsed) return collapsed;
+      } else {
+        console.warn("OCR API response not ok", res.status);
+      }
+    } catch (err) {
+      console.warn("OCR API fallback failed", err);
+    }
+  }
+
   try {
     const decoded = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
     const trimmed = decoded.trim();
