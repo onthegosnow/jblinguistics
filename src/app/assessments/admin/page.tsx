@@ -67,6 +67,7 @@ type ApplicantRecord = {
   message?: string;
   roles: string[];
   workingLanguages?: TeacherAssessmentLanguage[];
+  hireSentAt?: string | null;
   resume: { filename: string; mimeType: string; size: number };
   resumeInsights?: {
     summary: string;
@@ -274,7 +275,7 @@ export default function AssessmentsAdminPage() {
         const response = await fetch("/api/careers/hire", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-token": token },
-          body: JSON.stringify({ name: applicant.name, email: applicant.email }),
+          body: JSON.stringify({ name: applicant.name, email: applicant.email, applicationId: applicant.id }),
         });
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
@@ -284,6 +285,8 @@ export default function AssessmentsAdminPage() {
         setError(err instanceof Error ? err.message : "Unable to send onboarding email.");
       } finally {
         setSendingHireId(null);
+        const sentAt = new Date().toISOString();
+        setApplicants((prev) => prev.map((item) => (item.id === applicant.id ? { ...item, hireSentAt: sentAt } : item)));
       }
     },
     [token]
@@ -672,6 +675,11 @@ export default function AssessmentsAdminPage() {
                       >
                         {sendingHireId === applicant.id ? "Sending…" : "Send DocuSign"}
                       </button>
+                      {applicant.hireSentAt && (
+                        <span className="text-[11px] text-emerald-200">
+                          Sent {new Date(applicant.hireSentAt).toLocaleString()}
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => deleteApplicant(applicant)}

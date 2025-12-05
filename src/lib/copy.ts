@@ -452,7 +452,7 @@ export const copy = {
         teacher: {
           heading: "Teacher assessment (required)",
           intro:
-            "Select the language you wish to teach. Answer all 100 grammar questions (B2–C2) and provide two reflective responses about your classroom management approach.",
+            "Select the language you wish to teach. Answer all 50 grammar questions (B2–C2) and provide two reflective responses about your classroom management approach.",
           languageLabel: "Assessment language",
           languagePlaceholder: "Choose the language you teach",
           answeredLabel: "Answered",
@@ -461,7 +461,7 @@ export const copy = {
             "If a student consistently creates conflict during class, how do you resolve it in the moment and prevent future disruptions?",
           attendancePrompt:
             "If students cancel frequently or skip sessions, how would you correct the pattern and adjust your approach to improve participation?",
-          requirementNote: "All 100 questions and both written responses are mandatory for educator roles.",
+          requirementNote: "All 50 questions and both written responses are mandatory for educator roles.",
         },
         translator: {
           heading: "Translator exercise (required)",
@@ -482,7 +482,7 @@ export const copy = {
         },
         validation: {
           teacherLanguage: "Select an assessment language before submitting.",
-          teacherIncomplete: "Answer all 100 questions and complete both short responses for the teacher assessment.",
+          teacherIncomplete: "Answer all 50 questions and complete both short responses for the teacher assessment.",
           translatorLanguage: "Select a target language for the translation exercise.",
           translatorText: "Provide your translation before submitting.",
         },
@@ -931,7 +931,7 @@ export const copy = {
         teacher: {
           heading: "Docenttoets (verplicht)",
           intro:
-            "Selecteer de taal die u wilt onderwijzen. Beantwoord alle 100 grammatica-vragen (B2–C2) en geef twee reflectieve antwoorden over klasbeheer.",
+            "Selecteer de taal die u wilt onderwijzen. Beantwoord alle 50 grammatica-vragen (B2–C2) en geef twee reflectieve antwoorden over klasbeheer.",
           languageLabel: "Taal van de toets",
           languagePlaceholder: "Kies de taal waarin u lesgeeft",
           answeredLabel: "Beantwoord",
@@ -940,7 +940,7 @@ export const copy = {
             "Als een student herhaaldelijk conflicten veroorzaakt, hoe lost u dat direct op en hoe voorkomt u herhaling op lange termijn?",
           attendancePrompt:
             "Als studenten vaak afzeggen of wegblijven, welke stappen neemt u om deelname te verbeteren en uw aanpak aan te passen?",
-          requirementNote: "Alle 100 vragen en beide schriftelijke antwoorden zijn verplicht voor docentrollen.",
+          requirementNote: "Alle 50 vragen en beide schriftelijke antwoorden zijn verplicht voor docentrollen.",
         },
         translator: {
           heading: "Vertaalopdracht (verplicht)",
@@ -961,7 +961,7 @@ export const copy = {
         },
         validation: {
           teacherLanguage: "Selecteer eerst de toetstaal.",
-          teacherIncomplete: "Beantwoord alle 100 vragen en vul beide korte antwoorden in.",
+          teacherIncomplete: "Beantwoord alle 50 vragen en vul beide korte antwoorden in.",
           translatorLanguage: "Kies een doeltaal voor de vertaalopdracht.",
           translatorText: "Voer uw vertaling in voordat u verstuurt.",
         },
@@ -1411,7 +1411,7 @@ export const copy = {
         teacher: {
           heading: "Évaluation formateur (obligatoire)",
           intro:
-            "Choisissez la langue que vous souhaitez enseigner. Répondez aux 100 questions de grammaire (B2–C2) et rédigez deux réponses sur votre gestion de classe.",
+            "Choisissez la langue que vous souhaitez enseigner. Répondez aux 50 questions de grammaire (B2–C2) et rédigez deux réponses sur votre gestion de classe.",
           languageLabel: "Langue de l’évaluation",
           languagePlaceholder: "Sélectionnez la langue d’enseignement",
           answeredLabel: "Réponses",
@@ -1420,7 +1420,7 @@ export const copy = {
             "Si un apprenant crée régulièrement des tensions, comment intervenez-vous immédiatement et comment évitez-vous que cela se reproduise ?",
           attendancePrompt:
             "Si les apprenants manquent souvent les séances, quelles actions mettez-vous en place pour relancer l’engagement et adapter votre approche pédagogique ?",
-          requirementNote: "Les 100 questions et les deux réponses écrites sont obligatoires pour les rôles d’enseignant.",
+          requirementNote: "Les 50 questions et les deux réponses écrites sont obligatoires pour les rôles d’enseignant.",
         },
         translator: {
           heading: "Exercice de traduction (obligatoire)",
@@ -1441,7 +1441,7 @@ export const copy = {
         },
         validation: {
           teacherLanguage: "Sélectionnez d’abord la langue d’évaluation.",
-          teacherIncomplete: "Répondez aux 100 questions et remplissez les deux réponses ouvertes.",
+          teacherIncomplete: "Répondez aux 50 questions et remplissez les deux réponses ouvertes.",
           translatorLanguage: "Choisissez une langue cible pour l’exercice.",
           translatorText: "Ajoutez votre traduction avant de soumettre.",
         },
@@ -1891,7 +1891,7 @@ export const copy = {
         teacher: {
           heading: "Lärartest (obligatoriskt)",
           intro:
-            "Välj språket du undervisar i. Besvara samtliga 100 grammatikfrågor (B2–C2) och skriv två korta svar om hur du hanterar klassrumssituationer.",
+            "Välj språket du undervisar i. Besvara samtliga 50 grammatikfrågor (B2–C2) och skriv två korta svar om hur du hanterar klassrumssituationer.",
           languageLabel: "Testspråk",
           languagePlaceholder: "Välj undervisningsspråk",
           answeredLabel: "Besvarade",
@@ -1900,7 +1900,7 @@ export const copy = {
             "Om en deltagare skapar konflikter – hur agerar du direkt och vilka långsiktiga åtgärder inför du?",
           attendancePrompt:
             "Om deltagare ofta uteblir eller ställer in, hur vänder du trenden och justerar din metod för att öka närvaron?",
-          requirementNote: "Alla 100 frågor och båda svaren måste vara klara för roller som utbildare.",
+          requirementNote: "Alla 50 frågor och båda svaren måste vara klara för roller som utbildare.",
         },
         translator: {
           heading: "Översättningsövning (obligatorisk)",
@@ -1921,7 +1921,7 @@ export const copy = {
         },
         validation: {
           teacherLanguage: "Välj testspråk innan du skickar.",
-          teacherIncomplete: "Besvara samtliga frågor och båda öppna svaren.",
+          teacherIncomplete: "Besvara samtliga 50 frågor och båda öppna svaren.",
           translatorLanguage: "Välj ett målspråk för översättningen.",
           translatorText: "Klistra in din översättning innan du skickar.",
         },
@@ -2371,7 +2371,7 @@ export const copy = {
         teacher: {
           heading: "Evaluación para docentes (obligatoria)",
           intro:
-            "Elija el idioma que desea impartir. Responda las 100 preguntas de gramática (B2–C2) y escriba dos respuestas sobre cómo gestiona el aula.",
+            "Elija el idioma que desea impartir. Responda las 50 preguntas de gramática (B2–C2) y escriba dos respuestas sobre cómo gestiona el aula.",
           languageLabel: "Idioma de la evaluación",
           languagePlaceholder: "Seleccione el idioma en el que enseña",
           answeredLabel: "Respondidas",
@@ -2380,7 +2380,7 @@ export const copy = {
             "Si un alumno crea conflictos con frecuencia, ¿cómo interviene en el momento y qué medidas toma para evitar que se repita?",
           attendancePrompt:
             "Si los alumnos faltan o cancelan seguido, ¿qué estrategia aplicaría para revertir la situación y ajustar su metodología?",
-          requirementNote: "Las 100 preguntas y las dos respuestas escritas son obligatorias para roles docentes.",
+          requirementNote: "Las 50 preguntas y las dos respuestas escritas son obligatorias para roles docentes.",
         },
         translator: {
           heading: "Ejercicio de traducción (obligatorio)",
@@ -2401,7 +2401,7 @@ export const copy = {
         },
         validation: {
           teacherLanguage: "Seleccione primero el idioma de la evaluación.",
-          teacherIncomplete: "Responda las 100 preguntas y las dos respuestas abiertas.",
+          teacherIncomplete: "Responda las 50 preguntas y las dos respuestas abiertas.",
           translatorLanguage: "Seleccione un idioma destino para la traducción.",
           translatorText: "Pegue su traducción antes de enviar.",
         },
@@ -2842,14 +2842,14 @@ export const copy = {
         teacher: {
           heading: "讲师测评（必填）",
           intro:
-            "请选择希望教授的语言。答完 100 道 B2–C2 级别的语法题，并填写两个与课堂管理相关的开放式问题。",
+            "请选择希望教授的语言。答完 50 道 B2–C2 级别的语法题，并填写两个与课堂管理相关的开放式问题。",
           languageLabel: "测评语言",
           languagePlaceholder: "请选择授课语言",
           answeredLabel: "已完成",
           shortResponseHeading: "开放式回答",
           conflictPrompt: "若有学员在课堂上持续制造冲突，您会如何即时处理并避免后续再发生？",
           attendancePrompt: "若学员频繁缺课或临时取消，您会如何扭转状况并调整教学方式以提升参与度？",
-          requirementNote: "申请教学角色必须完成全部 100 道题与两道开放式问题。",
+          requirementNote: "申请教学角色必须完成全部 50 道题与两道开放式问题。",
         },
         translator: {
           heading: "翻译测试（必填）",
@@ -2869,7 +2869,7 @@ export const copy = {
         },
         validation: {
           teacherLanguage: "请先选择测评语言。",
-          teacherIncomplete: "请完成 100 道题并填写两个开放式回答。",
+          teacherIncomplete: "请完成 50 道题并填写两个开放式回答。",
           translatorLanguage: "请选择翻译的目标语言。",
           translatorText: "请粘贴译文后再提交。",
         },
@@ -3319,7 +3319,7 @@ export const copy = {
         teacher: {
           heading: "Lehrer*innen-Assessment (Pflicht)",
           intro:
-            "Wählen Sie die Sprache, die Sie unterrichten möchten. Beantworten Sie alle 100 Grammatikfragen (B2–C2) und verfassen Sie zwei Antworten zu Ihrem Classroom-Management.",
+            "Wählen Sie die Sprache, die Sie unterrichten möchten. Beantworten Sie alle 50 Grammatikfragen (B2–C2) und verfassen Sie zwei Antworten zu Ihrem Classroom-Management.",
           languageLabel: "Sprache des Assessments",
           languagePlaceholder: "Unterrichtssprache wählen",
           answeredLabel: "Beantwortet",
@@ -3328,7 +3328,7 @@ export const copy = {
             "Wie reagieren Sie, wenn ein*e Teilnehmer*in wiederholt Konflikte auslöst, und welche langfristigen Maßnahmen setzen Sie um?",
           attendancePrompt:
             "Wenn Teilnehmende häufig absagen oder fehlen, wie drehen Sie die Situation und passen Ihre Methode an, um Engagement zu erhöhen?",
-          requirementNote: "Alle 100 Fragen und beide Freitextantworten sind für Lehrrollen verpflichtend.",
+          requirementNote: "Alle 50 Fragen und beide Freitextantworten sind für Lehrrollen verpflichtend.",
         },
         translator: {
           heading: "Übersetzungsübung (Pflicht)",
@@ -3349,7 +3349,7 @@ export const copy = {
         },
         validation: {
           teacherLanguage: "Bitte wählen Sie zuerst die Assessment-Sprache.",
-          teacherIncomplete: "Alle 100 Fragen und beide Antworten müssen ausgefüllt werden.",
+          teacherIncomplete: "Alle 50 Fragen und beide Antworten müssen ausgefüllt werden.",
           translatorLanguage: "Wählen Sie eine Zielsprache für die Übersetzung.",
           translatorText: "Fügen Sie Ihre Übersetzung ein, bevor Sie senden.",
         },

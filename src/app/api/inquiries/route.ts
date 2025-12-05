@@ -19,6 +19,9 @@ const KNOWN_FIELDS = new Set([
   "budget",
   "timeline",
   "source",
+  "marketingOptIn",
+  "preferredStaff",
+  "referral",
 ]);
 
 export async function POST(request: Request) {
@@ -43,6 +46,18 @@ export async function POST(request: Request) {
       source: optionalString(formData.get("source")) ?? "contact",
       metadata: collectMetadata(formData),
     };
+    const marketingOptIn = formData.get("marketingOptIn");
+    if (typeof marketingOptIn === "string") {
+      payload.metadata = { ...(payload.metadata ?? {}), marketingOptIn: marketingOptIn === "yes" ? "true" : "false" };
+    }
+    const preferredStaff = optionalString(formData.get("preferredStaff"));
+    if (preferredStaff) {
+      payload.metadata = { ...(payload.metadata ?? {}), preferredStaff };
+    }
+    const referral = optionalString(formData.get("referral"));
+    if (referral) {
+      payload.metadata = { ...(payload.metadata ?? {}), referral };
+    }
 
     await saveInquiryToSupabase(payload);
     await sendInquiryEmail(payload);

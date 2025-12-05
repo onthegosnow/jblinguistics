@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { createSupabaseAdminClient } from "@/lib/supabase-server";
 
 const DOCUSIGN_URL =
   "https://na4.docusign.net/Member/PowerFormSigning.aspx?PowerFormId=063afaed-c871-441a-8842-43f37f4be944&env=na4&acct=2b24bf93-0c1a-4a00-ac3d-94a41015425c&v=2";
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const name = String(body.name || "").trim();
     const email = String(body.email || "").trim();
+    const applicationId = typeof body.applicationId === "string" ? body.applicationId : undefined;
     if (!name || !email) {
       return NextResponse.json({ message: "Name and email are required." }, { status: 400 });
     }
@@ -33,23 +35,63 @@ export async function POST(request: Request) {
       },
     });
 
-    const subject = "JB Linguistics • Freelancer Onboarding Agreement";
+    const subject = "Welcome to JB Linguistics • Complete Your Agreement";
     const textBody = [
       `Hi ${name},`,
       "",
-      "Please complete the onboarding agreement at the link below:",
+      "Welcome to JB Linguistics! We’re excited to have you join our global team of educators and language specialists.",
+      "",
+      "Please review and complete your Freelance Teaching & Translation Agreement here:",
       DOCUSIGN_URL,
       "",
-      "If you have any questions, reply to this email.",
+      "Be sure to fill in all required fields before submitting. This agreement covers:",
+      "• Your role and responsibilities",
+      "• Payment structure and invoicing",
+      "• Scheduling guidelines",
+      "• Professional conduct expectations",
+      "• The HIVE MIND teaching resource system",
+      "• Confidentiality and data protection requirements",
       "",
-      "— JB Linguistics",
+      "If you have any questions about the agreement, feel free to reply to this email.",
+      "",
+      "Next Step After You Sign",
+      "Once you have submitted your completed agreement, please send an email to jblinguisticsllc@gmail.com with:",
+      "1. A professional headshot (for our website)",
+      "2. A short summary of the services you offer",
+      "3. A brief professional background / bio describing the experience you would like us to advertise",
+      "",
+      "This information will be used to create or update your instructor profile on our website and marketing materials. Once received, we will activate your access to the Teacher Portal and the HIVE MIND, and send onboarding instructions.",
+      "",
+      "We’re happy to have you with us and look forward to working together!",
+      "",
+      "Warm regards,",
+      "JB Linguistics Team",
     ].join("\n");
     const htmlBody = `
       <p>Hi ${name},</p>
-      <p>Please complete the onboarding agreement at the link below:</p>
-      <p><a href="${DOCUSIGN_URL}">Freelancer Onboarding (DocuSign)</a></p>
-      <p>If you have any questions, reply to this email.</p>
-      <p>— JB Linguistics</p>
+      <p>Welcome to JB Linguistics! We’re excited to have you join our global team of educators and language specialists.</p>
+      <p>Please review and complete your Freelance Teaching & Translation Agreement here:<br/>
+      <a href="${DOCUSIGN_URL}">Freelancer Onboarding (DocuSign)</a></p>
+      <p>Be sure to fill in all required fields before submitting. This agreement covers:</p>
+      <ul>
+        <li>Your role and responsibilities</li>
+        <li>Payment structure and invoicing</li>
+        <li>Scheduling guidelines</li>
+        <li>Professional conduct expectations</li>
+        <li>The HIVE MIND teaching resource system</li>
+        <li>Confidentiality and data protection requirements</li>
+      </ul>
+      <p>If you have any questions about the agreement, feel free to reply to this email.</p>
+      <p><strong>Next Step After You Sign</strong><br/>
+      Once you have submitted your completed agreement, please send an email to <a href="mailto:jblinguisticsllc@gmail.com">jblinguisticsllc@gmail.com</a> with:</p>
+      <ol>
+        <li>A professional headshot (for our website)</li>
+        <li>A short summary of the services you offer</li>
+        <li>A brief professional background / bio describing the experience you would like us to advertise</li>
+      </ol>
+      <p>This information will be used to create or update your instructor profile on our website and marketing materials. Once received, we will activate your access to the Teacher Portal and the HIVE MIND, and send onboarding instructions.</p>
+      <p>We’re happy to have you with us and look forward to working together!</p>
+      <p>Warm regards,<br/>JB Linguistics Team</p>
     `;
 
     await transporter.sendMail({
@@ -61,7 +103,16 @@ export async function POST(request: Request) {
       html: htmlBody,
     });
 
-    return NextResponse.json({ success: true });
+    if (applicationId) {
+      try {
+        const supabase = createSupabaseAdminClient();
+        await supabase.from("career_applications").update({ hire_sent_at: new Date().toISOString() }).eq("id", applicationId);
+      } catch (err) {
+        console.warn("Unable to update hire_sent_at", err);
+      }
+    }
+
+    return NextResponse.json({ success: true, hireSentAt: new Date().toISOString() });
   } catch (err) {
     console.error("Hire email error", err);
     const status = 500;

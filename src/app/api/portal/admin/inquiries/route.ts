@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     timeline: item.timeline ?? null,
     details: item.details ?? null,
     source: item.source,
+    metadata: item.metadata ?? null,
   }));
 
   return NextResponse.json({ inquiries: normalized });

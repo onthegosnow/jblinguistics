@@ -12,6 +12,7 @@ type Inquiry = {
   languages: string | null;
   details: string | null;
   source: string;
+  metadata?: Record<string, string> | null;
 };
 
 export default function PortalInquiriesPage() {
@@ -19,6 +20,7 @@ export default function PortalInquiriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [working, setWorking] = useState<string | null>(null);
 
   const load = async () => {
     if (!adminToken.trim()) {
@@ -39,6 +41,52 @@ export default function PortalInquiriesPage() {
       setError(err instanceof Error ? err.message : "Unable to load inquiries.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteInquiry = async (id: string) => {
+    if (!adminToken.trim()) return;
+    const confirmed = typeof window === "undefined" ? true : window.confirm("Delete this inquiry?");
+    if (!confirmed) return;
+    setWorking(id);
+    try {
+      const res = await fetch(`/api/portal/admin/inquiries/${id}`, {
+        method: "DELETE",
+        headers: { "x-admin-token": adminToken.trim() },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to delete inquiry.");
+      }
+      setInquiries((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete inquiry.");
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const markProspect = async (inq: Inquiry) => {
+    if (!adminToken.trim()) return;
+    setWorking(inq.id);
+    const newMetadata = { ...(inq.metadata ?? {}), marketingStatus: "prospect" };
+    try {
+      const res = await fetch(`/api/portal/admin/inquiries/${inq.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-admin-token": adminToken.trim() },
+        body: JSON.stringify({ metadata: newMetadata }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to update inquiry.");
+      }
+      setInquiries((prev) =>
+        prev.map((item) => (item.id === inq.id ? { ...item, metadata: newMetadata } : item)),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update inquiry.");
+    } finally {
+      setWorking(null);
     }
   };
 
@@ -82,7 +130,9 @@ export default function PortalInquiriesPage() {
                   <th className="px-3 py-2 text-left">Languages</th>
                   <th className="px-3 py-2 text-left">Details</th>
                   <th className="px-3 py-2 text-left">Source</th>
+                  <th className="px-3 py-2 text-left">Marketing</th>
                   <th className="px-3 py-2 text-left">Submitted</th>
+                  <th className="px-3 py-2 text-left">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -101,8 +151,32 @@ export default function PortalInquiriesPage() {
                     <td className="px-3 py-2">{inq.languages ?? "—"}</td>
                     <td className="px-3 py-2 max-w-xs whitespace-pre-wrap break-words">{inq.details ?? "—"}</td>
                     <td className="px-3 py-2 text-xs text-slate-600">{inq.source}</td>
+                    <td className="px-3 py-2 text-xs text-slate-600 space-y-1">
+                      {inq.metadata?.marketingOptIn === "true" ? "Opted in" : "No opt-in"}
+                      {inq.metadata?.marketingStatus ? <div>Status: {inq.metadata.marketingStatus}</div> : null}
+                      {inq.metadata?.preferredStaff ? <div>Staff: {inq.metadata.preferredStaff}</div> : null}
+                      {inq.metadata?.referral ? <div>Referral: {inq.metadata.referral}</div> : null}
+                    </td>
                     <td className="px-3 py-2 text-xs text-slate-600">
                       {inq.createdAt ? new Date(inq.createdAt).toLocaleString() : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-600 space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => markProspect(inq)}
+                        disabled={working === inq.id}
+                        className="inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-60"
+                      >
+                        {working === inq.id ? "Saving…" : "Send to CRM"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteInquiry(inq.id)}
+                        disabled={working === inq.id}
+                        className="inline-flex items-center rounded-full bg-rose-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+                      >
+                        {working === inq.id ? "Deleting…" : "Delete"}
+                      </button>
                     </td>
                   </tr>
                 ))}
