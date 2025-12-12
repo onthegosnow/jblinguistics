@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Alexa build outputs
+alexa-skill/dist/
+alexa-skill/skill.zip
