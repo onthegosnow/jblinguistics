@@ -191,7 +191,7 @@ export default function TripPricingPage({ params }: { params: Promise<{ slug: st
           <h2 className="text-xl font-semibold text-sky-900">Illustrative package estimate</h2>
           <p className="mt-2">
             Based on recent cohorts, a single-occupancy package lands near{" "}
-            <strong>${estimatedTotal.toLocaleString()}</strong>. Shared rooms typically reduce the total by roughly 10%.
+            <strong>€{estimatedTotal.toLocaleString()}</strong>. Shared rooms typically reduce the total by roughly 10%.
           </p>
           <p className="mt-2 text-slate-600">
             Actual airfare and lodging quotes may shift depending on booking windows and cohort capacity. Reach out for a

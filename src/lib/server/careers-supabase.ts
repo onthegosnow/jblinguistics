@@ -22,6 +22,7 @@ type CareerApplicationRow = {
   message: string | null;
   landing: string | null;
   roles: string[] | null;
+  hire_sent_at: string | null;
   resume_filename: string;
   resume_mime_type: string;
   resume_size: number | null;
@@ -167,18 +168,22 @@ export async function saveCareerApplicationToSupabase(args: {
 
 export async function listCareerApplicantsFromSupabase(): Promise<CareerApplicantSummary[]> {
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+  const [{ data, error }, hiredUsers] = await Promise.all([
+    supabase
     .from(APPLICATION_TABLE)
     .select(
-      "id, submitted_at, name, email, location, languages, working_languages, experience, availability, message, landing, roles, resume_filename, resume_mime_type, resume_size, resume_insights"
+      "id, submitted_at, name, email, location, languages, working_languages, experience, availability, message, landing, roles, hire_sent_at, resume_path, resume_filename, resume_mime_type, resume_size, resume_insights, interview_notes"
     )
-    .order("submitted_at", { ascending: false });
+    .order("submitted_at", { ascending: false }),
+    supabase.from("portal_users").select("email"),
+  ]);
 
   if (error) {
     throw new Error(error.message);
   }
 
   const rows = (data ?? []) as CareerApplicationRow[];
+  const hiredEmailSet = new Set<string>((hiredUsers.data ?? []).map((u: any) => (u.email ?? "").toLowerCase()).filter(Boolean));
   const ids = rows.map((row) => row.id);
 
   const teacherMap = new Map<string, NonNullable<CareerApplicationRecord["teacherAssessments"]>>();
@@ -225,8 +230,10 @@ export async function listCareerApplicantsFromSupabase(): Promise<CareerApplican
     }
   }
 
-  return rows.map((row) => ({
-    id: row.id,
+  return rows
+    .filter((row) => !hiredEmailSet.has((row.email ?? "").toLowerCase()))
+    .map((row) => ({
+      id: row.id,
     submittedAt: row.submitted_at,
     name: row.name,
     email: row.email ?? undefined,
@@ -237,7 +244,9 @@ export async function listCareerApplicantsFromSupabase(): Promise<CareerApplican
     availability: row.availability ?? undefined,
     message: row.message ?? undefined,
     landing: row.landing ?? undefined,
+    interviewNotes: (row as any).interview_notes ?? undefined,
     roles: row.roles ?? ["translator"],
+    hireSentAt: row.hire_sent_at ?? undefined,
     resume: {
       filename: row.resume_filename,
       mimeType: row.resume_mime_type,

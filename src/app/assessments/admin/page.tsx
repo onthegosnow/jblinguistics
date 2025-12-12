@@ -10,13 +10,15 @@ import {
 import { translatorLanguages, type TranslatorExerciseLanguage } from "@/lib/translator-exercise";
 
 const STORAGE_KEY = "jb_assessment_admin_token";
-const teacherLanguageLabels = teacherAssessmentLanguages.reduce(
-  (acc, lang) => {
-    acc[lang.id] = lang.label;
-    return acc;
-  },
-  {} as Record<TeacherAssessmentLanguage, string>
-);
+const teacherLanguageLabels = teacherAssessmentLanguages.reduce((acc, lang) => {
+  acc[lang.id] = lang.label;
+  return acc;
+}, {} as Record<TeacherAssessmentLanguage, string>);
+// Clearer English labels for common Asian languages
+teacherLanguageLabels["zh"] = "Chinese (Simplified)";
+teacherLanguageLabels["zh-TW"] = "Chinese (Traditional)";
+teacherLanguageLabels["ja"] = "Japanese";
+teacherLanguageLabels["ko"] = "Korean";
 const translatorLanguageLabels = translatorLanguages.reduce(
   (acc, lang) => {
     acc[lang.id] = lang.label;
@@ -60,6 +62,7 @@ type ApplicantRecord = {
   submittedAt: string;
   name: string;
   email?: string;
+  interviewNotes?: string;
   location?: string;
   languages?: string;
   experience?: string;
@@ -118,6 +121,15 @@ type PortalAssignmentAdmin = {
   updatedAt: string;
 };
 
+type EmailLog = {
+  id: string;
+  subject: string;
+  body: string;
+  sent_to: Array<{ name?: string; email?: string }>;
+  created_at: string;
+  archived?: boolean;
+};
+
 type InquiryAdmin = {
   id: string;
   createdAt: string | null;
@@ -128,9 +140,24 @@ type InquiryAdmin = {
   languages: string | null;
   details: string | null;
   source: string;
+  metadata?: Record<string, string>;
+};
+
+type CRMContact = {
+  id: string;
+  name: string;
+  email: string;
+  organization?: string | null;
+  contactType?: string | null;
+  serviceInterest?: string | null;
+  status?: string | null;
+  marketingOptIn?: boolean | null;
+  createdAt?: string | null;
+  nextFollowupAt?: string | null;
 };
 
 export default function AssessmentsAdminPage() {
+  const [mounted, setMounted] = useState(false);
   const [token, setToken] = useState(() => {
     if (typeof window === "undefined") return "";
     return window.sessionStorage.getItem(STORAGE_KEY) ?? "";
@@ -140,13 +167,34 @@ export default function AssessmentsAdminPage() {
   const [codes, setCodes] = useState<AccessCodeRecord[]>([]);
   const [applicants, setApplicants] = useState<ApplicantRecord[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "results" | "codes" | "applicants" | "assignments" | "portalUsers" | "inquiries" | "onboarding"
+    | "results"
+    | "codes"
+    | "applicants"
+    | "assignments"
+    | "portalUsers"
+    | "inquiries"
+    | "onboarding"
+    | "crm"
+    | "hive"
+    | "board"
   >("results");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [working, setWorking] = useState<string | null>(null);
   const [form, setForm] = useState({ label: "", candidateName: "", candidateEmail: "", maxUses: 1, expiresAt: "", notes: "" });
   const [portalUsers, setPortalUsers] = useState<PortalUserAdmin[]>([]);
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [resetMessages, setResetMessages] = useState<Record<string, string>>({});
+  const [hiveApproved, setHiveApproved] = useState<any[]>([]);
+  const [hivePending, setHivePending] = useState<any[]>([]);
+  const [hiveRejected, setHiveRejected] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<PortalAssignmentAdmin[]>([]);
+  const [bulkEmail, setBulkEmail] = useState({ subject: "", message: "" });
+  const [showBulkEmail, setShowBulkEmail] = useState(false);
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
+  const [loadingEmailLogs, setLoadingEmailLogs] = useState(false);
+  const [showArchivedEmailLogs, setShowArchivedEmailLogs] = useState(false);
+  const [sendingBulkEmail, setSendingBulkEmail] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", email: "", password: "", roles: { teacher: true, translator: false }, languages: "" });
   const [assignmentForm, setAssignmentForm] = useState({
     title: "",
@@ -163,6 +211,34 @@ export default function AssessmentsAdminPage() {
   const [assignmentFiles, setAssignmentFiles] = useState<FileList | null>(null);
   const [deletingApplicantId, setDeletingApplicantId] = useState<string | null>(null);
   const [sendingHireId, setSendingHireId] = useState<string | null>(null);
+  const [uploadingOnboarding, setUploadingOnboarding] = useState(false);
+  const [onboardingFiles, setOnboardingFiles] = useState<Record<string, File | null>>({});
+  const [manualApplicant, setManualApplicant] = useState({
+    name: "",
+    email: "",
+    roles: { teacher: true, translator: false },
+    languages: "",
+    resume: null as File | null,
+  });
+  const [expandedApplicants, setExpandedApplicants] = useState<Record<string, boolean>>({});
+  const [expandedEmployees, setExpandedEmployees] = useState<Record<string, boolean>>({});
+  const [employeeNoteDraft, setEmployeeNoteDraft] = useState<Record<string, string>>({});
+  const [employeeUploadDraft, setEmployeeUploadDraft] = useState<Record<string, { file: File | null; kind: string }>>({});
+  const [employeeTermination, setEmployeeTermination] = useState<Record<string, string>>({});
+  const [employeeRolesDraft, setEmployeeRolesDraft] = useState<
+    Record<
+      string,
+      {
+        teacherRole: boolean;
+        translatorRole: boolean;
+        teachingLanguages: string[];
+        translatingLanguages: string[];
+        certifications: string[];
+      }
+    >
+  >({});
+  const [rejectingApplicantId, setRejectingApplicantId] = useState<string | null>(null);
+  const [savingManualApplicant, setSavingManualApplicant] = useState(false);
   const [onboardingEnvelopes, setOnboardingEnvelopes] = useState<
     Array<{
       envelopeId: string;
@@ -174,16 +250,85 @@ export default function AssessmentsAdminPage() {
       applicantId?: string | null;
     }>
   >([]);
+  const [employees, setEmployees] = useState<
+    Array<{
+      id: string;
+      name: string;
+      email: string;
+      roles: string[];
+      languages: string[];
+      active: boolean;
+      createdAt: string | null;
+      status: string;
+      terminationDate?: string | null;
+      bio?: string | null;
+      phone?: string | null;
+      address?: string | null;
+      city?: string | null;
+      state?: string | null;
+      country?: string | null;
+      photoUrl?: string | null;
+      resumeUrl?: string;
+      resumeName?: string;
+      contractUrl?: string;
+      contractName?: string;
+      assignments: Array<{ id: string; title: string; status: string; client?: string; languagePair?: string }>;
+      notes: Array<{ id: string; note: string; createdAt: string; createdBy?: string | null }>;
+      uploads: Array<{ id: string; kind: string; filename: string; createdAt: string; mimeType?: string | null; size?: number | null; path?: string | null; signedUrl?: string }>;
+      application?: ApplicantRecord;
+    }>
+  >([]);
   const [inquiries, setInquiries] = useState<InquiryAdmin[]>([]);
+  const [crmContacts, setCrmContacts] = useState<CRMContact[]>([]);
+  const [boardMessages, setBoardMessages] = useState<Array<{ id: string; room: string; author_name: string | null; message: string; created_at: string }>>([]);
+  const [boardRoom, setBoardRoom] = useState("announcements");
+  const [boardInput, setBoardInput] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const hasToken = Boolean(token);
+
+  const loadEmailLogs = useCallback(
+    async (headers?: Record<string, string>) => {
+      if (!token) return;
+      setLoadingEmailLogs(true);
+      try {
+        const res = await fetch(
+          `/api/portal/admin/employees/email${showArchivedEmailLogs ? "?includeArchived=true" : ""}`,
+          {
+            headers: headers ?? { "x-admin-token": token },
+          }
+        );
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        setEmailLogs(data.emails ?? []);
+      } finally {
+        setLoadingEmailLogs(false);
+      }
+    },
+    [token, showArchivedEmailLogs]
+  );
 
   const refreshData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const [resultsRes, codesRes, applicantsRes, usersRes, assignmentsRes, inquiriesRes, onboardingRes] = await Promise.all([
+      const [
+        resultsRes,
+        codesRes,
+        applicantsRes,
+        usersRes,
+        assignmentsRes,
+        inquiriesRes,
+        onboardingRes,
+        crmRes,
+        employeesRes,
+        hiveRes,
+        boardRes,
+      ] = await Promise.all([
         fetch("/api/assessments/results", { headers: { "x-admin-token": token } }),
         fetch("/api/assessments/access-codes", { headers: { "x-admin-token": token } }),
         fetch("/api/careers/applicants", { headers: { "x-admin-token": token } }),
@@ -191,6 +336,10 @@ export default function AssessmentsAdminPage() {
         fetch("/api/portal/admin/assignments", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/inquiries", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/onboarding", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/crm/contacts", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/employees", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/hive", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/board", { headers: { "x-admin-token": token } }),
       ]);
       if (!resultsRes.ok) {
         const data = await resultsRes.json().catch(() => ({}));
@@ -220,6 +369,18 @@ export default function AssessmentsAdminPage() {
         const data = await inquiriesRes.json().catch(() => ({}));
         throw new Error(data.message || "Unable to load inquiries");
       }
+      if (!crmRes.ok) {
+        const data = await crmRes.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to load CRM contacts");
+      }
+      if (!employeesRes.ok) {
+        const data = await employeesRes.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to load employees");
+      }
+      if (!hiveRes.ok) {
+        const data = await hiveRes.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to load Hive");
+      }
       const resultsData = await resultsRes.json();
       const codesData = await codesRes.json();
       const applicantsData = await applicantsRes.json();
@@ -227,6 +388,10 @@ export default function AssessmentsAdminPage() {
       const assignmentsData = await assignmentsRes.json();
       const inquiriesData = await inquiriesRes.json();
       const onboardingData = await onboardingRes.json();
+      const crmData = await crmRes.json();
+      const employeesData = await employeesRes.json();
+      const hiveData = await hiveRes.json();
+      const boardData = await boardRes.json();
       setResults(resultsData.results ?? []);
       setCodes(codesData.codes ?? []);
       setApplicants(applicantsData.applicants ?? []);
@@ -234,12 +399,61 @@ export default function AssessmentsAdminPage() {
       setAssignments(assignmentsData.assignments ?? []);
       setInquiries(inquiriesData.inquiries ?? []);
       setOnboardingEnvelopes(onboardingData.envelopes ?? []);
+      const applicantMap = new Map<string, ApplicantRecord>();
+      (applicantsData.applicants ?? []).forEach((app: ApplicantRecord) => {
+        if (app.email) applicantMap.set(app.email.toLowerCase(), app);
+      });
+      const mergedEmployees =
+        (employeesData.employees ?? []).map((emp: any) => {
+          const app = emp.email ? applicantMap.get(String(emp.email).toLowerCase()) : undefined;
+          return { ...emp, application: app };
+        }) ?? [];
+      setEmployees(mergedEmployees);
+      // prime role drafts
+      const nextRoles: Record<string, any> = {};
+      mergedEmployees.forEach((emp: any) => {
+        nextRoles[emp.id] = {
+          teacherRole: Boolean(emp.teacher_role),
+          translatorRole: Boolean(emp.translator_role),
+          teachingLanguages: emp.teaching_languages ?? [],
+          translatingLanguages: emp.translating_languages ?? [],
+          certifications: emp.certifications ?? [],
+        };
+      });
+      setEmployeeRolesDraft(nextRoles);
+      setHiveApproved(hiveData.approved ?? []);
+      setHivePending(hiveData.pending ?? []);
+      setHiveRejected(hiveData.rejected ?? []);
+      setBoardMessages(boardData.messages ?? []);
+      setCrmContacts(
+        (crmData.contacts ?? []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          organization: c.organization ?? null,
+          contactType: c.contact_type ?? c.contactType ?? null,
+          serviceInterest: c.service_interest ?? c.serviceInterest ?? null,
+          status: c.status ?? null,
+          marketingOptIn: c.marketing_opt_in ?? null,
+          createdAt: c.created_at ?? c.createdAt ?? null,
+          nextFollowupAt: c.next_followup_at ?? null,
+        }))
+      );
+      if (showBulkEmail) {
+        await loadEmailLogs({ "x-admin-token": token });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load admin data.");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, showBulkEmail, loadEmailLogs]);
+
+  useEffect(() => {
+    if (showBulkEmail && token) {
+      loadEmailLogs();
+    }
+  }, [showBulkEmail, token, loadEmailLogs]);
 
   const deleteApplicant = useCallback(
     async (applicant: ApplicantRecord) => {
@@ -387,8 +601,8 @@ export default function AssessmentsAdminPage() {
 
   const handleCreatePortalUser = async () => {
     if (!token) return;
-    if (!userForm.name || !userForm.email || !userForm.password) {
-      setError("Name, email, and password are required for portal users.");
+    if (!userForm.name || !userForm.email) {
+      setError("Name and email are required for portal users.");
       return;
     }
     setLoading(true);
@@ -403,7 +617,7 @@ export default function AssessmentsAdminPage() {
         body: JSON.stringify({
           name: userForm.name,
           email: userForm.email,
-          password: userForm.password,
+          password: userForm.password || undefined,
           roles,
           languages: userForm.languages
             .split(",")
@@ -421,6 +635,251 @@ export default function AssessmentsAdminPage() {
       setError(err instanceof Error ? err.message : "Unable to create portal user.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPortalUser = async (userId: string) => {
+    if (!token) return;
+    setResettingUserId(userId);
+    setError(null);
+    try {
+      const response = await fetch(`/api/portal/admin/users/${userId}/reset`, {
+        method: "POST",
+        headers: { "x-admin-token": token },
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to reset password.");
+      }
+      const data = await response.json().catch(() => ({}));
+      const temp = data.tempPassword ? `Temp password: ${data.tempPassword}` : "Password reset.";
+      setResetMessages((prev) => ({ ...prev, [userId]: temp }));
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to reset password.");
+    } finally {
+      setResettingUserId(null);
+    }
+  };
+
+  const markProspect = async (inq: InquiryAdmin) => {
+    if (!token) return;
+    setWorking(inq.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/portal/admin/inquiries/${inq.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({
+          metadata: { ...(inq.metadata ?? {}), marketingStatus: "prospect" },
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to update inquiry.");
+      }
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update inquiry.");
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const addEmployeeNote = async (userId: string) => {
+    if (!token) return;
+    const note = employeeNoteDraft[userId]?.trim();
+    if (!note) return;
+    try {
+      await fetch("/api/portal/admin/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ action: "note", userId, note }),
+      });
+      setEmployeeNoteDraft((prev) => ({ ...prev, [userId]: "" }));
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save note.");
+    }
+  };
+
+  const updateEmployeeStatus = async (userId: string, status: string, terminationDate: string | null) => {
+    if (!token) return;
+    try {
+      await fetch("/api/portal/admin/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ action: "status", userId, status, terminationDate }),
+      });
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update status.");
+    }
+  };
+
+  const updateEmployeeRoles = async (userId: string) => {
+    if (!token) return;
+    const draft = employeeRolesDraft[userId];
+    if (!draft) return;
+    try {
+      await fetch("/api/portal/admin/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({
+          action: "roles",
+          userId,
+          teacherRole: draft.teacherRole,
+          translatorRole: draft.translatorRole,
+          teachingLanguages: draft.teachingLanguages,
+          translatingLanguages: draft.translatingLanguages,
+          certifications: draft.certifications,
+        }),
+      });
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save roles.");
+    }
+  };
+
+  const exportApplicantsCsv = async () => {
+    if (!token) return;
+    setError(null);
+    try {
+      const res = await fetch("/api/careers/applicants/export", {
+        headers: { "x-admin-token": token },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to export applicants.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "career_applicants.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to export applicants.");
+    }
+  };
+
+  const uploadEmployeeFile = async (userId: string) => {
+    if (!token) return;
+    const draft = employeeUploadDraft[userId];
+    if (!draft?.file) {
+      setError("Select a file to upload.");
+      return;
+    }
+    try {
+      const fd = new FormData();
+      fd.append("userId", userId);
+      fd.append("kind", draft.kind || "file");
+      fd.append("file", draft.file);
+      await fetch("/api/portal/admin/employees", {
+        method: "POST",
+        headers: { "x-admin-token": token },
+        body: fd,
+      });
+      setEmployeeUploadDraft((prev) => ({ ...prev, [userId]: { kind: draft.kind || "file", file: null } }));
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to upload file.");
+    }
+  };
+
+  const sendToCrm = async (inq: InquiryAdmin, contactType: "student" | "client") => {
+    if (!token) return;
+    setWorking(inq.id);
+    setError(null);
+    try {
+      const response = await fetch("/api/portal/admin/crm/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({
+          inquiryId: inq.id,
+          contactType,
+          serviceInterest: inq.serviceType ?? undefined,
+          status: contactType === "client" ? "prospect" : "lead",
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to send to CRM.");
+      }
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send to CRM.");
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const deleteInquiry = async (id: string) => {
+    if (!token) return;
+    setWorking(id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/portal/admin/inquiries/${id}`, {
+        method: "DELETE",
+        headers: { "x-admin-token": token },
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to delete inquiry.");
+      }
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete inquiry.");
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const archiveEmailLog = async (id: string) => {
+    if (!token) return;
+    setLoadingEmailLogs(true);
+    try {
+      await fetch("/api/portal/admin/employees/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ action: "archive", id }),
+      });
+      await loadEmailLogs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to archive email.");
+    } finally {
+      setLoadingEmailLogs(false);
+    }
+  };
+
+  const handleSendBulkEmail = async () => {
+    if (!token) {
+      setError("Enter the admin token first.");
+      return;
+    }
+    if (!bulkEmail.message.trim()) {
+      setError("Message is required.");
+      return;
+    }
+    setSendingBulkEmail(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/portal/admin/employees/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ subject: bulkEmail.subject, message: bulkEmail.message }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to send email.");
+      }
+      setBulkEmail({ subject: "", message: "" });
+      await loadEmailLogs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send email.");
+    } finally {
+      setSendingBulkEmail(false);
     }
   };
 
@@ -494,6 +953,96 @@ export default function AssessmentsAdminPage() {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case "board":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold">Board</h2>
+              <select
+                value={boardRoom}
+                onChange={(e) => setBoardRoom(e.target.value)}
+                className="rounded-xl bg-slate-700 px-3 py-1 text-sm"
+              >
+                <option value="announcements">Announcements</option>
+                <option value="staff_lounge">Staff Lounge</option>
+                <option value="onboarding">Onboarding</option>
+                <option value="hive">The Hive</option>
+                <option value="feature_requests">Feature Requests & Tech Support</option>
+              </select>
+            </div>
+            <div className="rounded-2xl border border-slate-700 bg-slate-900 p-3 max-h-[60vh] overflow-auto space-y-2">
+              {boardMessages.filter((m) => m.room === boardRoom).length === 0 ? (
+                <p className="text-sm text-slate-400">No messages yet.</p>
+              ) : (
+                boardMessages
+                  .filter((m) => m.room === boardRoom)
+                  .map((m) => (
+                    <div key={m.id} className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100">
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>{m.author_name || "JB Linguistics"}</span>
+                        <span>{m.created_at ? new Date(m.created_at).toLocaleString() : ""}</span>
+                      </div>
+                      <div className="mt-1 flex items-start justify-between gap-3">
+                        <p className="text-slate-100 whitespace-pre-wrap flex-1">{m.message}</p>
+                        <button
+                          type="button"
+                          className="text-[11px] text-rose-300 underline"
+                          onClick={async () => {
+                            if (!token) return;
+                            await fetch(`/api/portal/admin/board?id=${m.id}`, {
+                              method: "DELETE",
+                              headers: { "x-admin-token": token },
+                            });
+                            await refreshData();
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+            <div className="space-y-2">
+              <textarea
+                value={boardInput}
+                onChange={(e) => setBoardInput(e.target.value)}
+                rows={3}
+                placeholder="Post an announcement or note to this room..."
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+              />
+              <button
+                type="button"
+                disabled={!boardInput.trim()}
+                onClick={async () => {
+                  if (!token || !boardInput.trim()) return;
+                  setLoading(true);
+                  setError(null);
+                  try {
+                    const res = await fetch("/api/portal/admin/board", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "x-admin-token": token },
+                      body: JSON.stringify({ room: boardRoom, message: boardInput }),
+                    });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}));
+                      throw new Error(data.message || "Unable to post message.");
+                    }
+                    setBoardInput("");
+                    await refreshData();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Unable to post message.");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="rounded-full bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-teal-400 disabled:opacity-50"
+              >
+                Post to {boardRoom.replace("_", " ")}
+              </button>
+            </div>
+          </div>
+        );
       case "results":
         return (
           <div className="rounded-3xl bg-slate-800 p-6">
@@ -643,7 +1192,135 @@ export default function AssessmentsAdminPage() {
       case "applicants":
         return (
           <div className="rounded-3xl bg-slate-800 p-6">
-            <h2 className="text-xl font-semibold">Career applicants</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold">Career applicants</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={refreshData}
+                  className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
+                >
+                  Refresh
+                </button>
+                <button
+                  type="button"
+                  onClick={exportApplicantsCsv}
+                  className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
+                >
+                  Export CSV
+                </button>
+              </div>
+            </div>
+            <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-900 p-4 text-sm text-slate-100 space-y-3">
+              <p className="font-semibold">Add applicant manually</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="flex flex-col gap-1 text-xs text-slate-300 uppercase tracking-wide">
+                  Name
+                  <input
+                    type="text"
+                    value={manualApplicant.name}
+                    onChange={(e) => setManualApplicant((prev) => ({ ...prev, name: e.target.value }))}
+                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-slate-300 uppercase tracking-wide">
+                  Email
+                  <input
+                    type="email"
+                    value={manualApplicant.email}
+                    onChange={(e) => setManualApplicant((prev) => ({ ...prev, email: e.target.value }))}
+                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm text-slate-200">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={manualApplicant.roles.teacher}
+                    onChange={(e) => setManualApplicant((prev) => ({ ...prev, roles: { ...prev.roles, teacher: e.target.checked } }))}
+                  />
+                  Teacher
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={manualApplicant.roles.translator}
+                    onChange={(e) => setManualApplicant((prev) => ({ ...prev, roles: { ...prev.roles, translator: e.target.checked } }))}
+                  />
+                  Translator
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-slate-300 uppercase tracking-wide">
+                  Languages (comma)
+                  <input
+                    type="text"
+                    value={manualApplicant.languages}
+                    onChange={(e) => setManualApplicant((prev) => ({ ...prev, languages: e.target.value }))}
+                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-slate-300 uppercase tracking-wide">
+                  Resume (PDF)
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => setManualApplicant((prev) => ({ ...prev, resume: e.target.files?.[0] ?? null }))}
+                    className="text-slate-200"
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                disabled={savingManualApplicant}
+                onClick={async () => {
+                  if (!token) {
+                    setError("Enter the admin token to add an applicant.");
+                    return;
+                  }
+                  if (!manualApplicant.name || !manualApplicant.email || !manualApplicant.resume) {
+                    setError("Name, email, and resume are required.");
+                    return;
+                  }
+                  setSavingManualApplicant(true);
+                  setError(null);
+                  try {
+                    const fd = new FormData();
+                    fd.append("name", manualApplicant.name);
+                    fd.append("email", manualApplicant.email);
+                    const roles: string[] = [];
+                    if (manualApplicant.roles.teacher) roles.push("teacher");
+                    if (manualApplicant.roles.translator) roles.push("translator");
+                    fd.append("roles", roles.join(","));
+                    if (manualApplicant.languages) fd.append("languages", manualApplicant.languages);
+                    fd.append("resume", manualApplicant.resume);
+                    const res = await fetch("/api/portal/admin/applicants", {
+                      method: "POST",
+                      headers: { "x-admin-token": token },
+                      body: fd,
+                    });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}));
+                      throw new Error(data.message || "Unable to add applicant.");
+                    }
+                    setManualApplicant({
+                      name: "",
+                      email: "",
+                      roles: { teacher: true, translator: false },
+                      languages: "",
+                      resume: null,
+                    });
+                    await refreshData();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Unable to add applicant.");
+                  } finally {
+                    setSavingManualApplicant(false);
+                  }
+                }}
+                className="inline-flex items-center rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-60"
+              >
+                {savingManualApplicant ? "Saving…" : "Save applicant"}
+              </button>
+            </div>
             {applicants.length === 0 ? (
               <p className="mt-3 text-sm text-slate-400">No applications yet.</p>
             ) : (
@@ -654,8 +1331,19 @@ export default function AssessmentsAdminPage() {
                       <div>
                         <p className="font-semibold text-white">{applicant.name}</p>
                         <p className="text-xs text-slate-400">{applicant.email}</p>
+                        {applicant.resumeInsights?.verdict ? (
+                          <span
+                            className={`mt-1 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold ${
+                              applicant.resumeInsights.verdict === "strong"
+                                ? "bg-emerald-500/20 text-emerald-100"
+                                : "bg-rose-500/20 text-rose-100"
+                            }`}
+                          >
+                            {applicant.resumeInsights.verdict === "strong" ? "Strong candidate" : "Needs review"}
+                          </span>
+                        ) : null}
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 items-center">
                       <button
                         type="button"
                         onClick={() => downloadResume(applicant)}
@@ -663,23 +1351,137 @@ export default function AssessmentsAdminPage() {
                       >
                         Download resume
                       </button>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() => sendHire(applicant)}
+                          disabled={sendingHireId === applicant.id}
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                            sendingHireId === applicant.id
+                              ? "bg-amber-900/50 text-amber-100 cursor-wait"
+                              : "bg-amber-400 text-slate-900 hover:bg-amber-300"
+                          }`}
+                        >
+                          {sendingHireId === applicant.id ? "Sending…" : "Send DocuSign"}
+                        </button>
+                        {applicant.hireSentAt && (
+                          <span className="text-[11px] text-emerald-200">
+                            Sent {new Date(applicant.hireSentAt).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1 text-xs text-slate-200">
+                        <label className="inline-flex items-center">
+                          <span className="sr-only">Upload signed PDF</span>
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(e) =>
+                              setOnboardingFiles((prev) => ({ ...prev, [applicant.id]: e.target.files?.[0] ?? null }))
+                            }
+                            className="hidden"
+                            id={`upload-${applicant.id}`}
+                          />
+                          <label
+                            htmlFor={`upload-${applicant.id}`}
+                            className="inline-flex cursor-pointer items-center rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-60"
+                          >
+                            {onboardingFiles[applicant.id]?.name ?? "Upload signed PDF"}
+                          </label>
+                        </label>
+                        <button
+                          type="button"
+                          disabled={uploadingOnboarding}
+                          onClick={async () => {
+                            if (!token) {
+                              setError("Enter the admin token to upload.");
+                              return;
+                            }
+                            const file = onboardingFiles[applicant.id];
+                            if (!file) {
+                              setError("Select a signed PDF first.");
+                              return;
+                            }
+                            setUploadingOnboarding(true);
+                            setError(null);
+                            try {
+                              const fd = new FormData();
+                              fd.append("email", applicant.email || "");
+                              fd.append("name", applicant.name || "");
+                              fd.append("applicantId", applicant.id);
+                              const roles: string[] = applicant.roles?.length ? applicant.roles : ["teacher"];
+                              fd.append("roles", roles.join(","));
+                              if (applicant.workingLanguages?.length) {
+                                fd.append("languages", applicant.workingLanguages.join(","));
+                              }
+                              fd.append("completedAt", new Date().toISOString().slice(0, 10));
+                              fd.append("file", file);
+                              const res = await fetch("/api/portal/admin/onboarding", {
+                                method: "POST",
+                                headers: { "x-admin-token": token },
+                                body: fd,
+                              });
+                              if (!res.ok) {
+                                const data = await res.json().catch(() => ({}));
+                                throw new Error(data.message || "Upload failed");
+                              }
+                              setOnboardingFiles((prev) => ({ ...prev, [applicant.id]: null }));
+                              // Remove from applicants view once onboarded
+                              setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
+                              await refreshData();
+                            } catch (err) {
+                              setError(err instanceof Error ? err.message : "Upload failed");
+                            } finally {
+                              setUploadingOnboarding(false);
+                            }
+                          }}
+                          className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-[11px] font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+                        >
+                          {uploadingOnboarding ? "Uploading…" : "Save upload"}
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => sendHire(applicant)}
-                        disabled={sendingHireId === applicant.id}
+                        onClick={() => setExpandedApplicants((prev) => ({ ...prev, [applicant.id]: !prev[applicant.id] }))}
+                        className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-600"
+                      >
+                        {expandedApplicants[applicant.id] ? "Hide details" : "Show details"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!token) {
+                            setError("Enter the admin token to reject.");
+                            return;
+                          }
+                          setRejectingApplicantId(applicant.id);
+                          try {
+                            const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", "x-admin-token": token },
+                              body: JSON.stringify({ action: "reject" }),
+                            });
+                            if (!res.ok) {
+                              const data = await res.json().catch(() => ({}));
+                              throw new Error(data.message || "Unable to reject applicant.");
+                            }
+                            setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
+                            await refreshData();
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : "Unable to reject applicant.");
+                          } finally {
+                            setRejectingApplicantId(null);
+                          }
+                        }}
+                        disabled={rejectingApplicantId === applicant.id}
                         className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                          sendingHireId === applicant.id
-                            ? "bg-amber-900/50 text-amber-100 cursor-wait"
-                            : "bg-amber-400 text-slate-900 hover:bg-amber-300"
+                          rejectingApplicantId === applicant.id
+                            ? "bg-amber-900/50 text-amber-200 cursor-not-allowed"
+                            : "bg-amber-500 text-slate-900 hover:bg-amber-400"
                         }`}
                       >
-                        {sendingHireId === applicant.id ? "Sending…" : "Send DocuSign"}
+                        {rejectingApplicantId === applicant.id ? "Rejecting…" : "Reject"}
                       </button>
-                      {applicant.hireSentAt && (
-                        <span className="text-[11px] text-emerald-200">
-                          Sent {new Date(applicant.hireSentAt).toLocaleString()}
-                        </span>
-                      )}
                       <button
                         type="button"
                         onClick={() => deleteApplicant(applicant)}
@@ -702,86 +1504,122 @@ export default function AssessmentsAdminPage() {
                         Working languages: {applicant.workingLanguages.map((lang) => teacherLanguageLabels[lang] ?? lang).join(", ")}
                       </p>
                     ) : null}
-                    {applicant.resumeInsights && (
-                      <div
-                        className={`mt-3 rounded-2xl border p-4 text-sm ${
-                          applicant.resumeInsights.verdict === "strong"
-                            ? "border-emerald-500/40 bg-emerald-500/10"
-                            : "border-rose-500/40 bg-rose-500/10"
-                        }`}
-                      >
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                          <p className="text-xs uppercase tracking-[0.2em] text-slate-200">Auto bio summary</p>
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
-                              applicant.resumeInsights.verdict === "strong"
-                                ? "bg-emerald-500/20 text-emerald-100"
-                                : "bg-rose-500/20 text-rose-100"
-                            }`}
-                            aria-label={
-                              applicant.resumeInsights.verdict === "strong"
-                                ? "Strong applicant"
-                                : "Needs closer review"
-                            }
-                          >
-                            <span aria-hidden>{applicant.resumeInsights.verdict === "strong" ? "👍" : "👎"}</span>
-                            {applicant.resumeInsights.verdict === "strong" ? "Strong candidate" : "Needs review"}
-                          </span>
-                        </div>
-                        <p className="mt-3 text-slate-100">{applicant.resumeInsights.summary}</p>
-                        <p className="mt-2 text-xs text-slate-300">
-                          Score: {applicant.resumeInsights.score}%{" "}
-                          {applicant.resumeInsights.keywords?.length
-                            ? `• Keywords: ${applicant.resumeInsights.keywords.join(", ")}`
-                            : ""}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">{applicant.resumeInsights.reasoning}</p>
-                      </div>
-                    )}
-                    {applicant.teacherAssessments?.length ? (
-                      <div className="mt-3 space-y-3">
-                        {applicant.teacherAssessments.map((assessment, index) => (
+                    {expandedApplicants[applicant.id] && (
+                      <>
+                        {applicant.resumeInsights && (
                           <div
-                            key={`${assessment.language}-${index}`}
-                            className="rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-1"
+                            className={`mt-3 rounded-2xl border p-4 text-sm ${
+                              applicant.resumeInsights.verdict === "strong"
+                                ? "border-emerald-500/40 bg-emerald-500/10"
+                                : "border-rose-500/40 bg-rose-500/10"
+                            }`}
                           >
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-200">Auto bio summary</p>
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                                  applicant.resumeInsights.verdict === "strong"
+                                    ? "bg-emerald-500/20 text-emerald-100"
+                                    : "bg-rose-500/20 text-rose-100"
+                                }`}
+                                aria-label={
+                                  applicant.resumeInsights.verdict === "strong"
+                                    ? "Strong applicant"
+                                    : "Needs closer review"
+                                }
+                              >
+                                <span aria-hidden>{applicant.resumeInsights.verdict === "strong" ? "👍" : "👎"}</span>
+                                {applicant.resumeInsights.verdict === "strong" ? "Strong candidate" : "Needs review"}
+                              </span>
+                            </div>
+                            <p className="mt-3 text-slate-100">{applicant.resumeInsights.summary}</p>
+                            <p className="mt-2 text-xs text-slate-300">
+                              Score: {applicant.resumeInsights.score}%{" "}
+                              {applicant.resumeInsights.keywords?.length
+                                ? `• Keywords: ${applicant.resumeInsights.keywords.join(", ")}`
+                                : ""}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-400">{applicant.resumeInsights.reasoning}</p>
+                          </div>
+                        )}
+                        {applicant.teacherAssessments?.length ? (
+                          <div className="mt-3 space-y-3">
+                            {applicant.teacherAssessments.map((assessment, index) => (
+                              <div
+                                key={`${assessment.language}-${index}`}
+                                className="rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-1"
+                              >
+                                <p className="font-semibold text-white">
+                                  Educator assessment ({teacherLanguageLabels[assessment.language]})
+                                </p>
+                                <p>
+                                  Score: {assessment.score.totalCorrect}/{assessment.score.totalQuestions} ({assessment.score.percentage}%)
+                                </p>
+                                <p className="text-slate-400">
+                                  Breakdown: {Object.entries(assessment.score.breakdown)
+                                    .map(([level, data]) => `${level} ${data.correct}/${data.total}`)
+                                    .join(" · ")}
+                                </p>
+                                <p className="text-slate-400">Conflict plan: {assessment.responses.conflict}</p>
+                                <p className="text-slate-400">Attendance plan: {assessment.responses.attendance}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                        {applicant.translatorExercise && (
+                          <div className="mt-3 rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-2">
                             <p className="font-semibold text-white">
-                              Educator assessment ({teacherLanguageLabels[assessment.language]})
+                              Translator exercise ({translatorLanguageLabels[applicant.translatorExercise.language] ?? applicant.translatorExercise.language})
                             </p>
                             <p>
-                              Score: {assessment.score.totalCorrect}/{assessment.score.totalQuestions} ({assessment.score.percentage}%)
+                              Score:{" "}
+                              {typeof applicant.translatorExercise.score === "number"
+                                ? `${applicant.translatorExercise.score}%`
+                                : "Not auto-scored"}
                             </p>
-                            <p className="text-slate-400">
-                              Breakdown: {Object.entries(assessment.score.breakdown)
-                                .map(([level, data]) => `${level} ${data.correct}/${data.total}`)
-                                .join(" · ")}
-                            </p>
-                            <p className="text-slate-400">Conflict plan: {assessment.responses.conflict}</p>
-                            <p className="text-slate-400">Attendance plan: {assessment.responses.attendance}</p>
+                            {applicant.translatorExercise.missingTokens.length > 0 && (
+                              <p className="text-amber-200">
+                                Missing keywords: {applicant.translatorExercise.missingTokens.join(", ")}
+                              </p>
+                            )}
+                            <div className="rounded-2xl border border-slate-700 bg-slate-900/40 p-3 text-slate-100 whitespace-pre-wrap">
+                              {applicant.translatorExercise.submission}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    {applicant.translatorExercise && (
-                      <div className="mt-3 rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-2">
-                        <p className="font-semibold text-white">
-                          Translator exercise ({translatorLanguageLabels[applicant.translatorExercise.language] ?? applicant.translatorExercise.language})
-                        </p>
-                        <p>
-                          Score:{" "}
-                          {typeof applicant.translatorExercise.score === "number"
-                            ? `${applicant.translatorExercise.score}%`
-                            : "Not auto-scored"}
-                        </p>
-                        {applicant.translatorExercise.missingTokens.length > 0 && (
-                          <p className="text-amber-200">
-                            Missing keywords: {applicant.translatorExercise.missingTokens.join(", ")}
-                          </p>
                         )}
-                        <div className="rounded-2xl border border-slate-700 bg-slate-900/40 p-3 text-slate-100 whitespace-pre-wrap">
-                          {applicant.translatorExercise.submission}
+                        <div className="mt-3">
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-300 mb-1">Interview notes</p>
+                          <textarea
+                            rows={3}
+                            value={applicant.interviewNotes ?? ""}
+                            onChange={(e) =>
+                              setApplicants((prev) =>
+                                prev.map((a) => (a.id === applicant.id ? { ...a, interviewNotes: e.target.value } : a))
+                              )
+                            }
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                            placeholder="Add interview notes"
+                          />
+                          <button
+                            type="button"
+                            className="mt-2 inline-flex items-center rounded-full bg-slate-600 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-500"
+                            onClick={async () => {
+                              if (!token) return;
+                              const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                body: JSON.stringify({ action: "note", interviewNotes: applicant.interviewNotes ?? "" }),
+                              });
+                              if (!res.ok) {
+                                const data = await res.json().catch(() => ({}));
+                                setError(data.message || "Unable to save notes.");
+                              }
+                            }}
+                          >
+                            Save notes
+                          </button>
                         </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 ))}
@@ -792,54 +1630,642 @@ export default function AssessmentsAdminPage() {
       case "onboarding":
         return (
           <div className="rounded-3xl bg-slate-800 p-6">
-            <h2 className="text-xl font-semibold">Active employees (DocuSign)</h2>
-            {onboardingEnvelopes.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-400">No completed packets yet.</p>
+            <h2 className="text-xl font-semibold">Active employees</h2>
+            {showBulkEmail && (
+              <div className="mt-3 rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-slate-200 font-semibold">Email all teachers</p>
+                    <p className="text-xs text-slate-400">
+                      Use "(first name)" in the message to personalize each email. Sent emails are logged below.
+                    </p>
+                  </div>
+                  <label className="inline-flex items-center gap-2 text-xs text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={showArchivedEmailLogs}
+                      onChange={(e) => {
+                        setShowArchivedEmailLogs(e.target.checked);
+                        void loadEmailLogs();
+                      }}
+                    />
+                    Show archived
+                  </label>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Subject</label>
+                    <input
+                      type="text"
+                      placeholder="Subject"
+                      value={bulkEmail.subject}
+                      onChange={(e) => setBulkEmail((prev) => ({ ...prev, subject: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    />
+                    <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Message</label>
+                    <textarea
+                      rows={4}
+                      placeholder="Message body"
+                      value={bulkEmail.message}
+                      onChange={(e) => setBulkEmail((prev) => ({ ...prev, message: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendBulkEmail}
+                      disabled={sendingBulkEmail}
+                      className="inline-flex items-center rounded-full bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-teal-400 disabled:opacity-60"
+                    >
+                      {sendingBulkEmail ? "Sending…" : "Send to all active teachers"}
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-slate-200">History</p>
+                      <button
+                        type="button"
+                        onClick={() => loadEmailLogs()}
+                        className="text-xs rounded-full border border-slate-600 px-3 py-1 text-slate-200 hover:bg-slate-700"
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                    {loadingEmailLogs ? (
+                      <p className="text-xs text-slate-400">Loading…</p>
+                    ) : emailLogs.length === 0 ? (
+                      <p className="text-xs text-slate-400">No messages logged yet.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-auto">
+                        {emailLogs.map((log) => (
+                          <div key={log.id} className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 space-y-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-white">{log.subject || "(no subject)"}</p>
+                                <p className="text-[11px] text-slate-400">
+                                  {new Date(log.created_at).toLocaleString()} · {log.sent_to?.length ?? 0} recipients{" "}
+                                  {log.archived ? "· Archived" : ""}
+                                </p>
+                              </div>
+                              {!log.archived && (
+                                <button
+                                  type="button"
+                                  onClick={() => archiveEmailLog(log.id)}
+                                  className="text-[11px] rounded-full border border-slate-600 px-2 py-1 text-slate-200 hover:bg-slate-700"
+                                >
+                                  Archive
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-300 max-h-16 overflow-hidden text-ellipsis">{log.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            {employees.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-400">No employees yet.</p>
             ) : (
               <div className="mt-4 space-y-4">
-                {onboardingEnvelopes.map((env) => (
-                  <div key={env.envelopeId} className="rounded-2xl border border-slate-700 p-4">
-                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <p className="font-semibold text-white">{env.signerName || "Unknown"}</p>
-                        <p className="text-xs text-slate-400">{env.signerEmail || "(no email)"}</p>
-                        <p className="text-xs text-slate-500">Envelope: {env.envelopeId}</p>
-                        {env.applicantId ? (
-                          <p className="text-xs text-emerald-300">Matched applicant: {env.applicantId}</p>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-slate-100">
-                          Completed: {env.completedAt ? new Date(env.completedAt).toLocaleString() : "N/A"}
-                        </span>
-                        {env.docUrl ? (
-                          <a
-                            href={env.docUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center rounded-full bg-teal-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-teal-400"
-                          >
-                            Download packet
-                          </a>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-amber-900/50 px-3 py-1 text-xs font-semibold text-amber-100">
-                            No document URL
+                {employees
+                  .filter((e) => e.status !== "inactive")
+                  .map((emp) => (
+                    <div key={emp.id} className="rounded-2xl border border-slate-700 p-4 space-y-3">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3">
+                          {emp.photoUrl ? (
+                            <img
+                              src={emp.photoUrl}
+                              alt={`${emp.name} photo`}
+                              className="h-16 w-16 rounded-full object-cover border border-slate-600"
+                            />
+                          ) : (
+                            <div className="h-16 w-16 rounded-full bg-slate-700 text-slate-200 flex items-center justify-center text-sm font-semibold">
+                              {emp.name?.[0]?.toUpperCase() ?? ""}
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-semibold text-white">{emp.name}</p>
+                            <p className="text-xs text-slate-400">{emp.email}</p>
+                            <p className="text-xs text-slate-500">
+                              Roles: {emp.roles.join(", ")} · Languages: {emp.languages.join(", ") || "—"}
+                            </p>
+                            {(emp.phone || emp.address || emp.city || emp.country) && (
+                              <p className="text-[11px] text-slate-500">
+                                {emp.phone ? `${emp.phone} · ` : ""}
+                                {emp.address ? `${emp.address}, ` : ""}
+                                {emp.city ? `${emp.city}, ` : ""}
+                                {emp.country ?? ""}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-slate-100">
+                            Status: {emp.status}
                           </span>
-                        )}
-                        {env.resumeUrl ? (
-                          <a
-                            href={env.resumeUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-white"
+                          <button
+                            type="button"
+                            onClick={() => setExpandedEmployees((prev) => ({ ...prev, [emp.id]: !prev[emp.id] }))}
+                            className="inline-flex items-center rounded-full bg-slate-600 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-500"
                           >
-                            View resume
-                          </a>
-                        ) : null}
+                            {expandedEmployees[emp.id] ? "Hide details" : "Details"}
+                          </button>
+                        </div>
                       </div>
+                      {expandedEmployees[emp.id] && (
+                        <div className="space-y-3 border-t border-slate-700/70 pt-3">
+                          <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 space-y-2 text-sm text-slate-200">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Roles & approvals</p>
+                            <div className="flex flex-wrap gap-3">
+                              <label className="flex items-center gap-2 text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={employeeRolesDraft[emp.id]?.teacherRole ?? false}
+                                  onChange={(e) =>
+                                    setEmployeeRolesDraft((prev) => ({
+                                      ...prev,
+                                      [emp.id]: { ...(prev[emp.id] ?? {}), teacherRole: e.target.checked },
+                                    }))
+                                  }
+                                />
+                                Teacher
+                              </label>
+                              <label className="flex items-center gap-2 text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={employeeRolesDraft[emp.id]?.translatorRole ?? false}
+                                  onChange={(e) =>
+                                    setEmployeeRolesDraft((prev) => ({
+                                      ...prev,
+                                      [emp.id]: { ...(prev[emp.id] ?? {}), translatorRole: e.target.checked },
+                                    }))
+                                  }
+                                />
+                                Translator
+                              </label>
+                            </div>
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-[11px] text-slate-400 mb-1">Teaching languages</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {teacherAssessmentLanguages.map((lang, idx) => (
+                                    <label key={`${String(lang.id)}-${idx}`} className="flex items-center gap-1 text-[11px] text-slate-300">
+                                      <input
+                                        type="checkbox"
+                                        checked={employeeRolesDraft[emp.id]?.teachingLanguages?.includes(lang.id) ?? false}
+                                        onChange={(e) => {
+                                          setEmployeeRolesDraft((prev) => {
+                                            const current = prev[emp.id]?.teachingLanguages ?? [];
+                                            const next = e.target.checked
+                                              ? Array.from(new Set([...current, lang.id]))
+                                              : current.filter((l) => l !== lang.id);
+                                            return { ...prev, [emp.id]: { ...(prev[emp.id] ?? {}), teachingLanguages: next } };
+                                          });
+                                        }}
+                                      />
+                                      {teacherLanguageLabels[lang.id] ?? lang.label ?? String(lang.id)}
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-[11px] text-slate-400 mb-1">Translating languages</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {translatorLanguages.map((lang, idx) => (
+                                    <label key={`${String(lang.id)}-${idx}`} className="flex items-center gap-1 text-[11px] text-slate-300">
+                                      <input
+                                        type="checkbox"
+                                        checked={employeeRolesDraft[emp.id]?.translatingLanguages?.includes(lang.id) ?? false}
+                                        onChange={(e) => {
+                                          setEmployeeRolesDraft((prev) => {
+                                            const current = prev[emp.id]?.translatingLanguages ?? [];
+                                            const next = e.target.checked
+                                              ? Array.from(new Set([...current, lang.id]))
+                                              : current.filter((l) => l !== lang.id);
+                                            return { ...prev, [emp.id]: { ...(prev[emp.id] ?? {}), translatingLanguages: next } };
+                                          });
+                                        }}
+                                      />
+                                      {lang.label}
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-slate-400 mb-1">Certifications / clearances</p>
+                              <div className="flex flex-wrap gap-2">
+                                {[
+                                  "TESOL/TEFL/CELTA/DELTA",
+                                  "State/IB teaching cert",
+                                  "MA Applied Linguistics",
+                                  "ATA certified",
+                                  "Court-certified interpreter",
+                                  "Legal/Medical translation",
+                                  "HIPAA",
+                                  "UN/embassy/secure clearance",
+                                  "DoD/ITAR/FOIA handling",
+                                  "Security clearance (specify)",
+                                ].map((cert) => (
+                                  <label key={cert} className="flex items-center gap-1 text-[11px] text-slate-300">
+                                    <input
+                                      type="checkbox"
+                                      checked={employeeRolesDraft[emp.id]?.certifications?.includes(cert) ?? false}
+                                      onChange={(e) => {
+                                        setEmployeeRolesDraft((prev) => {
+                                          const current = prev[emp.id]?.certifications ?? [];
+                                          const next = e.target.checked
+                                            ? Array.from(new Set([...current, cert]))
+                                            : current.filter((c) => c !== cert);
+                                          return { ...prev, [emp.id]: { ...(prev[emp.id] ?? {}), certifications: next } };
+                                        });
+                                      }}
+                                    />
+                                    {cert}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateEmployeeRoles(emp.id)}
+                                className="inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400"
+                              >
+                                Save approvals
+                              </button>
+                              {working === emp.id && <span className="text-[11px] text-slate-400">Saving…</span>}
+                            </div>
+                          </div>
+                          {emp.bio ? (
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-300 mb-1">Bio</p>
+                              <p className="text-sm text-slate-200 whitespace-pre-wrap">{emp.bio}</p>
+                            </div>
+                          ) : null}
+                          {emp.application ? (
+                            <div className="space-y-2">
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Application</p>
+                              <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 text-sm text-slate-200 space-y-2">
+                                <p className="text-[11px] text-slate-400">
+                                  Submitted: {emp.application.submittedAt ? new Date(emp.application.submittedAt).toLocaleString() : "—"}
+                                </p>
+                                <p className="text-[11px] text-slate-400">
+                                  Roles: {emp.application.roles.join(", ") || "—"} · Languages: {emp.application.languages || "—"}
+                                </p>
+                                {emp.application.location && (
+                                  <p className="text-[11px] text-slate-400">Location: {emp.application.location}</p>
+                                )}
+                                {emp.application.availability && (
+                                  <p className="text-[11px] text-slate-400">Availability: {emp.application.availability}</p>
+                                )}
+                                {emp.application.interviewNotes && (
+                                  <div>
+                                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-300 mb-1">Interview notes</p>
+                                    <p className="text-sm whitespace-pre-wrap">{emp.application.interviewNotes}</p>
+                                  </div>
+                                )}
+                                {emp.application.resumeInsights && (
+                                  <div className="space-y-1">
+                                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-300">Resume overview</p>
+                                    <p className="text-sm">{emp.application.resumeInsights.summary}</p>
+                                    <p className="text-[11px] text-slate-400">
+                                      Score: {emp.application.resumeInsights.score} · Verdict: {emp.application.resumeInsights.verdict}
+                                    </p>
+                                    {emp.application.resumeInsights.keywords?.length ? (
+                                      <p className="text-[11px] text-slate-400">
+                                        Keywords: {emp.application.resumeInsights.keywords.join(", ")}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                )}
+                                {emp.application.teacherAssessments?.length ? (
+                                  <div className="space-y-1">
+                                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-300">Teacher assessment</p>
+                                    {emp.application.teacherAssessments.map((t, idx) => (
+                                      <p key={idx} className="text-[11px] text-slate-400">
+                                        {teacherLanguageLabels[t.language]} · Score: {t.score.percentage}%
+                                      </p>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                {emp.application.translatorExercise ? (
+                                  <div className="space-y-1">
+                                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-300">Translator exercise</p>
+                                    <p className="text-[11px] text-slate-400">
+                                      {translatorLanguageLabels[emp.application.translatorExercise.language]} · Score:{" "}
+                                      {emp.application.translatorExercise.score ?? "N/A"}
+                                    </p>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          ) : null}
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Assignments</p>
+                            {emp.assignments.length === 0 ? (
+                              <p className="text-xs text-slate-400">No assignments.</p>
+                            ) : (
+                              <ul className="text-sm text-slate-100 space-y-1">
+                                {emp.assignments.map((a) => (
+                                  <li key={a.id} className="flex items-center gap-2">
+                                    <span className="font-semibold">{a.title}</span>
+                                    <span className="text-xs text-slate-400">{a.status}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-300 mb-1">Notes</p>
+                            <div className="space-y-1">
+                              {emp.notes.length === 0 ? (
+                                <p className="text-xs text-slate-400">No notes yet.</p>
+                              ) : (
+                                emp.notes.map((n) => (
+                                  <div key={n.id} className="rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs text-slate-100">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[11px] text-slate-400">
+                                        {n.createdAt ? new Date(n.createdAt).toLocaleString() : ""}
+                                      </span>
+                                      {n.createdBy ? <span className="text-[11px] text-slate-500">{n.createdBy}</span> : null}
+                                    </div>
+                                    <p className="text-slate-100">{n.note}</p>
+                                  </div>
+                                ))
+                              )}
+                              <div className="mt-2 flex flex-col gap-2">
+                                <textarea
+                                  rows={2}
+                                  placeholder="Add note"
+                                  className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                                  onChange={(e) => setEmployeeNoteDraft((prev) => ({ ...prev, [emp.id]: e.target.value }))}
+                                  value={employeeNoteDraft[emp.id] ?? ""}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => addEmployeeNote(emp.id)}
+                                  className="inline-flex items-center rounded-full bg-teal-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-teal-400"
+                                >
+                                  Save note
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-300 mb-1">Core documents</p>
+                            {(!emp.resumeUrl && !emp.contractUrl) ? (
+                              <p className="text-xs text-slate-400">No resume or contract on file.</p>
+                            ) : (
+                              <ul className="text-xs text-slate-200 space-y-1">
+                                {emp.resumeUrl ? (
+                                  <li className="flex items-center gap-2">
+                                    <span className="font-semibold">Resume</span>
+                                    <a
+                                      href={emp.resumeUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-teal-300 underline"
+                                    >
+                                      {emp.resumeName ?? "Download"}
+                                    </a>
+                                  </li>
+                                ) : null}
+                                {emp.contractUrl ? (
+                                  <li className="flex items-center gap-2">
+                                    <span className="font-semibold">Contract</span>
+                                    <a
+                                      href={emp.contractUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-teal-300 underline"
+                                    >
+                                      {emp.contractName ?? "Download"}
+                                    </a>
+                                  </li>
+                                ) : null}
+                              </ul>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-300 mb-1">Uploads</p>
+                            {emp.uploads.length === 0 ? (
+                              <p className="text-xs text-slate-400">No uploads yet.</p>
+                            ) : (
+                              <ul className="text-xs text-slate-200 space-y-1">
+                                {emp.uploads.map((u) => (
+                                  <li key={u.id} className="flex items-center gap-2">
+                                    <span className="font-semibold">{u.kind}</span>
+                                    {u.signedUrl ? (
+                                      <a
+                                        href={u.signedUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-teal-300 underline"
+                                      >
+                                        {u.filename}
+                                      </a>
+                                    ) : (
+                                      <span>{u.filename}</span>
+                                    )}
+                                    <span className="text-[11px] text-slate-500">
+                                      {u.createdAt ? new Date(u.createdAt).toLocaleString() : ""}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <div className="mt-2 flex flex-col gap-2">
+                              <select
+                                className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                                onChange={(e) => setEmployeeUploadDraft((prev) => ({ ...prev, [emp.id]: { ...(prev[emp.id] ?? {}), kind: e.target.value } }))}
+                                value={employeeUploadDraft[emp.id]?.kind ?? "photo"}
+                              >
+                                <option value="photo">Photo</option>
+                                <option value="id">ID</option>
+                                <option value="address">Address</option>
+                                <option value="cert">Certification</option>
+                                <option value="other">Other</option>
+                              </select>
+                              <input
+                                type="file"
+                                onChange={(e) =>
+                                  setEmployeeUploadDraft((prev) => ({
+                                    ...prev,
+                                    [emp.id]: { ...(prev[emp.id] ?? {}), file: e.target.files?.[0] ?? null },
+                                  }))
+                                }
+                                className="text-xs text-slate-200"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => uploadEmployeeFile(emp.id)}
+                                className="inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400"
+                              >
+                                Upload
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <label className="text-xs text-slate-300">
+                              Termination date:
+                              <input
+                                type="date"
+                                className="ml-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-1 text-sm text-white"
+                                onChange={(e) => setEmployeeTermination((prev) => ({ ...prev, [emp.id]: e.target.value }))}
+                                value={employeeTermination[emp.id] ?? ""}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => updateEmployeeStatus(emp.id, "inactive", employeeTermination[emp.id] ?? null)}
+                              className="inline-flex items-center rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500"
+                            >
+                              Move to inactive
+                            </button>
+                            {emp.status !== "active" && (
+                              <button
+                                type="button"
+                                onClick={() => updateEmployeeStatus(emp.id, "active", null)}
+                                className="inline-flex items-center rounded-full bg-slate-600 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-500"
+                              >
+                                Mark active
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  ))}
+                <div className="border-t border-slate-700 pt-4">
+                  <h3 className="text-lg font-semibold">Inactive employees</h3>
+                  <div className="mt-2 space-y-2">
+                    {employees.filter((e) => e.status === "inactive").length === 0 ? (
+                      <p className="text-sm text-slate-400">None</p>
+                    ) : (
+                      employees
+                        .filter((e) => e.status === "inactive")
+                        .map((emp) => (
+                          <div key={emp.id} className="rounded-xl border border-slate-700 p-3 text-sm text-slate-100 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-semibold">{emp.name}</div>
+                                <div className="text-xs text-slate-400">{emp.email}</div>
+                                {emp.terminationDate ? (
+                                  <div className="text-[11px] text-slate-500">Terminated: {emp.terminationDate}</div>
+                                ) : null}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedEmployees((prev) => ({ ...prev, [emp.id]: !prev[emp.id] }))}
+                                  className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-600"
+                                >
+                                  {expandedEmployees[emp.id] ? "Hide details" : "Details"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateEmployeeStatus(emp.id, "active", null)}
+                                  className="inline-flex items-center rounded-full bg-slate-600 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-500"
+                                >
+                                  Reactivate
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm("This will permanently delete this user and their files. Continue?")) return;
+                                    setWorking(emp.id);
+                                    try {
+                                      const res = await fetch("/api/portal/admin/employees", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json", "x-admin-token": token ?? "" },
+                                        body: JSON.stringify({ action: "delete", userId: emp.id }),
+                                      });
+                                      if (!res.ok) {
+                                        const data = await res.json().catch(() => ({}));
+                                        throw new Error(data.message || "Unable to delete user.");
+                                      }
+                                      await refreshData();
+                                    } catch (err) {
+                                      setError(err instanceof Error ? err.message : "Unable to delete user.");
+                                    } finally {
+                                      setWorking(null);
+                                    }
+                                  }}
+                                  className="inline-flex items-center rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                            {expandedEmployees[emp.id] && (
+                              <div className="border-t border-slate-700 pt-2 space-y-2 text-xs text-slate-200">
+                                <p>Roles: {emp.roles.join(", ")} · Languages: {emp.languages.join(", ") || "—"}</p>
+                                {emp.bio && <p className="whitespace-pre-wrap">Bio: {emp.bio}</p>}
+                                {emp.resumeUrl || emp.contractUrl ? (
+                                  <div className="space-y-1">
+                                    <p className="font-semibold text-slate-100">Core documents</p>
+                                    {emp.resumeUrl ? (
+                                      <a href={emp.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-teal-300 underline">
+                                        {emp.resumeName ?? "Resume"}
+                                      </a>
+                                    ) : null}
+                                    {emp.contractUrl ? (
+                                      <a href={emp.contractUrl} target="_blank" rel="noopener noreferrer" className="text-teal-300 underline">
+                                        {emp.contractName ?? "Contract"}
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                                {emp.uploads.length > 0 ? (
+                                  <div className="space-y-1">
+                                    <p className="font-semibold text-slate-100">Uploads</p>
+                                    <ul className="space-y-1">
+                                      {emp.uploads.map((u) => (
+                                        <li key={u.id} className="flex items-center gap-2">
+                                          <span className="text-[11px] uppercase text-slate-400">{u.kind}</span>
+                                          {u.signedUrl ? (
+                                            <a href={u.signedUrl} target="_blank" rel="noopener noreferrer" className="text-teal-300 underline">
+                                              {u.filename}
+                                            </a>
+                                          ) : (
+                                            <span>{u.filename}</span>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ) : null}
+                                {emp.application ? (
+                                  <div className="space-y-1">
+                                    <p className="font-semibold text-slate-100">Application</p>
+                                    <p className="text-[11px] text-slate-400">
+                                      Submitted:{" "}
+                                      {emp.application.submittedAt ? new Date(emp.application.submittedAt).toLocaleString() : "—"}
+                                    </p>
+                                    {emp.application.interviewNotes && (
+                                      <p className="text-[11px] text-slate-400 whitespace-pre-wrap">
+                                        Interview notes: {emp.application.interviewNotes}
+                                      </p>
+                                    )}
+                                    {emp.application.resumeInsights && (
+                                      <p className="text-[11px] text-slate-400">
+                                        Resume score: {emp.application.resumeInsights.score} · Verdict:{" "}
+                                        {emp.application.resumeInsights.verdict}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                    )}
                   </div>
-                ))}
+                </div>
               </div>
             )}
           </div>
@@ -1074,22 +2500,110 @@ export default function AssessmentsAdminPage() {
                 Create user
               </button>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold">Active users</h3>
-              <div className="mt-4 space-y-3">
-                {portalUsers.length === 0 ? (
-                  <p className="text-sm text-slate-400">No users yet.</p>
-                ) : (
-                  portalUsers.map((user) => (
-                    <div key={user.id} className="rounded-2xl border border-slate-700 p-4">
-                      <p className="font-semibold text-white">{user.name}</p>
-                      <p className="text-xs text-slate-400">{user.email}</p>
-                      <p className="text-xs text-slate-500">
-                        Roles: {user.roles.join(", ")} · Languages: {user.languages?.join(", ") || "—"}
-                      </p>
-                    </div>
-                  ))
-                )}
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold">Active users</h3>
+                <div className="mt-4 space-y-3">
+                  {portalUsers.filter((u) => u.active !== false).length === 0 ? (
+                    <p className="text-sm text-slate-400">No users yet.</p>
+                  ) : (
+                    portalUsers
+                      .filter((u) => u.active !== false)
+                      .map((user) => {
+                        const createdAt = (user as any).created_at ?? (user as any).createdAt ?? null;
+                        return (
+                          <div
+                            key={user.id}
+                            className="rounded-2xl border border-slate-700 p-4 flex flex-col gap-1 md:flex-row md:items-center md:justify-between"
+                          >
+                            <div>
+                              <p className="font-semibold text-white">{user.name}</p>
+                              <p className="text-xs text-slate-400">{user.email}</p>
+                              <p className="text-xs text-slate-500">
+                                Roles: {user.roles.join(", ")} · Languages: {user.languages?.join(", ") || "—"}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                {createdAt ? `Created ${new Date(createdAt).toLocaleDateString()}` : "Created: –"} · Active
+                              </p>
+                              {resetMessages[user.id] ? (
+                                <p className="text-[11px] text-emerald-200">{resetMessages[user.id]}</p>
+                              ) : null}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleResetPortalUser(user.id)}
+                                disabled={resettingUserId === user.id}
+                                className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+                              >
+                                {resettingUserId === user.id ? "Resetting…" : "Reset password"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!token) return;
+                                  await fetch("/api/portal/admin/users", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "deactivate", userId: user.id }),
+                                  });
+                                  await refreshData();
+                                }}
+                                className="inline-flex items-center rounded-full bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-500"
+                              >
+                                Deactivate
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Deactivated users</h3>
+                <div className="mt-4 space-y-3">
+                  {portalUsers.filter((u) => u.active === false).length === 0 ? (
+                    <p className="text-sm text-slate-400">None</p>
+                  ) : (
+                    portalUsers
+                      .filter((u) => u.active === false)
+                      .map((user) => {
+                        const createdAt = (user as any).created_at ?? (user as any).createdAt ?? null;
+                        return (
+                          <div
+                            key={user.id}
+                            className="rounded-2xl border border-slate-700 p-4 flex flex-col gap-1 md:flex-row md:items-center md:justify-between"
+                          >
+                            <div>
+                              <p className="font-semibold text-white">{user.name}</p>
+                              <p className="text-xs text-slate-400">{user.email}</p>
+                              <p className="text-[11px] text-slate-500">
+                                {createdAt ? `Created ${new Date(createdAt).toLocaleDateString()}` : "Created: –"} · Inactive
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!token) return;
+                                  await fetch("/api/portal/admin/users", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "reactivate", userId: user.id }),
+                                  });
+                                  await refreshData();
+                                }}
+                                className="inline-flex items-center rounded-full bg-teal-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-teal-400"
+                              >
+                                Reactivate
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1120,13 +2634,15 @@ export default function AssessmentsAdminPage() {
                     <th className="px-3 py-2 text-left">Languages</th>
                     <th className="px-3 py-2 text-left">Details</th>
                     <th className="px-3 py-2 text-left">Source</th>
+                    <th className="px-3 py-2 text-left">Marketing</th>
                     <th className="px-3 py-2 text-left">Submitted</th>
+                    <th className="px-3 py-2 text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {inquiries.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-4 text-center text-slate-400">
+                      <td colSpan={9} className="px-3 py-4 text-center text-slate-400">
                         No inquiries yet.
                       </td>
                     </tr>
@@ -1148,8 +2664,50 @@ export default function AssessmentsAdminPage() {
                           {inq.details ?? "—"}
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-400">{inq.source}</td>
+                        <td className="px-3 py-2 text-xs text-slate-300 space-y-1">
+                          {inq.metadata?.marketingOptIn === "true" ? "Opted in" : "No opt-in"}
+                          {inq.metadata?.marketingStatus ? <div>Status: {inq.metadata.marketingStatus}</div> : null}
+                          {inq.metadata?.preferredStaff ? <div>Staff: {inq.metadata.preferredStaff}</div> : null}
+                          {inq.metadata?.referral ? <div>Referral: {inq.metadata.referral}</div> : null}
+                        </td>
                         <td className="px-3 py-2 text-xs text-slate-400">
                           {inq.createdAt ? new Date(inq.createdAt).toLocaleString() : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-300 space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => markProspect(inq)}
+                            disabled={working === inq.id}
+                            className="inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-60"
+                          >
+                            {working === inq.id ? "Saving…" : "Send to CRM"}
+                          </button>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => sendToCrm(inq, "student")}
+                              disabled={working === inq.id}
+                              className="inline-flex items-center rounded-full bg-sky-500 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-400 disabled:opacity-60"
+                            >
+                              {working === inq.id ? "Sending…" : "To Student CRM"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => sendToCrm(inq, "client")}
+                              disabled={working === inq.id}
+                              className="inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-[11px] font-semibold text-white hover:bg-indigo-400 disabled:opacity-60"
+                            >
+                              {working === inq.id ? "Sending…" : "To Client CRM"}
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => deleteInquiry(inq.id)}
+                            disabled={working === inq.id}
+                            className="inline-flex items-center rounded-full bg-rose-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+                          >
+                            {working === inq.id ? "Deleting…" : "Delete"}
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -1159,10 +2717,266 @@ export default function AssessmentsAdminPage() {
             </div>
           </div>
         );
+      case "crm":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-semibold">CRM Contacts</h3>
+                <p className="text-sm text-slate-400">Contacts promoted from inquiries or added manually.</p>
+              </div>
+              <button
+                type="button"
+                onClick={refreshData}
+                className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
+              >
+                Refresh
+              </button>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-slate-700 bg-slate-900">
+              <table className="min-w-full text-sm text-slate-100">
+                <thead className="bg-slate-800 text-slate-400">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Name</th>
+                    <th className="px-3 py-2 text-left">Email</th>
+                    <th className="px-3 py-2 text-left">Type</th>
+                    <th className="px-3 py-2 text-left">Service</th>
+                    <th className="px-3 py-2 text-left">Status</th>
+                    <th className="px-3 py-2 text-left">Marketing</th>
+                    <th className="px-3 py-2 text-left">Follow-up</th>
+                    <th className="px-3 py-2 text-left">Added</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {crmContacts.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-3 py-4 text-center text-slate-400">
+                        No contacts yet. Promote an inquiry to CRM to see it here.
+                      </td>
+                    </tr>
+                  ) : (
+                    crmContacts.map((c) => (
+                      <tr key={c.id} className="border-t border-slate-700">
+                        <td className="px-3 py-2 font-semibold text-white">{c.name}</td>
+                        <td className="px-3 py-2">
+                          <a href={`mailto:${c.email}`} className="text-teal-300 hover:underline">
+                            {c.email}
+                          </a>
+                          {c.organization ? <div className="text-[11px] text-slate-400">{c.organization}</div> : null}
+                        </td>
+                        <td className="px-3 py-2 text-slate-200">{c.contactType ?? "—"}</td>
+                        <td className="px-3 py-2 text-slate-200">{c.serviceInterest ?? "—"}</td>
+                        <td className="px-3 py-2 text-slate-200">{c.status ?? "lead"}</td>
+                        <td className="px-3 py-2 text-xs text-slate-300">{c.marketingOptIn ? "Opted in" : "No opt-in"}</td>
+                        <td className="px-3 py-2 text-xs text-slate-300">
+                          {c.nextFollowupAt ? new Date(c.nextFollowupAt).toLocaleString() : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-400">
+                          {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      case "hive":
+        return (
+          <div className="rounded-3xl bg-slate-800 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold">Hive Mind</h3>
+                <p className="text-sm text-slate-400">Review pending uploads and approved resources.</p>
+              </div>
+              <button
+                type="button"
+                onClick={refreshData}
+                className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
+              >
+                Refresh
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-700 p-4">
+                <h4 className="text-sm font-semibold text-white">Pending review</h4>
+                <div className="mt-2 space-y-2 max-h-96 overflow-auto text-sm text-slate-100">
+                  {hivePending.length === 0 ? (
+                    <p className="text-slate-400 text-sm">No pending uploads.</p>
+                  ) : (
+                    hivePending.map((file) => (
+                      <div key={file.id} className="border border-slate-700 rounded-xl p-3 flex flex-col gap-1">
+                        <p className="font-semibold text-white">{file.display_name}</p>
+                        <p className="text-xs text-slate-400">
+                          {file.language || "—"} · {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
+                        </p>
+                        {file.signed_url ? (
+                          <a
+                            href={file.signed_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-teal-300 underline"
+                          >
+                            Open file
+                          </a>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setWorking(file.id);
+                              try {
+                                const res = await fetch("/api/portal/admin/hive", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                  body: JSON.stringify({ action: "approve", id: file.id }),
+                                });
+                                if (!res.ok) {
+                                  const data = await res.json().catch(() => ({}));
+                                  throw new Error(data.message || "Unable to approve");
+                                }
+                                await refreshData();
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Unable to approve.");
+                              } finally {
+                                setWorking(null);
+                              }
+                            }}
+                            className="rounded-full bg-teal-500 px-3 py-1 font-semibold text-slate-900 hover:bg-teal-400 disabled:opacity-60"
+                            disabled={working === file.id}
+                          >
+                            {working === file.id ? "Working…" : "Approve"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const note = typeof window === "undefined" ? "" : window.prompt("Add a note about this rejection (optional):") ?? "";
+                              setWorking(file.id);
+                              try {
+                                const res = await fetch("/api/portal/admin/hive", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                  body: JSON.stringify({ action: "reject", id: file.id, note }),
+                                });
+                                if (!res.ok) {
+                                  const data = await res.json().catch(() => ({}));
+                                  throw new Error(data.message || "Unable to reject");
+                                }
+                                await refreshData();
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Unable to reject.");
+                              } finally {
+                                setWorking(null);
+                              }
+                            }}
+                            className="rounded-full border border-amber-400 px-3 py-1 font-semibold text-amber-200 hover:bg-amber-500/20 disabled:opacity-60"
+                            disabled={working === file.id}
+                          >
+                            Reject
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setWorking(file.id);
+                              try {
+                                const res = await fetch("/api/portal/admin/hive", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                  body: JSON.stringify({ action: "delete", id: file.id }),
+                                });
+                                if (!res.ok) {
+                                  const data = await res.json().catch(() => ({}));
+                                  throw new Error(data.message || "Unable to delete");
+                                }
+                                await refreshData();
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Unable to delete.");
+                              } finally {
+                                setWorking(null);
+                              }
+                            }}
+                            className="rounded-full border border-slate-600 px-3 py-1 font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-60"
+                            disabled={working === file.id}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-700 p-4">
+                <h4 className="text-sm font-semibold text-white">Approved</h4>
+                <div className="mt-2 space-y-2 max-h-96 overflow-auto text-sm text-slate-100">
+                  {hiveApproved.length === 0 ? (
+                    <p className="text-slate-400 text-sm">No approved files yet.</p>
+                  ) : (
+                    hiveApproved.map((file) => (
+                      <div
+                        key={file.id}
+                        className="border border-slate-700 rounded-xl p-3 flex flex-col gap-2 hover:bg-slate-700/40 transition"
+                      >
+                        <p className="font-semibold text-white">{file.display_name}</p>
+                        <p className="text-xs text-slate-400">
+                          {file.language || "—"} · {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          Uploaded {file.uploaded_at ? new Date(file.uploaded_at).toLocaleDateString() : "—"}
+                        </p>
+                        <div className="flex gap-2">
+                          {file.signed_url ? (
+                            <a
+                              href={file.signed_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-teal-300 underline"
+                            >
+                              Open file
+                            </a>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setWorking(file.id);
+                              try {
+                                const res = await fetch("/api/portal/admin/hive", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                  body: JSON.stringify({ action: "delete", id: file.id }),
+                                });
+                                if (!res.ok) {
+                                  const data = await res.json().catch(() => ({}));
+                                  throw new Error(data.message || "Unable to delete");
+                                }
+                                await refreshData();
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Unable to delete.");
+                              } finally {
+                                setWorking(null);
+                              }
+                            }}
+                            className="text-[11px] text-rose-300 underline disabled:opacity-60"
+                            disabled={working === file.id}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
   };
+
+  if (!mounted) return null;
 
   return (
     <main className="min-h-screen bg-slate-900 text-white">
@@ -1236,11 +3050,18 @@ export default function AssessmentsAdminPage() {
                 </button>
                 <button
                   type="button"
-                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "portalUsers" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
-                  onClick={() => setActiveTab("portalUsers")}
-                >
-                  Portal users
-                </button>
+              className={`px-3 py-1.5 rounded-2xl ${activeTab === "portalUsers" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+              onClick={() => setActiveTab("portalUsers")}
+            >
+              Portal users
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-1.5 rounded-2xl ${activeTab === "board" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+              onClick={() => setActiveTab("board")}
+            >
+              Board
+            </button>
                 <button
                   type="button"
                   className={`px-3 py-1.5 rounded-2xl ${activeTab === "inquiries" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
@@ -1248,17 +3069,44 @@ export default function AssessmentsAdminPage() {
                 >
                   Inquiries
                 </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "hive" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("hive")}
+                >
+                  Hive
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "crm" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("crm")}
+                >
+                  CRM
+                </button>
               </div>
               <button
                 type="button"
                 onClick={refreshData}
+              className="rounded-2xl border border-slate-600 px-4 py-2 text-sm"
+            >
+              Refresh
+            </button>
+            {activeTab === "onboarding" && (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !showBulkEmail;
+                  setShowBulkEmail(next);
+                  if (next) void loadEmailLogs();
+                }}
                 className="rounded-2xl border border-slate-600 px-4 py-2 text-sm"
               >
-                Refresh
+                {showBulkEmail ? "Hide email all teachers" : "Email all teachers"}
               </button>
-              {loading && <span className="text-xs text-slate-400">Syncing…</span>}
-              {error && <span className="text-xs text-rose-300">{error}</span>}
-            </div>
+            )}
+            {loading && <span className="text-xs text-slate-400">Syncing…</span>}
+            {error && <span className="text-xs text-rose-300">{error}</span>}
+          </div>
 
             {renderTabContent()}
           </div>

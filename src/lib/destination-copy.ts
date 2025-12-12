@@ -34,13 +34,13 @@ const german: Record<string, DestinationLocaleCopy> = {
     ],
   },
   "florida-bermuda": {
-    name: "Florida + Bermuda (2 Wochen)",
-    region: "Atlantik",
+    name: "Florida + Bahamas (2 Wochen)",
+    region: "Karibik",
     blurb:
-      "Eine Hälfte der Reise in Floridas Innovationskorridor, die andere auf Bermudas marinekulturellem Erbe. Ideal für Tourismus-, Service-Teams und NGOs.",
+      "Eine Hälfte der Reise in Floridas Innovationskorridor, die andere auf den Bahamas. Ideal für Tourismus-, Service-Teams und NGOs.",
     highlights: [
       "Service-Englisch & Rollenspiele in Florida",
-      "Heritage-Walks, Meereslabore und Diplomatie-Briefings auf Bermuda",
+      "Heritage-Walks, Meereslabore und Diplomatie-Briefings auf den Bahamas",
       "Tägliches Coaching, Riff-Ausflüge und kulturelles Hosting",
     ],
   },
@@ -158,13 +158,13 @@ const dutch: Record<string, DestinationLocaleCopy> = {
     ],
   },
   "florida-bermuda": {
-    name: "Florida + Bermuda (2 weken)",
-    region: "Atlantisch gebied",
+    name: "Florida + Bahama's (2 weken)",
+    region: "Cariben",
     blurb:
-      "Half in Florida’s innovatieregio, half op Bermuda’s maritieme erfgoed. Ideaal voor toerisme-, serviceteams en NGO-delegaties.",
+      "Half in Florida’s innovatieregio, half op de Bahama’s. Ideaal voor toerisme-, serviceteams en NGO-delegaties.",
     highlights: [
       "Service-Engels en rollenspellen in Florida",
-      "Heritage-walks, marinelabs en diplomatiebriefings op Bermuda",
+      "Heritage-walks, marinelabs en diplomatiebriefings op de Bahama’s",
       "Dagelijkse coaching, riffexcursies en cultureel hosten",
     ],
   },
@@ -280,12 +280,12 @@ const chinese: Record<string, DestinationLocaleCopy> = {
     ],
   },
   "florida-bermuda": {
-    name: "佛罗里达＋百慕大（2 周）",
-    region: "大西洋",
-    blurb: "半程在佛罗里达创新走廊，半程在百慕大体验海洋文化，适合旅游／服务与 NGO 团队。",
+    name: "佛罗里达＋巴哈马（2 周）",
+    region: "加勒比",
+    blurb: "半程在佛罗里达创新走廊，半程在巴哈马体验海洋文化，适合旅游／服务与 NGO 团队。",
     highlights: [
       "佛罗里达服务英语与角色扮演",
-      "百慕大人文漫步、海洋实验与外交简报",
+      "巴哈马人文漫步、海洋实验与外交简报",
       "每日辅导、浮潜与文化接待",
     ],
   },

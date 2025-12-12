@@ -12,7 +12,7 @@ export type OnboardingEnvelope = {
   createdAt?: string | null;
 };
 
-const ONBOARDING_BUCKET = process.env.ONBOARDING_BUCKET ?? "onboarding";
+export const ONBOARDING_BUCKET = process.env.ONBOARDING_BUCKET ?? "onboarding";
 
 export async function saveOnboardingEnvelope(params: {
   envelopeId: string;
@@ -21,6 +21,7 @@ export async function saveOnboardingEnvelope(params: {
   completedAt?: string | null;
   documentBuffer: Buffer;
   filename?: string;
+  applicantId?: string | null;
 }) {
   const supabase = createSupabaseAdminClient();
   const safeFilename = sanitizeFilename(params.filename || "agreement.pdf");
@@ -31,7 +32,9 @@ export async function saveOnboardingEnvelope(params: {
     .upload(docPath, params.documentBuffer, { contentType: "application/pdf", upsert: true });
   if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-  const applicantId = params.signerEmail ? await findApplicantIdByEmail(params.signerEmail) : null;
+  const applicantId =
+    params.applicantId ??
+    (params.signerEmail ? await findApplicantIdByEmail(params.signerEmail) : null);
 
   const { error: insertError } = await supabase
     .from("onboarding_envelopes")
@@ -119,7 +122,8 @@ async function findApplicantIdByEmail(email: string): Promise<string | null> {
 
 export function verifyDocusignHmac(rawBody: Buffer, signatureHeader: string | null, secret: string) {
   if (!signatureHeader) return false;
-  const key = Buffer.from(secret, "base64");
+  // DocuSign uses the shared secret as UTF-8 for HMAC SHA256
+  const key = Buffer.from(secret, "utf8");
   const hmac = crypto.createHmac("sha256", key).update(rawBody).digest("base64");
   return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signatureHeader));
 }

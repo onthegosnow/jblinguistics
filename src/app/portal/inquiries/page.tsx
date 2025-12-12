@@ -21,6 +21,7 @@ export default function PortalInquiriesPage() {
   const [loading, setLoading] = useState(false);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [working, setWorking] = useState<string | null>(null);
+  const [promoMessage, setPromoMessage] = useState<string | null>(null);
 
   const load = async () => {
     if (!adminToken.trim()) {
@@ -69,6 +70,7 @@ export default function PortalInquiriesPage() {
   const markProspect = async (inq: Inquiry) => {
     if (!adminToken.trim()) return;
     setWorking(inq.id);
+    setPromoMessage(null);
     const newMetadata = { ...(inq.metadata ?? {}), marketingStatus: "prospect" };
     try {
       const res = await fetch(`/api/portal/admin/inquiries/${inq.id}`, {
@@ -85,6 +87,36 @@ export default function PortalInquiriesPage() {
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update inquiry.");
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const sendToCrm = async (inq: Inquiry, contactType: "student" | "client") => {
+    if (!adminToken.trim()) return;
+    setWorking(inq.id);
+    setPromoMessage(null);
+    try {
+      const res = await fetch("/api/portal/admin/crm/contacts", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-admin-token": adminToken.trim() },
+        body: JSON.stringify({
+          inquiryId: inq.id,
+          contactType,
+          serviceInterest: inq.serviceType ?? undefined,
+          status: "lead",
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to send to CRM.");
+      }
+      setPromoMessage(`Sent ${inq.name} to ${contactType === "student" ? "Student" : "Client"} CRM.`);
+      // Optional: mark in metadata
+      const updated = { ...(inq.metadata ?? {}), marketingStatus: "prospect" };
+      setInquiries((prev) => prev.map((item) => (item.id === inq.id ? { ...item, metadata: updated } : item)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send to CRM.");
     } finally {
       setWorking(null);
     }
@@ -118,6 +150,7 @@ export default function PortalInquiriesPage() {
         </header>
 
         {error && <p className="text-sm text-rose-600">{error}</p>}
+        {promoMessage && <p className="text-sm text-emerald-700">{promoMessage}</p>}
 
         {inquiries.length > 0 ? (
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -169,6 +202,24 @@ export default function PortalInquiriesPage() {
                       >
                         {working === inq.id ? "Saving…" : "Send to CRM"}
                       </button>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() => sendToCrm(inq, "student")}
+                          disabled={working === inq.id}
+                          className="inline-flex items-center rounded-full bg-sky-500 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-400 disabled:opacity-60"
+                        >
+                          {working === inq.id ? "Sending…" : "To Student CRM"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => sendToCrm(inq, "client")}
+                          disabled={working === inq.id}
+                          className="inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-[11px] font-semibold text-white hover:bg-indigo-400 disabled:opacity-60"
+                        >
+                          {working === inq.id ? "Sending…" : "To Client CRM"}
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => deleteInquiry(inq.id)}

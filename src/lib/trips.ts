@@ -36,21 +36,21 @@ export const destinations: Destination[] = [
   },
   {
     slug: "florida-bermuda",
-    name: "Florida + Bermuda (2 weeks)",
-    region: "Atlantic",
+    name: "Florida + Bahamas (2 weeks)",
+    region: "Caribbean",
     lengths: [14],
     blurb:
-      "Split the fortnight between Florida’s innovation corridor and Bermuda’s marine heritage. Ideal for tourism/service teams and NGO delegations.",
+      "Split the fortnight between Florida’s innovation corridor and the Bahamas’ marine heritage. Ideal for tourism/service teams and NGO delegations.",
     highlights: [
       "Coastal role-plays & service English in Florida",
-      "Bermuda heritage walks, marine labs, and diplomacy briefings",
+      "Bahamas heritage walks, marine labs, and diplomacy briefings",
       "Daily coaching, reef excursions, and cultural hosting",
     ],
     heroSplit: {
       left: "https://images.unsplash.com/photo-1493558103817-58b2924bce98?auto=format&fit=crop&w=1000&q=80",
-      right: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1000&q=80",
+      right: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=80",
       altLeft: "Florida Keys turquoise water",
-      altRight: "Bermuda pink sand cove",
+      altRight: "Bahamas pink sand cove",
     },
   },
   {
@@ -448,10 +448,10 @@ export function itineraryFor(
       activities: [
         "Florida coastal conversation lab",
         "museum/culture center",
-        "Bermuda heritage walk",
+        "Bahamas heritage walk",
         "marine excursion briefings",
         "market negotiation",
-        "railway trail/Glass Beach",
+        "island trail / beach immersion",
         "sunset capstone",
       ],
     },

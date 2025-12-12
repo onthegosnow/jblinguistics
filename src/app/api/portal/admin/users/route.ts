@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  addPortalUser,
-  createPortalPasswordHash,
-  listPortalUsers,
-  PortalUserRole,
-  requireAdmin,
-} from "@/lib/server/storage";
+import { PortalUserRole, requireAdmin, createPortalPasswordHash } from "@/lib/server/storage";
+import { generateTempPassword, sendPortalCredentials } from "@/lib/server/portal-supabase";
+import { createSupabaseAdminClient } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   requireAdmin(request.headers.get("x-admin-token") ?? undefined);
-  const users = await listPortalUsers();
-  return NextResponse.json({
-    users: users.map((user) => {
-      const sanitized = { ...user };
-      delete (sanitized as { passwordHash?: string }).passwordHash;
-      return sanitized;
-    }),
-  });
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("portal_users")
+    .select("id, name, email, roles, languages, active, created_at")
+    .order("created_at", { ascending: false });
+  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+  return NextResponse.json({ users: data ?? [] });
 }
 
 export async function POST(request: NextRequest) {
@@ -27,28 +22,73 @@ export async function POST(request: NextRequest) {
     password?: string;
     roles?: PortalUserRole[];
     languages?: string[];
+    action?: "reset" | "deactivate" | "reactivate";
+    userId?: string;
   };
 
-  if (!body.name || !body.email || !body.password) {
-    return NextResponse.json({ message: "Name, email, and password are required." }, { status: 400 });
+  // Administrative actions on existing users
+  if (body.action && body.userId) {
+    const supabase = createSupabaseAdminClient();
+    if (body.action === "deactivate") {
+      await supabase.from("portal_users").update({ active: false }).eq("id", body.userId);
+      return NextResponse.json({ success: true });
+    }
+    if (body.action === "reactivate") {
+      const temp = generateTempPassword();
+      const password_hash = createPortalPasswordHash(temp);
+      const { data, error } = await supabase
+        .from("portal_users")
+        .update({ active: true, must_reset: true, password_hash })
+        .eq("id", body.userId)
+        .select("email, name")
+        .maybeSingle();
+      if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+      if (data?.email) {
+        await sendPortalCredentials(data.email, data.name ?? data.email, temp, { reset: true }).catch(() => undefined);
+      }
+      return NextResponse.json({ success: true, tempPassword: temp });
+    }
+    if (body.action === "reset") {
+      const temp = body.password || generateTempPassword();
+      const password_hash = createPortalPasswordHash(temp);
+      const { data, error } = await supabase
+        .from("portal_users")
+        .update({ password_hash, must_reset: true })
+        .eq("id", body.userId)
+        .select("email, name")
+        .maybeSingle();
+      if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+      if (data?.email) {
+        await sendPortalCredentials(data.email, data.name ?? data.email, temp, { reset: true }).catch(() => undefined);
+      }
+      return NextResponse.json({ success: true, tempPassword: temp }, { status: 200 });
+    }
+  }
+
+  if (!body.name || !body.email) {
+    return NextResponse.json({ message: "Name and email are required." }, { status: 400 });
   }
 
   const email = body.email.trim().toLowerCase();
-  const users = await listPortalUsers();
-  if (users.some((u) => u.email === email)) {
-    return NextResponse.json({ message: "A user with that email already exists." }, { status: 409 });
+  const supabase = createSupabaseAdminClient();
+  const tempPassword = body.password || generateTempPassword();
+  const { data, error } = await supabase
+    .from("portal_users")
+    .upsert(
+      {
+        name: body.name.trim(),
+        email,
+        password_hash: createPortalPasswordHash(tempPassword),
+        roles: body.roles?.length ? body.roles : ["teacher"],
+        languages: body.languages ?? [],
+        active: true,
+      },
+      { onConflict: "email" }
+    )
+    .select()
+    .maybeSingle();
+  if (error || !data) {
+    return NextResponse.json({ message: error?.message ?? "Unable to create user" }, { status: 500 });
   }
-
-  const newUser = await addPortalUser({
-    name: body.name.trim(),
-    email,
-    passwordHash: createPortalPasswordHash(body.password),
-    roles: body.roles?.length ? body.roles : ["teacher"],
-    languages: body.languages ?? [],
-    active: true,
-  });
-
-  const sanitized = { ...newUser };
-  delete (sanitized as { passwordHash?: string }).passwordHash;
-  return NextResponse.json({ user: sanitized }, { status: 201 });
+  return NextResponse.json({ user: data, tempPassword }, { status: 201 });
 }

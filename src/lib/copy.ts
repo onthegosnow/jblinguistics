@@ -379,8 +379,7 @@ export const copy = {
       submit: "Submit inquiry",
       disclaimer:
         "By submitting, you agree that JB Linguistics LLC may contact you about this inquiry. Nothing is shared with third parties without consent.",
-      techNote:
-        "Technical note: connect this form to your preferred email, CRM, or automation tool (API route, Formspree, Make/Zapier).",
+      techNote: "",
     },
     sectionsShort: {
       mission:

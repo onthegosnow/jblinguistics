@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createSupabaseAdminClient } from "@/lib/supabase-server";
 
-const DOCUSIGN_URL =
+const DOCUSIGN_POWERFORM_BASE =
   "https://na4.docusign.net/Member/PowerFormSigning.aspx?PowerFormId=063afaed-c871-441a-8842-43f37f4be944&env=na4&acct=2b24bf93-0c1a-4a00-ac3d-94a41015425c&v=2";
 
 const SMTP_HOST = process.env.SMTP_HOST;
@@ -11,6 +11,10 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM;
 const APPLICATION_INBOX = process.env.CAREER_APPLICATION_EMAIL ?? "jblinguisticsllc@gmail.com";
+
+function buildPowerFormUrl(name: string, email: string) {
+  return `${DOCUSIGN_POWERFORM_BASE}&Freelancer_UserName=${encodeURIComponent(name)}&Freelancer_Email=${encodeURIComponent(email)}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -24,7 +28,7 @@ export async function POST(request: Request) {
     if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
       return NextResponse.json({ message: "SMTP is not configured." }, { status: 500 });
     }
-
+    const firstName = name.split(" ")[0] || "there";
     const transporter = nodemailer.createTransport({
       host: SMTP_HOST,
       port: SMTP_PORT,
@@ -35,73 +39,61 @@ export async function POST(request: Request) {
       },
     });
 
-    const subject = "Welcome to JB Linguistics • Complete Your Agreement";
+    const subject = "Welcome to JB Linguistics – Next Steps";
     const textBody = [
-      `Hi ${name},`,
+      `Hi ${firstName},`,
       "",
-      "Welcome to JB Linguistics! We’re excited to have you join our global team of educators and language specialists.",
+      "Welcome to JB Linguistics! We’re excited to have you joining our global team of educators and language specialists.",
       "",
-      "Please review and complete your Freelance Teaching & Translation Agreement here:",
-      DOCUSIGN_URL,
+      'You’ll receive a separate email from DocuSign shortly with the subject:',
+      '“Welcome to JB Linguistics — Please Complete Your New-Hire Agreement.”',
       "",
-      "Be sure to fill in all required fields before submitting. This agreement covers:",
-      "• Your role and responsibilities",
-      "• Payment structure and invoicing",
-      "• Scheduling guidelines",
-      "• Professional conduct expectations",
-      "• The HIVE MIND teaching resource system",
-      "• Confidentiality and data protection requirements",
+      "Please open that DocuSign email, review your Freelance Teaching & Translation Agreement, and complete all required fields.",
       "",
-      "If you have any questions about the agreement, feel free to reply to this email.",
+      "After you sign, you’ll receive another email with your Teacher/Translator Portal login details so you can:",
+      "– Complete your bio",
+      "– Upload a profile photo",
+      "– Update your contact details",
+      "– Add your certifications",
       "",
-      "Next Step After You Sign",
-      "Once you have submitted your completed agreement, please send an email to jblinguisticsllc@gmail.com with:",
-      "1. A professional headshot (for our website)",
-      "2. A short summary of the services you offer",
-      "3. A brief professional background / bio describing the experience you would like us to advertise",
+      'If you don’t see the DocuSign email within a few minutes, please check your spam or promotions folder and mark it as “Not spam.”',
       "",
-      "This information will be used to create or update your instructor profile on our website and marketing materials. Once received, we will activate your access to the Teacher Portal and the HIVE MIND, and send onboarding instructions.",
-      "",
-      "We’re happy to have you with us and look forward to working together!",
+      "If you have any questions at any point, just reply to this email.",
       "",
       "Warm regards,",
       "JB Linguistics Team",
     ].join("\n");
     const htmlBody = `
-      <p>Hi ${name},</p>
-      <p>Welcome to JB Linguistics! We’re excited to have you join our global team of educators and language specialists.</p>
-      <p>Please review and complete your Freelance Teaching & Translation Agreement here:<br/>
-      <a href="${DOCUSIGN_URL}">Freelancer Onboarding (DocuSign)</a></p>
-      <p>Be sure to fill in all required fields before submitting. This agreement covers:</p>
+      <p>Hi ${firstName},</p>
+      <p>Welcome to JB Linguistics! We’re excited to have you joining our global team of educators and language specialists.</p>
+      <p>You’ll receive a separate email from DocuSign shortly with the subject:<br/>
+      <strong>“Welcome to JB Linguistics — Please Complete Your New-Hire Agreement.”</strong></p>
+      <p>Please open that DocuSign email, review your Freelance Teaching & Translation Agreement, and complete all required fields.</p>
+      <p>After you sign, you’ll receive another email with your Teacher/Translator Portal login details so you can:</p>
       <ul>
-        <li>Your role and responsibilities</li>
-        <li>Payment structure and invoicing</li>
-        <li>Scheduling guidelines</li>
-        <li>Professional conduct expectations</li>
-        <li>The HIVE MIND teaching resource system</li>
-        <li>Confidentiality and data protection requirements</li>
+        <li>Complete your bio</li>
+        <li>Upload a profile photo</li>
+        <li>Update your contact details</li>
+        <li>Add your certifications</li>
       </ul>
-      <p>If you have any questions about the agreement, feel free to reply to this email.</p>
-      <p><strong>Next Step After You Sign</strong><br/>
-      Once you have submitted your completed agreement, please send an email to <a href="mailto:jblinguisticsllc@gmail.com">jblinguisticsllc@gmail.com</a> with:</p>
-      <ol>
-        <li>A professional headshot (for our website)</li>
-        <li>A short summary of the services you offer</li>
-        <li>A brief professional background / bio describing the experience you would like us to advertise</li>
-      </ol>
-      <p>This information will be used to create or update your instructor profile on our website and marketing materials. Once received, we will activate your access to the Teacher Portal and the HIVE MIND, and send onboarding instructions.</p>
-      <p>We’re happy to have you with us and look forward to working together!</p>
+      <p>If you don’t see the DocuSign email within a few minutes, please check your spam or promotions folder and mark it as “Not spam.”</p>
+      <p>If you have any questions at any point, just reply to this email.</p>
       <p>Warm regards,<br/>JB Linguistics Team</p>
     `;
+
+    const personalizedUrl = buildPowerFormUrl(name, email);
 
     await transporter.sendMail({
       from: SMTP_FROM ?? APPLICATION_INBOX ?? SMTP_USER,
       to: email,
       bcc: APPLICATION_INBOX,
       subject,
-      text: textBody,
-      html: htmlBody,
+      text: `${textBody}\n\nComplete your agreement here:\n${personalizedUrl}\n`,
+      html: `${htmlBody}<p><strong>Complete your agreement here:</strong> <a href="${personalizedUrl}">${personalizedUrl}</a></p>`,
     });
+
+    // Log the personalized PowerForm URL (DocuSign will handle the prefilled fields when the link is used)
+    console.info("DocuSign PowerForm URL (emailed):", personalizedUrl);
 
     if (applicationId) {
       try {

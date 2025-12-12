@@ -18,6 +18,9 @@ export default function Home() {
     const form = event.currentTarget;
     const formData = new FormData(form);
     formData.set("source", "home_contact");
+    if (!formData.get("marketingOptIn")) {
+      formData.set("marketingOptIn", "no");
+    }
     setInquiryStatus("loading");
     setInquiryMessage(null);
 
@@ -50,11 +53,11 @@ export default function Home() {
       alt: "Aerial view of Seven Mile Beach in the Cayman Islands",
       label: "Cayman Islands",
     },
-    {
-      src: "https://images.unsplash.com/photo-1667978754074-0be1bba96981?auto=format&fit=crop&w=1600&q=80",
-      alt: "Pink sand cove in Bermuda",
-      label: "Bermuda pink sands",
-    },
+  {
+    src: "https://images.unsplash.com/photo-1667978754074-0be1bba96981?auto=format&fit=crop&w=1600&q=80",
+    alt: "Pink sand cove in the Bahamas",
+    label: "Bahamas pink sands",
+  },
     {
       src: "https://images.unsplash.com/photo-1588384153148-ebd739ac430c?auto=format&fit=crop&w=1600&q=80",
       alt: "Statue of Liberty and Manhattan skyline",
@@ -495,6 +498,20 @@ export default function Home() {
                       className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-start gap-2 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    id="contact-marketing"
+                    name="marketingOptIn"
+                    value="yes"
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400"
+                  />
+                  <label htmlFor="contact-marketing" className="text-xs text-slate-700 leading-snug">
+                    I agree to receive updates and occasional marketing emails from JB Linguistics. You can opt out at any
+                    time.
+                  </label>
                 </div>
 
                 <div className="pt-1 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

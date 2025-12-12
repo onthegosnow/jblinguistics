@@ -8,6 +8,7 @@ import type {
 } from "../teacher-assessment";
 import type { TranslatorExerciseLanguage } from "../translator-exercise";
 import type { ResumeInsights } from "../resume-analysis";
+import { createSupabaseAdminClient } from "../supabase-server";
 
 const STORAGE_ROOT =
   process.env.JB_STORAGE_DIR ??
@@ -247,6 +248,7 @@ type PortalSessionRecord = {
   createdAt: string;
   lastUsedAt: string;
   expiresAt: string;
+  mustReset?: boolean;
 };
 
 function hashPortalPassword(password: string) {
@@ -262,7 +264,30 @@ export function verifyPortalPassword(password: string, user: PortalUserRecord) {
 }
 
 export async function listPortalUsers(): Promise<PortalUserRecord[]> {
-  return readJsonFile<PortalUserRecord[]>(PORTAL_USERS_FILE, []);
+  // Prefer Supabase portal_users
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("portal_users")
+      .select("id, name, email, roles, languages, password_hash, active, created_at, must_reset")
+      .order("created_at", { ascending: false });
+    if (!error && data) {
+      return data.map((row) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        roles: ((row.roles as string[]) ?? []).filter((r): r is PortalUserRole => r === "teacher" || r === "translator"),
+        languages: (row.languages as string[] | undefined) ?? undefined,
+        passwordHash: row.password_hash,
+        active: row.active ?? true,
+        createdAt: row.created_at ?? new Date().toISOString(),
+        // mustReset is not part of PortalUserRecord shape; handled in login
+      }));
+    }
+  } catch (err) {
+    // fall back to file-based users
+  }
+  return [];
 }
 
 export async function savePortalUsers(users: PortalUserRecord[]) {
@@ -270,27 +295,74 @@ export async function savePortalUsers(users: PortalUserRecord[]) {
 }
 
 export async function addPortalUser(user: Omit<PortalUserRecord, "id" | "createdAt"> & { id?: string }): Promise<PortalUserRecord> {
-  const users = await listPortalUsers();
   const record: PortalUserRecord = {
     ...user,
     id: user.id ?? crypto.randomUUID(),
     createdAt: new Date().toISOString(),
   };
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase.from("portal_users").upsert({
+      id: record.id,
+      name: record.name,
+      email: record.email,
+      roles: record.roles,
+      languages: record.languages ?? [],
+      password_hash: record.passwordHash,
+      active: record.active,
+      created_at: record.createdAt,
+      must_reset: true,
+    });
+    if (!error) return record;
+  } catch (err) {
+    // fall back to file-based
+  }
+
+  const users = await listPortalUsers();
   users.push(record);
   await savePortalUsers(users);
   return record;
 }
 
 export async function listPortalAssignments(): Promise<PortalAssignmentRecord[]> {
-  return readJsonFile<PortalAssignmentRecord[]>(PORTAL_ASSIGNMENTS_FILE, []);
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("portal_assignments")
+      .select(
+        "id, title, assignment_type, description, client, language_pair, hours_assigned, start_date, due_date, status, assigned_to, participants, created_at, updated_at"
+      )
+      .order("created_at", { ascending: false });
+    if (!error && data) {
+      return data.map((row) => ({
+        id: row.id,
+        title: row.title,
+        assignmentType: row.assignment_type,
+        description: row.description ?? undefined,
+        client: row.client ?? undefined,
+        languagePair: row.language_pair ?? undefined,
+        hoursAssigned: Number(row.hours_assigned ?? 0),
+        startDate: row.start_date ?? undefined,
+        dueDate: row.due_date ?? undefined,
+        status: row.status ?? "assigned",
+        assignedTo: (row.assigned_to as string[]) ?? [],
+        participants: (row.participants as string[]) ?? [],
+        createdAt: row.created_at ?? new Date().toISOString(),
+        updatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+      }));
+    }
+  } catch (err) {
+    // fall back to file storage
+  }
+  return [];
 }
 
 export async function savePortalAssignments(assignments: PortalAssignmentRecord[]) {
-  await writeJsonFile(PORTAL_ASSIGNMENTS_FILE, assignments);
+  // Supabase only; no-op for legacy JSON
+  return;
 }
 
 export async function addPortalAssignment(data: Omit<PortalAssignmentRecord, "id" | "createdAt" | "updatedAt">): Promise<PortalAssignmentRecord> {
-  const assignments = await listPortalAssignments();
   const now = new Date().toISOString();
   const record: PortalAssignmentRecord = {
     ...data,
@@ -298,8 +370,32 @@ export async function addPortalAssignment(data: Omit<PortalAssignmentRecord, "id
     createdAt: now,
     updatedAt: now,
   };
-  assignments.push(record);
-  await savePortalAssignments(assignments);
+  // Try Supabase first
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase.from("portal_assignments").insert({
+      id: record.id,
+      title: record.title,
+      assignment_type: record.assignmentType,
+      description: record.description ?? null,
+      client: record.client ?? null,
+      language_pair: record.languagePair ?? null,
+      hours_assigned: record.hoursAssigned,
+      start_date: record.startDate ?? null,
+      due_date: record.dueDate ?? null,
+      status: record.status ?? "assigned",
+      assigned_to: record.assignedTo ?? [],
+      participants: record.participants ?? [],
+      created_at: record.createdAt,
+      updated_at: record.updatedAt,
+    });
+    if (!error) {
+      return record;
+    }
+  } catch (err) {
+    // fall back to file storage
+  }
+
   return record;
 }
 
@@ -315,40 +411,184 @@ export async function updatePortalAssignment(id: string, updater: (assignment: P
 }
 
 export async function listAssignmentTimeEntries(): Promise<AssignmentTimeEntry[]> {
-  return readJsonFile<AssignmentTimeEntry[]>(PORTAL_TIME_FILE, []);
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("portal_time_entries")
+      .select("id, assignment_id, user_id, hours, notes, logged_at")
+      .order("logged_at", { ascending: false });
+    if (!error && data) {
+      return data.map((row) => ({
+        id: row.id,
+        assignmentId: row.assignment_id,
+        userId: row.user_id,
+        date: row.logged_at ?? new Date().toISOString(),
+        hours: Number(row.hours ?? 0),
+        notes: row.notes ?? undefined,
+        createdAt: row.logged_at ?? new Date().toISOString(),
+      }));
+    }
+  } catch (err) {
+    // fallback to file
+  }
+  return [];
 }
 
 export async function appendAssignmentTimeEntry(entry: AssignmentTimeEntry) {
-  const entries = await listAssignmentTimeEntries();
-  entries.push(entry);
-  await writeJsonFile(PORTAL_TIME_FILE, entries);
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase.from("portal_time_entries").insert({
+      id: entry.id ?? crypto.randomUUID(),
+      assignment_id: entry.assignmentId,
+      user_id: entry.userId,
+      hours: entry.hours,
+      notes: entry.notes ?? null,
+      logged_at: entry.date ?? entry.createdAt ?? new Date().toISOString(),
+    });
+    if (!error) return;
+  } catch (err) {
+    // fallback
+  }
+  return;
 }
 
 export async function listAttendanceRecords(): Promise<AssignmentAttendanceRecord[]> {
-  return readJsonFile<AssignmentAttendanceRecord[]>(PORTAL_ATTENDANCE_FILE, []);
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("portal_attendance")
+      .select("id, assignment_id, user_id, session_date, attended, notes")
+      .order("session_date", { ascending: false });
+    if (!error && data) {
+      return data.map((row) => ({
+        id: row.id,
+        assignmentId: row.assignment_id,
+        userId: row.user_id,
+        sessionDate: row.session_date ?? new Date().toISOString(),
+        sessionLabel: undefined,
+        participants: [
+          { name: "self", attended: row.attended ?? true, notes: row.notes ?? undefined },
+        ],
+        createdAt: row.session_date ?? new Date().toISOString(),
+      }));
+    }
+  } catch (err) {
+    // fallback
+  }
+  return [];
 }
 
 export async function appendAttendanceRecord(record: AssignmentAttendanceRecord) {
-  const entries = await listAttendanceRecords();
-  entries.push(record);
-  await writeJsonFile(PORTAL_ATTENDANCE_FILE, entries);
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase.from("portal_attendance").insert({
+      id: record.id ?? crypto.randomUUID(),
+      assignment_id: record.assignmentId,
+      user_id: record.userId,
+      session_date: record.sessionDate ?? record.createdAt ?? new Date().toISOString(),
+      attended: record.participants?.[0]?.attended ?? true,
+      notes: record.participants?.[0]?.notes ?? null,
+    });
+    if (!error) return;
+  } catch (err) {
+    // fallback
+  }
+  return;
 }
 
 export async function listAssignmentUploads(): Promise<AssignmentUploadRecord[]> {
-  return readJsonFile<AssignmentUploadRecord[]>(PORTAL_UPLOADS_FILE, []);
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("portal_assignment_uploads")
+      .select("id, assignment_id, user_id, category, filename, mime_type, size, data, uploaded_at")
+      .order("uploaded_at", { ascending: false });
+    if (!error && data) {
+      return data.map((row) => ({
+        id: row.id,
+        assignmentId: row.assignment_id,
+        userId: row.user_id,
+        category: row.category ?? "support",
+        filename: row.filename,
+        mimeType: row.mime_type ?? undefined,
+        size: Number(row.size ?? 0),
+        data: row.data ?? undefined,
+        uploadedAt: row.uploaded_at ?? new Date().toISOString(),
+        createdAt: row.uploaded_at ?? new Date().toISOString(),
+      }));
+    }
+  } catch (err) {
+    // fallback
+  }
+  return [];
 }
 
 export async function appendAssignmentUpload(record: AssignmentUploadRecord) {
-  const uploads = await listAssignmentUploads();
-  uploads.push(record);
-  await writeJsonFile(PORTAL_UPLOADS_FILE, uploads);
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase.from("portal_assignment_uploads").insert({
+      id: record.id ?? crypto.randomUUID(),
+      assignment_id: record.assignmentId,
+      user_id: record.userId,
+      category: record.category ?? "support",
+      filename: record.filename,
+      mime_type: record.mimeType ?? null,
+      size: record.size ?? null,
+      data: record.data ?? null,
+      uploaded_at: record.uploadedAt ?? new Date().toISOString(),
+    });
+    if (!error) return;
+  } catch (err) {
+    // fallback
+  }
+  return;
 }
 
 async function listPortalSessions(): Promise<PortalSessionRecord[]> {
+  // Prefer Supabase sessions table if present
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("portal_sessions")
+      .select("token, user_id, created_at, last_used_at, expires_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (!error && data) {
+      return data.map((row) => ({
+        token: row.token,
+        userId: row.user_id,
+        createdAt: row.created_at,
+        lastUsedAt: row.last_used_at ?? row.created_at,
+        expiresAt: row.expires_at,
+      }));
+    }
+  } catch (err) {
+    // fall back to file-based sessions
+  }
   return readJsonFile<PortalSessionRecord[]>(PORTAL_SESSIONS_FILE, []);
 }
 
 async function savePortalSessions(sessions: PortalSessionRecord[]) {
+  // try Supabase; if fails, fall back to file
+  try {
+    const supabase = createSupabaseAdminClient();
+    const payload = sessions.map((s) => ({
+      token: s.token,
+      user_id: s.userId,
+      created_at: s.createdAt,
+      last_used_at: s.lastUsedAt,
+      expires_at: s.expiresAt,
+    }));
+    // replace all by deleting expired and upserting current
+    // simple approach: delete expired in supabase; upsert current
+    await supabase.from("portal_sessions").delete().lte("expires_at", new Date().toISOString());
+    if (payload.length) {
+      await supabase.from("portal_sessions").upsert(payload, { onConflict: "token" });
+    }
+    return;
+  } catch (err) {
+    // fall back to file-based
+  }
   await writeJsonFile(PORTAL_SESSIONS_FILE, sessions);
 }
 
@@ -390,9 +630,31 @@ export async function requirePortalUserFromToken(token?: string): Promise<Portal
     error.statusCode = 401;
     throw error;
   }
+  // try file-based users first
   const users = await listPortalUsers();
-  const user = users.find((u) => u.id === session.userId && u.active);
+  let user = users.find((u) => u.id === session.userId && u.active);
   if (!user) {
+    // fallback to Supabase
+    const supabase = createSupabaseAdminClient();
+    const { data } = await supabase
+      .from("portal_users")
+      .select("id, name, email, roles, languages, password_hash, active, created_at")
+      .eq("id", session.userId)
+      .maybeSingle();
+    if (data && (data.active ?? true)) {
+      user = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        roles: ((data.roles as string[]) ?? []).filter((r): r is PortalUserRole => r === "teacher" || r === "translator"),
+        languages: (data.languages as string[] | undefined) ?? undefined,
+        passwordHash: data.password_hash,
+        active: data.active ?? true,
+        createdAt: data.created_at ?? new Date().toISOString(),
+      };
+    }
+  }
+  if (!user || !user.active) {
     const error = new Error("Unauthorized") as Error & { statusCode?: number };
     error.statusCode = 401;
     throw error;
