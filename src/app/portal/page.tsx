@@ -1536,12 +1536,12 @@ export default function PortalPage() {
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={generateAiBio}
+                      onClick={() => void generateAiBio()}
                       className="rounded-full bg-teal-500 text-slate-900 px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-60"
                       disabled={profileLoading}
-                  >
-                    Generate draft
-                  </button>
+                    >
+                      Generate draft
+                    </button>
                     {aiStatus && <p className="text-xs text-slate-300">{aiStatus}</p>}
                   </div>
                   {aiDraft ? (
