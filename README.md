@@ -72,6 +72,10 @@ create table if not exists hive_files (
 alter table hive_files enable row level security;
 drop policy if exists hive_files_service_role on hive_files;
 create policy hive_files_service_role on hive_files for all using (true) with check (true);
+
+-- Career applicants (keep rejected separate from deletes)
+alter table career_applications add column if not exists status text default 'active';
+alter table career_applications add column if not exists rejected_at timestamptz;
 ```
 
 Storage:

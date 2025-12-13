@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { languages, type Lang } from "@/lib/copy";
 import { useLanguage } from "@/lib/language-context";
-import { hasRole, staff, type StaffMember } from "@/lib/staff";
+import { hasRole, type StaffMember } from "@/lib/staff";
+import { getPublicStaffByRole } from "@/lib/public-staff";
 import { destinations, type Destination } from "@/lib/trips";
 import { translationServices } from "@/lib/translation-services";
 
@@ -40,10 +41,16 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
       };
     });
   }, [t.services?.cards]);
-  const teachers = useMemo(() => staff.filter((member) => hasRole(member, "teacher")), []);
-  const translators = useMemo(() => staff.filter((member) => hasRole(member, "translator")), []);
-  const topTeachers = teachers.slice(0, 3);
-  const topTranslators = translators.slice(0, 3);
+  const [teachers, setTeachers] = useState<StaffMember[]>([]);
+  const [translators, setTranslators] = useState<StaffMember[]>([]);
+
+  useEffect(() => {
+    getPublicStaffByRole("teacher").then(setTeachers);
+    getPublicStaffByRole("translator").then(setTranslators);
+  }, []);
+
+  const topTeachers = useMemo(() => teachers.slice(0, 3), [teachers]);
+  const topTranslators = useMemo(() => translators.slice(0, 3), [translators]);
 
   useEffect(() => {
     if (!langOpen) return;

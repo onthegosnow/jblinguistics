@@ -300,11 +300,127 @@ export default function PortalPage() {
   const [uploadingProfileFile, setUploadingProfileFile] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [showProfileSection, setShowProfileSection] = useState(true);
+  const [publishingProfile, setPublishingProfile] = useState(false);
+  const [publishMessage, setPublishMessage] = useState<string | null>(null);
+  const [publishStatus, setPublishStatus] = useState<string>("pending");
   const [resetDraft, setResetDraft] = useState({ newPassword: "", confirm: "" });
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiDraft, setAiDraft] = useState<string | null>(null);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [autoAiTriggered, setAutoAiTriggered] = useState(false);
+  const [autoSavingDraft, setAutoSavingDraft] = useState(false);
+  const [taglineField, setTaglineField] = useState("");
+  const [overviewField, setOverviewField] = useState("");
+  const [backgroundField, setBackgroundField] = useState("");
+  const [focusField, setFocusField] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewFocus, setPreviewFocus] = useState<"top" | "center">("top");
+
+  const getInitials = (text: string) => {
+    const parts = String(text || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (!parts.length) return "JB";
+    return parts
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("");
+  };
+
+  const parseBioSections = (bio: string) => {
+    const clean = (bio || "").replace(/\r/g, "");
+    const normalize = (txt: string) =>
+      txt
+        .replace(/\*\*/g, "")
+        .replace(/^\*+\s*/, "")
+        .trim();
+
+    const sections = {
+      tagline: "",
+      overview: "",
+      background: [] as string[],
+      focus: [] as string[],
+    };
+
+    const taglineMatch = clean.match(/tagline[:\-]\s*(.+)/i);
+    if (taglineMatch) {
+      sections.tagline = normalize(taglineMatch[1]);
+    }
+
+    const getBlock = (label: string) => {
+      const regex = new RegExp(`${label}\\s*:?\\s*([\\s\\S]*?)(?=\\n\\s*[A-Z][A-Z ]+:?|$)`, "i");
+      const m = clean.match(regex);
+      return m ? normalize(m[1]) : "";
+    };
+
+    const getBullets = (block: string) => {
+      if (!block) return [] as string[];
+      return block
+        .split("\n")
+        .map((l) => normalize(l.replace(/^[-•]\s*/, "")))
+        .filter(Boolean);
+    };
+
+    sections.overview = getBlock("overview") || "";
+    sections.background = getBullets(getBlock("educational")) || [];
+    sections.focus = getBullets(getBlock("linguistic")) || [];
+
+    // Fallbacks if not found
+    if (!sections.overview) {
+      const firstSentence = clean.split("\n").find((l) => l.trim());
+      sections.overview = firstSentence ? normalize(firstSentence) : "";
+    }
+    if (!sections.tagline && sections.overview) {
+      sections.tagline = sections.overview.split(".")[0]?.trim() || "";
+    }
+
+    return sections;
+  };
+
+  const sectionsFromFields = () => {
+    const background = backgroundField
+      .split("\n")
+      .map((l) => l.replace(/^[-•]\s*/, "").trim())
+      .filter(Boolean);
+    const focus = focusField
+      .split("\n")
+      .map((l) => l.replace(/^[-•]\s*/, "").trim())
+      .filter(Boolean);
+    return {
+      tagline: taglineField.trim(),
+      overview: overviewField.trim(),
+      background,
+      focus,
+    };
+  };
+
+  const buildBioFromFields = () => {
+    const bgList = sectionsFromFields().background.map((b) => `- ${b}`).join("\n");
+    const focusList = sectionsFromFields().focus.map((b) => `- ${b}`).join("\n");
+    return [
+      taglineField ? `Tagline: ${taglineField.trim()}` : "",
+      sectionsFromFields().overview ? `OVERVIEW:\n${sectionsFromFields().overview}` : "",
+      sectionsFromFields().background.length ? `EDUCATIONAL & PROFESSIONAL BACKGROUND:\n${bgList}` : "",
+      sectionsFromFields().focus.length ? `LINGUISTIC FOCUS:\n${focusList}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  };
+
+  const buildBioFromSections = (sections: { tagline?: string; overview?: string; background?: string[]; focus?: string[] }) => {
+    const bgList = (sections.background ?? []).map((b) => `- ${b}`).join("\n");
+    const focusList = (sections.focus ?? []).map((b) => `- ${b}`).join("\n");
+    return [
+      sections.tagline ? `Tagline: ${sections.tagline.trim()}` : "",
+      sections.overview ? `OVERVIEW:\n${sections.overview}` : "",
+      (sections.background ?? []).length ? `EDUCATIONAL & PROFESSIONAL BACKGROUND:\n${bgList}` : "",
+      (sections.focus ?? []).length ? `LINGUISTIC FOCUS:\n${focusList}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  };
 
   const hasAssignments = assignments.length > 0;
 
@@ -436,6 +552,12 @@ export default function PortalPage() {
         setProfileDocs(data.coreDocs ?? {});
         setAiDraft((data.profile as any)?.ai_bio_draft ?? null);
         setAiPrompt((data.profile as any)?.ai_bio_prompt ?? "");
+        setPublishStatus(data.publishStatus ?? "pending");
+        const parsed = parseBioSections(data.profile?.bio ?? "");
+        setTaglineField(parsed.tagline ?? "");
+        setOverviewField(parsed.overview ?? "");
+        setBackgroundField((parsed.background ?? []).join("\n"));
+        setFocusField((parsed.focus ?? []).join("\n"));
         setProfileForm({
           name: data.profile?.name ?? "",
           bio: data.profile?.bio ?? "",
@@ -460,13 +582,14 @@ export default function PortalPage() {
     if (!token) return;
     setProfileLoading(true);
     setProfileError(null);
+    const assembledBio = buildBioFromFields();
     try {
       const response = await fetch("/api/portal/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-portal-token": token },
         body: JSON.stringify({
           name: profileForm.name,
-          bio: profileForm.bio,
+          bio: assembledBio,
           phone: profileForm.phone,
           address: profileForm.address,
           city: profileForm.city,
@@ -487,6 +610,35 @@ export default function PortalPage() {
       setProfileError(err instanceof Error ? err.message : "Unable to save profile.");
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const publishProfile = async () => {
+    if (!token) return;
+    if (!profile?.teacher_role && !profile?.translator_role) {
+      setPublishMessage("Get approved for a role before publishing.");
+      return;
+    }
+      setPublishingProfile(true);
+      setPublishMessage(null);
+      setProfileError(null);
+      try {
+        const res = await fetch("/api/portal/profile/publish", {
+        method: "POST",
+        headers: { "x-portal-token": token },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to publish profile.");
+      }
+      const data = await res.json().catch(() => ({}));
+      setPublishStatus(data.status ?? "pending");
+      setPublishMessage(data.status === "pending" ? "Profile submitted for approval." : "Profile updated.");
+      await loadProfile(token);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Unable to publish profile.");
+    } finally {
+      setPublishingProfile(false);
     }
   };
 
@@ -526,9 +678,14 @@ export default function PortalPage() {
     }
   };
 
-  const generateAiBio = async () => {
+  const generateAiBio = async (opts?: { auto?: boolean }) => {
+    const auto = opts?.auto ?? false;
     if (!token) return;
-    setAiStatus("Generating bio draft…");
+    if (auto) {
+      setAiStatus("Generating bio from your resume…");
+    } else {
+      setAiStatus("Generating bio draft…");
+    }
     setProfileError(null);
     try {
       const res = await fetch("/api/portal/profile/ai", {
@@ -540,9 +697,39 @@ export default function PortalPage() {
       if (!res.ok) throw new Error(data.message || "Unable to generate bio.");
       if (data.draft) {
         setAiDraft(data.draft);
-        setProfileForm((prev) => ({ ...prev, bio: data.draft }));
+        const parsed = parseBioSections(data.draft);
+        setTaglineField(parsed.tagline ?? "");
+        setOverviewField(parsed.overview ?? "");
+        setBackgroundField((parsed.background ?? []).join("\n"));
+        setFocusField((parsed.focus ?? []).join("\n"));
+        const assembled = buildBioFromSections(parsed);
+        setProfileForm((prev) => ({ ...prev, bio: assembled }));
         const resumeHint = data.resumeName ? ` using ${data.resumeName}` : "";
         setAiStatus(`Draft ready${resumeHint}. Review and click Save profile to keep it.`);
+        if (auto) {
+          setAutoSavingDraft(true);
+          try {
+            await fetch("/api/portal/profile", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-portal-token": token },
+              body: JSON.stringify({
+                name: profileForm.name,
+                bio: assembled,
+                phone: profileForm.phone,
+                address: profileForm.address,
+                city: profileForm.city,
+                state: profileForm.state,
+                country: profileForm.country,
+                languages: profileForm.languages
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              }),
+            });
+          } finally {
+            setAutoSavingDraft(false);
+          }
+        }
       } else {
         setAiStatus("No draft returned. Try again with a shorter prompt.");
       }
@@ -554,6 +741,16 @@ export default function PortalPage() {
   useEffect(() => {
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!token || autoAiTriggered) return;
+    const hasBio = Boolean(profileForm.bio?.trim());
+    const hasDraft = Boolean(aiDraft);
+    if (!profileLoading && profile && !hasBio && !hasDraft) {
+      setAutoAiTriggered(true);
+      void generateAiBio({ auto: true });
+    }
+  }, [token, profile, profileForm.bio, aiDraft, profileLoading, autoAiTriggered]);
 
   useEffect(() => {
     if (token) {
@@ -1188,55 +1385,13 @@ export default function PortalPage() {
 
           {showProfileSection && (
             <>
-              <div className="rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-teal-300">Admin-approved roles</p>
-                <div className="flex flex-wrap gap-3 text-sm text-slate-200">
-                  <span className={`px-3 py-1 rounded-full ${profile?.teacher_role ? "bg-teal-500 text-slate-900" : "bg-slate-800 text-slate-300"}`}>
-                    Teacher {profile?.teacher_role ? "✓" : "—"}
-                  </span>
-                  <span className={`px-3 py-1 rounded-full ${profile?.translator_role ? "bg-teal-500 text-slate-900" : "bg-slate-800 text-slate-300"}`}>
-                    Translator {profile?.translator_role ? "✓" : "—"}
-                  </span>
-                </div>
-                {(profile?.teaching_languages?.length || profile?.translating_languages?.length) && (
-                  <div className="grid md:grid-cols-2 gap-3 text-xs text-slate-300">
-                    {profile?.teaching_languages?.length ? (
-                      <div>
-                        <p className="font-semibold text-slate-100">Approved teaching languages</p>
-                        <p>{(profile.teaching_languages as any[]).join(", ")}</p>
-                      </div>
-                    ) : null}
-                    {profile?.translating_languages?.length ? (
-                      <div>
-                        <p className="font-semibold text-slate-100">Approved translating languages</p>
-                        <p>{(profile.translating_languages as any[]).join(", ")}</p>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-                {profile?.certifications?.length ? (
-                  <div className="text-xs text-slate-300">
-                    <p className="font-semibold text-slate-100">Certifications</p>
-                    <p>{profile.certifications.join(", ")}</p>
-                  </div>
-                ) : null}
-                <div className="grid md:grid-cols-3 gap-3 text-xs text-slate-300">
-                  <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3">
-                    <p className="font-semibold text-slate-100">Publishing</p>
-                    <p>Teacher profile: {profile?.publish_teacher ? "Enabled" : "Disabled"}</p>
-                    <p>Translator profile: {profile?.publish_translator ? "Enabled" : "Disabled"}</p>
-                    <p>Visibility: {profile?.staff_visibility ?? "visible"}</p>
-                  </div>
-                  <div className="md:col-span-2 text-[11px] text-amber-300">
-                    Publishing to public pages follows Admin approvals. If you’re approved as teacher only, only teacher profile can be published; translator-only likewise. Ask Admin if this looks incorrect.
-                  </div>
-                </div>
-                <p className="text-[11px] text-amber-300">
-                  Publishing to public teacher/translator pages will be limited to the roles/languages approved by admin.
+              <div className="mt-4 space-y-3">
+                <h3 className="text-sm font-semibold text-white">Profile basics</h3>
+                <p className="text-xs text-slate-400">
+                  Step 1: Update your contact info and languages, then hit Save profile. Step 2: submit for approval so admins can publish you to the public staff page.
                 </p>
               </div>
-
-              <form onSubmit={saveProfile} className="mt-4 grid md:grid-cols-2 gap-4 text-sm">
+              <form onSubmit={saveProfile} className="mt-2 grid md:grid-cols-2 gap-4 text-sm">
                 <label className="space-y-1 text-slate-200">
                   Name
                   <input
@@ -1298,13 +1453,43 @@ export default function PortalPage() {
                   />
                 </label>
                 <label className="md:col-span-2 space-y-1 text-slate-200">
-                  Bio / notes
-                  <textarea
-                    rows={2}
-                    value={profileForm.bio}
-                    onChange={(e) => setProfileForm((prev) => ({ ...prev, bio: e.target.value }))}
+                  Tagline
+                  <input
+                    type="text"
+                    value={taglineField}
+                    onChange={(e) => setTaglineField(e.target.value)}
                     className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
-                    placeholder="Short bio, specialties, availability"
+                    placeholder="Concise one-liner"
+                  />
+                </label>
+                <label className="md:col-span-2 space-y-1 text-slate-200">
+                  Overview
+                  <textarea
+                    rows={3}
+                    value={overviewField}
+                    onChange={(e) => setOverviewField(e.target.value)}
+                    className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                    placeholder="Short paragraph"
+                  />
+                </label>
+                <label className="md:col-span-2 space-y-1 text-slate-200">
+                  Educational & professional background (one bullet per line)
+                  <textarea
+                    rows={3}
+                    value={backgroundField}
+                    onChange={(e) => setBackgroundField(e.target.value)}
+                    className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                    placeholder="- TEFL-certified...\n- 10+ years teaching..."
+                  />
+                </label>
+                <label className="md:col-span-2 space-y-1 text-slate-200">
+                  Linguistic focus (one bullet per line)
+                  <textarea
+                    rows={3}
+                    value={focusField}
+                    onChange={(e) => setFocusField(e.target.value)}
+                    className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                    placeholder="- Business English\n- Exam prep"
                   />
                 </label>
                 <label className="md:col-span-2 space-y-1 text-slate-200">
@@ -1317,7 +1502,8 @@ export default function PortalPage() {
                     placeholder="English, German"
                   />
                 </label>
-                <div className="md:col-span-2 flex items-center gap-3">
+              <div className="md:col-span-2 space-y-3">
+                <div className="flex items-center gap-3">
                   <button
                     type="submit"
                     className="rounded-full bg-teal-500 text-slate-900 px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-60"
@@ -1327,6 +1513,7 @@ export default function PortalPage() {
                   </button>
                   {profile?.email && <p className="text-xs text-slate-400">Account: {profile.email}</p>}
                 </div>
+              </div>
               </form>
 
               <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-3 shadow-inner">
@@ -1352,22 +1539,201 @@ export default function PortalPage() {
                       onClick={generateAiBio}
                       className="rounded-full bg-teal-500 text-slate-900 px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-60"
                       disabled={profileLoading}
-                    >
-                      Generate draft
-                    </button>
+                  >
+                    Generate draft
+                  </button>
                     {aiStatus && <p className="text-xs text-slate-300">{aiStatus}</p>}
                   </div>
-                  {aiDraft && (
-                    <div className="space-y-1">
-                      <p className="text-[11px] text-slate-400">Draft (editable)</p>
-                      <textarea
-                        rows={4}
-                        value={profileForm.bio}
-                        onChange={(e) => setProfileForm((prev) => ({ ...prev, bio: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
-                      />
+                  {aiDraft ? (
+                    <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 space-y-2 text-xs text-slate-200">
+                      <p className="font-semibold text-slate-100">Draft applied to Bio / notes above</p>
+                      <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">
+                        {profileForm.bio || aiDraft}
+                      </p>
+                      <p className="text-[11px] text-amber-300">Review/edit in the Bio field above, then click Save profile.</p>
                     </div>
-                  )}
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPreview((prev) => !prev)}
+                  className="rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
+                >
+                  {showPreview ? "Hide preview" : "Preview public card"}
+                </button>
+                <p className="text-xs text-slate-400">See how your card will look on the public staff pages before submitting.</p>
+                {showPreview && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFocus((prev) => (prev === "top" ? "center" : "top"))}
+                    className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-100 hover:bg-slate-800"
+                  >
+                    Crop: {previewFocus === "top" ? "Top (faces)" : "Center"}
+                  </button>
+                )}
+              </div>
+              {showPreview && (() => {
+                const photoUpload = profileUploads.find((u) => String(u.kind || "").toLowerCase().includes("photo"));
+                const previewPhotoUrl = profile?.photo_url || photoUpload?.signedUrl;
+                const parsedFields = sectionsFromFields();
+                const parsed = parsedFields.overview || parsedFields.background.length || parsedFields.focus.length || parsedFields.tagline
+                  ? parsedFields
+                  : parseBioSections(profileForm.bio || aiDraft || profile?.bio || "");
+                const teachLangs = Array.isArray(profile?.teaching_languages) ? profile.teaching_languages : [];
+                const transLangs = Array.isArray(profile?.translating_languages) ? profile.translating_languages : [];
+                const certs = Array.isArray(profile?.certifications) ? profile?.certifications : [];
+                const basicLangs = (profileForm.languages || (profile?.languages ?? []).join(", ")).split(",").map((l) => l.trim()).filter(Boolean);
+                return (
+                <div className="mt-3 space-y-4">
+                  <div className="rounded-3xl bg-white text-slate-900 shadow-md shadow-slate-900/10 border border-slate-200 overflow-hidden">
+                    <div className={`relative aspect-[16/9] ${previewPhotoUrl ? "bg-slate-200" : "bg-slate-100"}`}>
+                      {previewPhotoUrl ? (
+                        <img
+                          src={previewPhotoUrl}
+                          alt={profileForm.name || profile?.name || "Profile photo"}
+                          className="h-full w-full object-cover"
+                          style={{ objectPosition: previewFocus === "top" ? "50% 20%" : "50% 50%" }}
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-slate-400 bg-slate-200">
+                          {getInitials(profileForm.name || profile?.name || "")}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5 space-y-1">
+                      <h4 className="text-xl font-semibold">
+                        {profileForm.name || profile?.name || "Your name"}
+                      </h4>
+                      <p className="text-sm text-teal-700">
+                        {profileForm.languages || (profile?.languages ?? []).join(", ") || "Languages will appear here"}
+                      </p>
+                      {parsed.tagline ? <p className="text-sm text-slate-700">{parsed.tagline}</p> : null}
+                      <div className="flex flex-wrap gap-2 pt-2 text-[11px] font-semibold">
+                        {profile?.teacher_role ? (
+                          <span className="rounded-full bg-teal-100 text-teal-800 px-3 py-1">Teacher</span>
+                        ) : null}
+                        {profile?.translator_role ? (
+                          <span className="rounded-full bg-sky-100 text-sky-800 px-3 py-1">Translator</span>
+                        ) : null}
+                        {!profile?.teacher_role && !profile?.translator_role ? (
+                          <span className="rounded-full bg-slate-200 text-slate-700 px-3 py-1">Role not set yet</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl bg-white text-slate-900 shadow-inner shadow-slate-900/5 border border-slate-200 p-6 space-y-4">
+                    <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+                      {teachLangs.length ? (
+                        <div>
+                          <p className="font-semibold text-slate-800">Teaching languages</p>
+                          <p>{teachLangs.join(", ")}</p>
+                        </div>
+                      ) : null}
+                      {transLangs.length ? (
+                        <div>
+                          <p className="font-semibold text-slate-800">Translating languages</p>
+                          <p>{transLangs.join(", ")}</p>
+                        </div>
+                      ) : null}
+                      {!teachLangs.length && !transLangs.length && basicLangs.length ? (
+                        <div>
+                          <p className="font-semibold text-slate-800">Languages</p>
+                          <p>{basicLangs.join(", ")}</p>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-semibold tracking-wide text-slate-700">OVERVIEW</h5>
+                      <p className="text-sm leading-relaxed text-slate-800">
+                        {parsed.overview || "Your overview will appear here once entered."}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-semibold tracking-wide text-slate-700">EDUCATIONAL & PROFESSIONAL BACKGROUND</h5>
+                      {parsed.background.length ? (
+                        <ul className="list-disc list-inside text-sm text-slate-800 space-y-1">
+                          {parsed.background.map((item, idx) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-slate-500">Add background bullet points to see them here.</p>
+                      )}
+                    </div>
+
+                    {certs.length ? (
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-semibold tracking-wide text-slate-700">CERTIFICATIONS</h5>
+                        <ul className="list-disc list-inside text-sm text-slate-800 space-y-1">
+                          {certs.map((c, idx) => (
+                            <li key={idx}>{c}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-semibold tracking-wide text-slate-700">LINGUISTIC FOCUS</h5>
+                      {parsed.focus.length ? (
+                        <ul className="list-disc list-inside text-sm text-slate-800 space-y-1">
+                          {parsed.focus.map((item, idx) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-slate-500">Add focus bullet points to see them here.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200 space-y-2">
+                    <p className="font-semibold text-white">What you’re seeing</p>
+                    <p className="text-xs text-slate-300">
+                      This mirrors the layout of the public staff profile: hero card plus overview, background bullets, and linguistic focus. It uses values you’ve entered above (even before saving). Save, then submit for approval to publish.
+                    </p>
+                    <ul className="list-disc list-inside text-xs text-slate-300 space-y-1">
+                      <li>Photo comes from your uploaded headshot (or initials if none). Use the crop toggle if your face is cut off.</li>
+                      <li>Name, languages, tagline, overview, and bullets come from the fields above.</li>
+                      <li>Role badges reflect admin-approved roles (teacher/translator).</li>
+                    </ul>
+                  </div>
+                </div>
+                );
+              })()}
+
+              <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-2 shadow-inner">
+                <div className="flex flex-wrap gap-2 text-sm text-slate-200">
+                  <span className={`px-3 py-1 rounded-full ${profile?.teacher_role ? "bg-teal-500 text-slate-900" : "bg-slate-800 text-slate-300"}`}>
+                    Teacher {profile?.teacher_role ? "✓" : "—"}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full ${profile?.translator_role ? "bg-teal-500 text-slate-900" : "bg-slate-800 text-slate-300"}`}>
+                    Translator {profile?.translator_role ? "✓" : "—"}
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-slate-700 text-slate-100">Status: {publishStatus}</span>
+                </div>
+                <p className="text-xs text-slate-300">
+                  After saving, submit for admin approval. Approved profiles are published to the public staff page. If you change anything, re-submit so admins can approve the update.
+                </p>
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={publishProfile}
+                    disabled={publishingProfile || (!profile?.teacher_role && !profile?.translator_role)}
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
+                      publishingProfile
+                        ? "bg-slate-700 text-slate-200 cursor-wait"
+                        : "bg-emerald-500 text-slate-900 hover:bg-emerald-400"
+                    } disabled:opacity-60`}
+                  >
+                    {publishingProfile ? "Submitting…" : "Submit bio for approval"}
+                  </button>
+                  {publishMessage ? <span className="text-xs text-emerald-300">{publishMessage}</span> : null}
                 </div>
               </div>
 

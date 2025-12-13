@@ -64,6 +64,8 @@ export type CareerApplicationRecord = {
   submittedAt: string;
   name: string;
   email?: string;
+  status?: "active" | "rejected";
+  rejectedAt?: string | null;
   location?: string;
   languages?: string;
   workingLanguages?: TeacherAssessmentLanguage[];

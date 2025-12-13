@@ -408,6 +408,14 @@ export async function POST(request: NextRequest) {
 
   if (body.action === "roles") {
     if (!body.userId) return NextResponse.json({ message: "userId required." }, { status: 400 });
+    const { data: existing } = await supabase
+      .from("portal_employees")
+      .select("staff_visibility")
+      .eq("user_id", body.userId)
+      .maybeSingle();
+    const publishTeacher = body.teacherRole ?? false;
+    const publishTranslator = body.translatorRole ?? false;
+    const visibility = publishTeacher || publishTranslator ? existing?.staff_visibility ?? "hidden" : "hidden";
     const { error } = await supabase
       .from("portal_employees")
       .upsert({
@@ -417,6 +425,9 @@ export async function POST(request: NextRequest) {
         teaching_languages: body.teachingLanguages ?? [],
         translating_languages: body.translatingLanguages ?? [],
         certifications: body.certifications ?? [],
+        publish_teacher: publishTeacher,
+        publish_translator: publishTranslator,
+        staff_visibility: visibility,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", body.userId);

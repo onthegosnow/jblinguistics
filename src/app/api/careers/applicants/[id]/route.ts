@@ -67,8 +67,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const firstRole = Array.isArray(data.roles) && data.roles.length ? data.roles[0] : "Teacher/Translator";
     await sendRejectionEmail(data.email ?? "", data.name ?? "", firstRole);
-    // Remove the record after sending rejection
-    await deleteCareerApplicantFromSupabase(id);
+    const { error: updateError } = await supabase
+      .from("career_applications")
+      .update({ status: "rejected", rejected_at: new Date().toISOString() })
+      .eq("id", id);
+    if (updateError) {
+      const msg = updateError.message.includes("status")
+        ? "Add columns status (text) and rejected_at (timestamptz) to career_applications"
+        : updateError.message;
+      return NextResponse.json({ message: msg }, { status: 400 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

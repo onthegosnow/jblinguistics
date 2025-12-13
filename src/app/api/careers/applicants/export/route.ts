@@ -7,6 +7,8 @@ const HEADERS = [
   "submitted_at",
   "name",
   "email",
+  "status",
+  "rejected_at",
   "location",
   "languages",
   "working_languages",
@@ -29,9 +31,7 @@ export async function GET(request: NextRequest) {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("career_applications")
-    .select(
-      "id, submitted_at, name, email, location, languages, working_languages, experience, availability, message, landing, roles, hire_sent_at, resume_filename, resume_mime_type, resume_size, resume_insights, interview_notes"
-    )
+    .select("*")
     .order("submitted_at", { ascending: false });
   if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 
@@ -57,6 +57,8 @@ export async function GET(request: NextRequest) {
         submitted_at: row.submitted_at,
         name: row.name,
         email: row.email,
+        status: (row as any).status ?? null,
+        rejected_at: (row as any).rejected_at ?? null,
         location: row.location,
         languages: row.languages,
         working_languages: row.working_languages,
@@ -90,4 +92,3 @@ export async function GET(request: NextRequest) {
     },
   });
 }
-

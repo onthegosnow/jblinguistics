@@ -1,8 +1,9 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { hasRole, staff, type StaffMember } from "@/lib/staff";
+import { useMemo, useState, useEffect } from "react";
+import { hasRole, type StaffMember } from "@/lib/staff";
+import { getPublicStaffByRole } from "@/lib/public-staff";
 
 const splitDisplayLanguages = (value: string): string[] =>
   String(value || "")
@@ -43,7 +44,11 @@ const getSpecList = (person: StaffMember): string[] => {
 };
 
 export default function TranslatorsPage() {
-  const translators = staff.filter((p) => hasRole(p, "translator"));
+  const [translators, setTranslators] = useState<StaffMember[]>([]);
+
+  useEffect(() => {
+    getPublicStaffByRole("translator").then((list) => setTranslators(list));
+  }, []);
 
   // Options for filters
   const allLangs = useMemo(() => {

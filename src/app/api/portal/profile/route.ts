@@ -26,7 +26,9 @@ export async function GET(request: NextRequest) {
       .maybeSingle(),
     supabase
       .from("portal_employees")
-      .select("teacher_role, translator_role, teaching_languages, translating_languages, certifications, publish_teacher, publish_translator, staff_visibility")
+      .select(
+        "teacher_role, translator_role, teaching_languages, translating_languages, certifications, publish_teacher, publish_translator, staff_visibility, ai_bio_draft, ai_bio_prompt, ai_bio_updated_at"
+      )
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -79,18 +81,69 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // If no employee record found for this user_id, or if another record with the same email is newer, reuse the latest one
+  let employee = empRes.data;
+  if (user.email) {
+    const { data: matchingUsers } = await supabase.from("portal_users").select("id").ilike("email", user.email);
+    const ids = (matchingUsers ?? []).map((u: any) => u.id).filter(Boolean);
+    if (ids.length) {
+      const { data: empRows } = await supabase
+        .from("portal_employees")
+          .select(
+            "user_id, teacher_role, translator_role, teaching_languages, translating_languages, certifications, publish_teacher, publish_translator, staff_visibility, ai_bio_draft, ai_bio_prompt, ai_bio_updated_at, updated_at"
+          )
+        .in("user_id", ids);
+      if (empRows?.length) {
+        const latest = empRows.reduce((prev: any, curr: any) => {
+          const prevTime = prev?.updated_at ? new Date(prev.updated_at).getTime() : 0;
+          const currTime = curr?.updated_at ? new Date(curr.updated_at).getTime() : 0;
+          return currTime > prevTime ? curr : prev;
+        }, empRes.data ?? empRows[0]);
+        employee = latest;
+        await supabase
+          .from("portal_employees")
+          .upsert({
+            user_id: user.id,
+            teacher_role: latest.teacher_role ?? false,
+            translator_role: latest.translator_role ?? false,
+            teaching_languages: latest.teaching_languages ?? [],
+            translating_languages: latest.translating_languages ?? [],
+            certifications: latest.certifications ?? [],
+            publish_teacher: latest.publish_teacher ?? false,
+            publish_translator: latest.publish_translator ?? false,
+            staff_visibility: latest.staff_visibility ?? "visible",
+            ai_bio_draft: latest.ai_bio_draft ?? null,
+            ai_bio_prompt: latest.ai_bio_prompt ?? null,
+            ai_bio_updated_at: latest.ai_bio_updated_at ?? null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", user.id);
+      }
+    }
+  }
+
+  const { data: pubProfile } = await supabase
+    .from("public_staff_profiles")
+    .select("visibility")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
   return NextResponse.json({
     profile: {
       ...data,
-      teacher_role: empRes.data && "teacher_role" in empRes.data ? (empRes.data as any).teacher_role ?? false : false,
-      translator_role: empRes.data && "translator_role" in empRes.data ? (empRes.data as any).translator_role ?? false : false,
-      teaching_languages: empRes.data && "teaching_languages" in empRes.data ? (empRes.data as any).teaching_languages ?? [] : [],
-      translating_languages: empRes.data && "translating_languages" in empRes.data ? (empRes.data as any).translating_languages ?? [] : [],
-      certifications: empRes.data && "certifications" in empRes.data ? (empRes.data as any).certifications ?? [] : [],
-      publish_teacher: empRes.data && "publish_teacher" in empRes.data ? (empRes.data as any).publish_teacher ?? false : false,
-      publish_translator: empRes.data && "publish_translator" in empRes.data ? (empRes.data as any).publish_translator ?? false : false,
-      staff_visibility: empRes.data && "staff_visibility" in empRes.data ? (empRes.data as any).staff_visibility ?? "visible" : "visible",
+      teacher_role: employee && "teacher_role" in employee ? (employee as any).teacher_role ?? false : false,
+      translator_role: employee && "translator_role" in employee ? (employee as any).translator_role ?? false : false,
+      teaching_languages: employee && "teaching_languages" in employee ? (employee as any).teaching_languages ?? [] : [],
+      translating_languages: employee && "translating_languages" in employee ? (employee as any).translating_languages ?? [] : [],
+      certifications: employee && "certifications" in employee ? (employee as any).certifications ?? [] : [],
+      publish_teacher: employee && "publish_teacher" in employee ? (employee as any).publish_teacher ?? false : false,
+      publish_translator: employee && "publish_translator" in employee ? (employee as any).publish_translator ?? false : false,
+      staff_visibility: employee && "staff_visibility" in employee ? (employee as any).staff_visibility ?? "pending" : "pending",
+      ai_bio_draft: employee && "ai_bio_draft" in employee ? (employee as any).ai_bio_draft ?? null : null,
+      ai_bio_prompt: employee && "ai_bio_prompt" in employee ? (employee as any).ai_bio_prompt ?? null : null,
+      ai_bio_updated_at: employee && "ai_bio_updated_at" in employee ? (employee as any).ai_bio_updated_at ?? null : null,
     },
+    publishStatus: pubProfile?.visibility ?? "pending",
     uploads: uploadsWithUrls,
     coreDocs: { resumeUrl, resumeName, contractUrl, contractName },
   });

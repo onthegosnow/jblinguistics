@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   teacherAssessmentLanguages,
   type TeacherAssessmentLanguage,
@@ -10,22 +11,19 @@ import {
 import { translatorLanguages, type TranslatorExerciseLanguage } from "@/lib/translator-exercise";
 
 const STORAGE_KEY = "jb_assessment_admin_token";
-const teacherLanguageLabels = teacherAssessmentLanguages.reduce((acc, lang) => {
+const teacherLanguageLabels = teacherAssessmentLanguages.reduce<Record<string, string>>((acc, lang) => {
   acc[lang.id] = lang.label;
   return acc;
-}, {} as Record<TeacherAssessmentLanguage, string>);
+}, {});
 // Clearer English labels for common Asian languages
 teacherLanguageLabels["zh"] = "Chinese (Simplified)";
 teacherLanguageLabels["zh-TW"] = "Chinese (Traditional)";
 teacherLanguageLabels["ja"] = "Japanese";
 teacherLanguageLabels["ko"] = "Korean";
-const translatorLanguageLabels = translatorLanguages.reduce(
-  (acc, lang) => {
-    acc[lang.id] = lang.label;
-    return acc;
-  },
-  {} as Record<TranslatorExerciseLanguage, string>
-);
+const translatorLanguageLabels = translatorLanguages.reduce<Record<string, string>>((acc, lang) => {
+  acc[lang.id] = lang.label;
+  return acc;
+}, {});
 
 type SubmissionRecord = {
   id: string;
@@ -57,11 +55,17 @@ type AccessCodeRecord = {
   notes?: string;
 };
 
+const PublicStaffPreview = dynamic(() => import("./public-staff-preview").then((m) => m.PublicStaffPreview), {
+  ssr: false,
+});
+
 type ApplicantRecord = {
   id: string;
   submittedAt: string;
   name: string;
   email?: string;
+  status?: "active" | "rejected";
+  rejectedAt?: string | null;
   interviewNotes?: string;
   location?: string;
   languages?: string;
@@ -166,6 +170,9 @@ export default function AssessmentsAdminPage() {
   const [results, setResults] = useState<SubmissionRecord[]>([]);
   const [codes, setCodes] = useState<AccessCodeRecord[]>([]);
   const [applicants, setApplicants] = useState<ApplicantRecord[]>([]);
+  const [rejectedApplicants, setRejectedApplicants] = useState<ApplicantRecord[]>([]);
+  const [showRejected, setShowRejected] = useState(false);
+  const [selectedRejectedId, setSelectedRejectedId] = useState("");
   const [activeTab, setActiveTab] = useState<
     | "results"
     | "codes"
@@ -238,6 +245,8 @@ export default function AssessmentsAdminPage() {
     >
   >({});
   const [rejectingApplicantId, setRejectingApplicantId] = useState<string | null>(null);
+  const [rolesSaved, setRolesSaved] = useState<Record<string, number>>({});
+  const [pendingProfilesOpen, setPendingProfilesOpen] = useState(false);
   const [savingManualApplicant, setSavingManualApplicant] = useState(false);
   const [onboardingEnvelopes, setOnboardingEnvelopes] = useState<
     Array<{
@@ -395,6 +404,7 @@ export default function AssessmentsAdminPage() {
       setResults(resultsData.results ?? []);
       setCodes(codesData.codes ?? []);
       setApplicants(applicantsData.applicants ?? []);
+      setRejectedApplicants(applicantsData.rejectedApplicants ?? []);
       setPortalUsers(usersData.users ?? []);
       setAssignments(assignmentsData.assignments ?? []);
       setInquiries(inquiriesData.inquiries ?? []);
@@ -471,13 +481,127 @@ export default function AssessmentsAdminPage() {
           throw new Error(data.message || "Unable to delete applicant");
         }
         setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
+        setRejectedApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
+        if (selectedRejectedId === applicant.id) {
+          setSelectedRejectedId("");
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to delete applicant.");
       } finally {
         setDeletingApplicantId(null);
       }
     },
-    [token]
+    [token, selectedRejectedId]
+  );
+
+  const updateApplicantLocal = useCallback(
+    (applicantId: string, updater: (applicant: ApplicantRecord) => ApplicantRecord) => {
+      setApplicants((prev) => prev.map((a) => (a.id === applicantId ? updater(a) : a)));
+      setRejectedApplicants((prev) => prev.map((a) => (a.id === applicantId ? updater(a) : a)));
+    },
+    []
+  );
+
+  const renderApplicantDetails = (applicant: ApplicantRecord) => (
+    <>
+      {applicant.resumeInsights && (
+        <div
+          className={`mt-3 rounded-2xl border p-4 text-sm ${
+            applicant.resumeInsights.verdict === "strong"
+              ? "border-emerald-500/40 bg-emerald-500/10"
+              : "border-rose-500/40 bg-rose-500/10"
+          }`}
+        >
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-200">Auto bio summary</p>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                applicant.resumeInsights.verdict === "strong" ? "bg-emerald-500/20 text-emerald-100" : "bg-rose-500/20 text-rose-100"
+              }`}
+              aria-label={applicant.resumeInsights.verdict === "strong" ? "Strong applicant" : "Needs closer review"}
+            >
+              <span aria-hidden>{applicant.resumeInsights.verdict === "strong" ? "👍" : "👎"}</span>
+              {applicant.resumeInsights.verdict === "strong" ? "Strong candidate" : "Needs review"}
+            </span>
+          </div>
+          <p className="mt-3 text-slate-100">{applicant.resumeInsights.summary}</p>
+          <p className="mt-2 text-xs text-slate-300">
+            Score: {applicant.resumeInsights.score}%{" "}
+            {applicant.resumeInsights.keywords?.length ? `• Keywords: ${applicant.resumeInsights.keywords.join(", ")}` : ""}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">{applicant.resumeInsights.reasoning}</p>
+        </div>
+      )}
+      {applicant.teacherAssessments?.length ? (
+        <div className="mt-3 space-y-3">
+          {applicant.teacherAssessments.map((assessment, index) => (
+            <div
+              key={`${assessment.language}-${index}`}
+              className="rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-1"
+            >
+              <p className="font-semibold text-white">Educator assessment ({teacherLanguageLabels[assessment.language]})</p>
+              <p>
+                Score: {assessment.score.totalCorrect}/{assessment.score.totalQuestions} ({assessment.score.percentage}%)
+              </p>
+              <p className="text-slate-400">
+                Breakdown: {Object.entries(assessment.score.breakdown)
+                  .map(([level, data]) => `${level} ${data.correct}/${data.total}`)
+                  .join(" · ")}
+              </p>
+              <p className="text-slate-400">Conflict plan: {assessment.responses.conflict}</p>
+              <p className="text-slate-400">Attendance plan: {assessment.responses.attendance}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {applicant.translatorExercise && (
+        <div className="mt-3 rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-2">
+          <p className="font-semibold text-white">
+            Translator exercise ({translatorLanguageLabels[applicant.translatorExercise.language] ?? applicant.translatorExercise.language})
+          </p>
+          <p>
+            Score:{" "}
+            {typeof applicant.translatorExercise.score === "number" ? `${applicant.translatorExercise.score}%` : "Not auto-scored"}
+          </p>
+          {applicant.translatorExercise.missingTokens.length > 0 && (
+            <p className="text-amber-200">Missing keywords: {applicant.translatorExercise.missingTokens.join(", ")}</p>
+          )}
+          <div className="rounded-2xl border border-slate-700 bg-slate-900/40 p-3 text-slate-100 whitespace-pre-wrap">
+            {applicant.translatorExercise.submission}
+          </div>
+        </div>
+      )}
+      <div className="mt-3">
+        <p className="text-xs uppercase tracking-[0.2em] text-slate-300 mb-1">Interview notes</p>
+        <textarea
+          rows={3}
+          value={applicant.interviewNotes ?? ""}
+          onChange={(e) =>
+            setApplicants((prev) => prev.map((a) => (a.id === applicant.id ? { ...a, interviewNotes: e.target.value } : a)))
+          }
+          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+          placeholder="Add interview notes"
+        />
+        <button
+          type="button"
+          className="mt-2 inline-flex items-center rounded-full bg-slate-600 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-500"
+          onClick={async () => {
+            if (!token) return;
+            const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-token": token },
+              body: JSON.stringify({ action: "note", interviewNotes: applicant.interviewNotes ?? "" }),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              setError(data.message || "Unable to save notes.");
+            }
+          }}
+        >
+          Save notes
+        </button>
+      </div>
+    </>
   );
 
   const sendHire = useCallback(
@@ -721,8 +845,10 @@ export default function AssessmentsAdminPage() {
     if (!token) return;
     const draft = employeeRolesDraft[userId];
     if (!draft) return;
+    setWorking(userId);
+    setError(null);
     try {
-      await fetch("/api/portal/admin/employees", {
+      const res = await fetch("/api/portal/admin/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-token": token },
         body: JSON.stringify({
@@ -735,9 +861,16 @@ export default function AssessmentsAdminPage() {
           certifications: draft.certifications,
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to save roles.");
+      }
+      setRolesSaved((prev) => ({ ...prev, [userId]: Date.now() }));
       await refreshData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save roles.");
+    } finally {
+      setWorking(null);
     }
   };
 
@@ -1465,7 +1598,18 @@ export default function AssessmentsAdminPage() {
                               const data = await res.json().catch(() => ({}));
                               throw new Error(data.message || "Unable to reject applicant.");
                             }
+                            const rejectedAt = new Date().toISOString();
                             setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
+                            setRejectedApplicants((prev) => {
+                              const withoutDuplicate = prev.filter((item) => item.id !== applicant.id);
+                              return [...withoutDuplicate, { ...applicant, status: "rejected", rejectedAt }];
+                            });
+                            if (!showRejected) {
+                              setShowRejected(true);
+                            }
+                            if (!selectedRejectedId) {
+                              setSelectedRejectedId(applicant.id);
+                            }
                             await refreshData();
                           } catch (err) {
                             setError(err instanceof Error ? err.message : "Unable to reject applicant.");
@@ -1504,127 +1648,102 @@ export default function AssessmentsAdminPage() {
                         Working languages: {applicant.workingLanguages.map((lang) => teacherLanguageLabels[lang] ?? lang).join(", ")}
                       </p>
                     ) : null}
-                    {expandedApplicants[applicant.id] && (
-                      <>
-                        {applicant.resumeInsights && (
-                          <div
-                            className={`mt-3 rounded-2xl border p-4 text-sm ${
-                              applicant.resumeInsights.verdict === "strong"
-                                ? "border-emerald-500/40 bg-emerald-500/10"
-                                : "border-rose-500/40 bg-rose-500/10"
-                            }`}
-                          >
-                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                              <p className="text-xs uppercase tracking-[0.2em] text-slate-200">Auto bio summary</p>
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
-                                  applicant.resumeInsights.verdict === "strong"
-                                    ? "bg-emerald-500/20 text-emerald-100"
-                                    : "bg-rose-500/20 text-rose-100"
-                                }`}
-                                aria-label={
-                                  applicant.resumeInsights.verdict === "strong"
-                                    ? "Strong applicant"
-                                    : "Needs closer review"
-                                }
-                              >
-                                <span aria-hidden>{applicant.resumeInsights.verdict === "strong" ? "👍" : "👎"}</span>
-                                {applicant.resumeInsights.verdict === "strong" ? "Strong candidate" : "Needs review"}
-                              </span>
-                            </div>
-                            <p className="mt-3 text-slate-100">{applicant.resumeInsights.summary}</p>
-                            <p className="mt-2 text-xs text-slate-300">
-                              Score: {applicant.resumeInsights.score}%{" "}
-                              {applicant.resumeInsights.keywords?.length
-                                ? `• Keywords: ${applicant.resumeInsights.keywords.join(", ")}`
-                                : ""}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-400">{applicant.resumeInsights.reasoning}</p>
-                          </div>
-                        )}
-                        {applicant.teacherAssessments?.length ? (
-                          <div className="mt-3 space-y-3">
-                            {applicant.teacherAssessments.map((assessment, index) => (
-                              <div
-                                key={`${assessment.language}-${index}`}
-                                className="rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-1"
-                              >
-                                <p className="font-semibold text-white">
-                                  Educator assessment ({teacherLanguageLabels[assessment.language]})
-                                </p>
-                                <p>
-                                  Score: {assessment.score.totalCorrect}/{assessment.score.totalQuestions} ({assessment.score.percentage}%)
-                                </p>
-                                <p className="text-slate-400">
-                                  Breakdown: {Object.entries(assessment.score.breakdown)
-                                    .map(([level, data]) => `${level} ${data.correct}/${data.total}`)
-                                    .join(" · ")}
-                                </p>
-                                <p className="text-slate-400">Conflict plan: {assessment.responses.conflict}</p>
-                                <p className="text-slate-400">Attendance plan: {assessment.responses.attendance}</p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                        {applicant.translatorExercise && (
-                          <div className="mt-3 rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 text-xs text-slate-200 space-y-2">
-                            <p className="font-semibold text-white">
-                              Translator exercise ({translatorLanguageLabels[applicant.translatorExercise.language] ?? applicant.translatorExercise.language})
-                            </p>
-                            <p>
-                              Score:{" "}
-                              {typeof applicant.translatorExercise.score === "number"
-                                ? `${applicant.translatorExercise.score}%`
-                                : "Not auto-scored"}
-                            </p>
-                            {applicant.translatorExercise.missingTokens.length > 0 && (
-                              <p className="text-amber-200">
-                                Missing keywords: {applicant.translatorExercise.missingTokens.join(", ")}
-                              </p>
-                            )}
-                            <div className="rounded-2xl border border-slate-700 bg-slate-900/40 p-3 text-slate-100 whitespace-pre-wrap">
-                              {applicant.translatorExercise.submission}
-                            </div>
-                          </div>
-                        )}
-                        <div className="mt-3">
-                          <p className="text-xs uppercase tracking-[0.2em] text-slate-300 mb-1">Interview notes</p>
-                          <textarea
-                            rows={3}
-                            value={applicant.interviewNotes ?? ""}
-                            onChange={(e) =>
-                              setApplicants((prev) =>
-                                prev.map((a) => (a.id === applicant.id ? { ...a, interviewNotes: e.target.value } : a))
-                              )
-                            }
-                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                            placeholder="Add interview notes"
-                          />
-                          <button
-                            type="button"
-                            className="mt-2 inline-flex items-center rounded-full bg-slate-600 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-500"
-                            onClick={async () => {
-                              if (!token) return;
-                              const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json", "x-admin-token": token },
-                                body: JSON.stringify({ action: "note", interviewNotes: applicant.interviewNotes ?? "" }),
-                              });
-                              if (!res.ok) {
-                                const data = await res.json().catch(() => ({}));
-                                setError(data.message || "Unable to save notes.");
-                              }
-                            }}
-                          >
-                            Save notes
-                          </button>
-                        </div>
-                      </>
-                    )}
+                    {expandedApplicants[applicant.id] && renderApplicantDetails(applicant)}
                   </div>
                 ))}
               </div>
             )}
+            <div className="mt-8 border-t border-slate-700 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold">Rejected applicants</h3>
+                  <p className="text-xs text-slate-400">Rejected candidates live here until you delete them forever.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRejected((prev) => !prev)}
+                    className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
+                  >
+                    {showRejected ? "Hide rejected" : `Show rejected (${rejectedApplicants.length})`}
+                  </button>
+                  <select
+                    value={selectedRejectedId}
+                    disabled={rejectedApplicants.length === 0}
+                    onChange={(e) => setSelectedRejectedId(e.target.value)}
+                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-white disabled:opacity-50"
+                  >
+                    <option value="">All rejected</option>
+                    {rejectedApplicants.map((app) => (
+                      <option key={app.id} value={app.id}>
+                        {app.name} {app.email ? `— ${app.email}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {!showRejected ? (
+                <p className="mt-3 text-xs text-slate-400">Open the dropdown to review or delete rejected applicants.</p>
+              ) : rejectedApplicants.length === 0 ? (
+                <p className="mt-3 text-xs text-slate-400">No rejected applicants yet.</p>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  {(selectedRejectedId
+                    ? rejectedApplicants.filter((app) => app.id === selectedRejectedId)
+                    : rejectedApplicants
+                  ).map((applicant) => (
+                    <div key={applicant.id} className="rounded-2xl border border-amber-700/60 bg-slate-900/40 p-4">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-semibold text-white">{applicant.name}</p>
+                          <p className="text-xs text-slate-400">{applicant.email}</p>
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-3 py-1 text-[11px] font-semibold text-amber-100">
+                            Rejected {applicant.rejectedAt ? new Date(applicant.rejectedAt).toLocaleDateString() : "recently"}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => downloadResume(applicant)}
+                            className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-600"
+                          >
+                            Download resume
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedApplicants((prev) => ({ ...prev, [applicant.id]: !prev[applicant.id] }))}
+                            className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-600"
+                          >
+                            {expandedApplicants[applicant.id] ? "Hide details" : "Show details"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteApplicant(applicant)}
+                            disabled={deletingApplicantId === applicant.id}
+                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                              deletingApplicantId === applicant.id
+                                ? "bg-rose-900/50 text-rose-200 cursor-not-allowed"
+                                : "bg-rose-600 text-white hover:bg-rose-500"
+                            }`}
+                          >
+                            {deletingApplicantId === applicant.id ? "Removing…" : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs text-slate-400">
+                        Submitted {new Date(applicant.submittedAt).toLocaleDateString()} — Roles: {applicant.roles.join(", ")}
+                      </p>
+                      {applicant.workingLanguages?.length ? (
+                        <p className="text-xs text-slate-500">
+                          Working languages: {applicant.workingLanguages.map((lang) => teacherLanguageLabels[lang] ?? lang).join(", ")}
+                        </p>
+                      ) : null}
+                      {expandedApplicants[applicant.id] && renderApplicantDetails(applicant)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         );
       case "onboarding":
@@ -1811,7 +1930,7 @@ export default function AssessmentsAdminPage() {
                               <div>
                                 <p className="text-[11px] text-slate-400 mb-1">Teaching languages</p>
                                 <div className="flex flex-wrap gap-2">
-                                  {teacherAssessmentLanguages.map((lang, idx) => (
+                                  {teacherAssessmentLanguages.map((lang: { id: string; label: string }, idx) => (
                                     <label key={`${String(lang.id)}-${idx}`} className="flex items-center gap-1 text-[11px] text-slate-300">
                                       <input
                                         type="checkbox"
@@ -1834,7 +1953,7 @@ export default function AssessmentsAdminPage() {
                               <div>
                                 <p className="text-[11px] text-slate-400 mb-1">Translating languages</p>
                                 <div className="flex flex-wrap gap-2">
-                                  {translatorLanguages.map((lang, idx) => (
+                                  {translatorLanguages.map((lang: { id: string; label: string }, idx) => (
                                     <label key={`${String(lang.id)}-${idx}`} className="flex items-center gap-1 text-[11px] text-slate-300">
                                       <input
                                         type="checkbox"
@@ -1897,7 +2016,11 @@ export default function AssessmentsAdminPage() {
                               >
                                 Save approvals
                               </button>
-                              {working === emp.id && <span className="text-[11px] text-slate-400">Saving…</span>}
+                              {working === emp.id ? (
+                                <span className="text-[11px] text-slate-400">Saving…</span>
+                              ) : rolesSaved[emp.id] ? (
+                                <span className="text-[11px] text-emerald-300">Saved</span>
+                              ) : null}
                             </div>
                           </div>
                           {emp.bio ? (
@@ -2605,6 +2728,20 @@ export default function AssessmentsAdminPage() {
                   )}
                 </div>
               </div>
+            </div>
+            <div className="pt-2 border-t border-slate-700/60">
+              <button
+                type="button"
+                onClick={() => setPendingProfilesOpen((prev) => !prev)}
+                className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
+              >
+                {pendingProfilesOpen ? "Hide profile approvals" : "Review pending profiles"}
+              </button>
+              {pendingProfilesOpen ? (
+                <div className="mt-3 rounded-2xl border border-slate-700 bg-slate-900 p-4">
+                  <PublicStaffPreview token={token} />
+                </div>
+              ) : null}
             </div>
           </div>
         );

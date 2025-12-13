@@ -1,8 +1,9 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { hasRole, staff, type StaffMember } from "@/lib/staff";
+import { useMemo, useState, useEffect } from "react";
+import { hasRole, type StaffMember } from "@/lib/staff";
+import { getPublicStaffByRole } from "@/lib/public-staff";
 
 const splitDisplayLanguages = (value: string): string[] =>
   String(value || "")
@@ -37,7 +38,11 @@ const getSpecialties = (person: StaffMember): string[] => {
 };
 
 export default function TeachersPage() {
-  const teachers = staff.filter((p) => hasRole(p, "teacher"));
+  const [teachers, setTeachers] = useState<StaffMember[]>([]);
+
+  useEffect(() => {
+    getPublicStaffByRole("teacher").then((list) => setTeachers(list));
+  }, []);
 
   // Derive unique language options from staff; fall back to splitting the display string if needed
   const allLangs = useMemo(() => {

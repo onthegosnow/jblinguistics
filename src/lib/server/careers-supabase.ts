@@ -9,6 +9,12 @@ export type CareerApplicantSummary = Omit<CareerApplicationRecord, "resume"> & {
   };
 };
 
+export type CareerApplicantStatus = "active" | "rejected";
+export type CareerApplicantWithStatus = CareerApplicantSummary & {
+  status: CareerApplicantStatus;
+  rejectedAt?: string | null;
+};
+
 type CareerApplicationRow = {
   id: string;
   submitted_at: string;
@@ -28,6 +34,8 @@ type CareerApplicationRow = {
   resume_size: number | null;
   resume_path: string | null;
   resume_insights: CareerApplicationRecord["resumeInsights"] | null;
+  status?: CareerApplicantStatus | null;
+  rejected_at?: string | null;
 };
 
 type TeacherAssessmentRow = {
@@ -166,15 +174,16 @@ export async function saveCareerApplicationToSupabase(args: {
   }
 }
 
-export async function listCareerApplicantsFromSupabase(): Promise<CareerApplicantSummary[]> {
+export async function listCareerApplicantsFromSupabase(): Promise<{
+  active: CareerApplicantWithStatus[];
+  rejected: CareerApplicantWithStatus[];
+}> {
   const supabase = createSupabaseAdminClient();
   const [{ data, error }, hiredUsers] = await Promise.all([
     supabase
-    .from(APPLICATION_TABLE)
-    .select(
-      "id, submitted_at, name, email, location, languages, working_languages, experience, availability, message, landing, roles, hire_sent_at, resume_path, resume_filename, resume_mime_type, resume_size, resume_insights, interview_notes"
-    )
-    .order("submitted_at", { ascending: false }),
+      .from(APPLICATION_TABLE)
+      .select("*")
+      .order("submitted_at", { ascending: false }),
     supabase.from("portal_users").select("email"),
   ]);
 
@@ -182,7 +191,7 @@ export async function listCareerApplicantsFromSupabase(): Promise<CareerApplican
     throw new Error(error.message);
   }
 
-  const rows = (data ?? []) as CareerApplicationRow[];
+  const rows = (data ?? []) as Array<CareerApplicationRow & { status?: CareerApplicantStatus | null; rejected_at?: string | null }>;
   const hiredEmailSet = new Set<string>((hiredUsers.data ?? []).map((u: any) => (u.email ?? "").toLowerCase()).filter(Boolean));
   const ids = rows.map((row) => row.id);
 
@@ -230,32 +239,41 @@ export async function listCareerApplicantsFromSupabase(): Promise<CareerApplican
     }
   }
 
-  return rows
+  const mapped: CareerApplicantWithStatus[] = rows
     .filter((row) => !hiredEmailSet.has((row.email ?? "").toLowerCase()))
-    .map((row) => ({
-      id: row.id,
-    submittedAt: row.submitted_at,
-    name: row.name,
-    email: row.email ?? undefined,
-    location: row.location ?? undefined,
-    languages: row.languages ?? undefined,
-    workingLanguages: (row.working_languages ?? undefined) as CareerApplicationRecord["workingLanguages"],
-    experience: row.experience ?? undefined,
-    availability: row.availability ?? undefined,
-    message: row.message ?? undefined,
-    landing: row.landing ?? undefined,
-    interviewNotes: (row as any).interview_notes ?? undefined,
-    roles: row.roles ?? ["translator"],
-    hireSentAt: row.hire_sent_at ?? undefined,
-    resume: {
-      filename: row.resume_filename,
-      mimeType: row.resume_mime_type,
-      size: row.resume_size ?? 0,
-    },
-    resumeInsights: row.resume_insights ?? undefined,
-    teacherAssessments: teacherMap.get(row.id),
-    translatorExercise: translatorMap.get(row.id),
-  }));
+    .map((row) => {
+      const status: CareerApplicantStatus = row.status === "rejected" ? "rejected" : "active";
+      return {
+        id: row.id,
+        submittedAt: row.submitted_at,
+        name: row.name,
+        email: row.email ?? undefined,
+        status,
+        rejectedAt: row.rejected_at ?? null,
+        location: row.location ?? undefined,
+        languages: row.languages ?? undefined,
+        workingLanguages: (row.working_languages ?? undefined) as CareerApplicationRecord["workingLanguages"],
+        experience: row.experience ?? undefined,
+        availability: row.availability ?? undefined,
+        message: row.message ?? undefined,
+        landing: row.landing ?? undefined,
+        interviewNotes: (row as any).interview_notes ?? undefined,
+        roles: row.roles ?? ["translator"],
+        hireSentAt: row.hire_sent_at ?? undefined,
+        resume: {
+          filename: row.resume_filename,
+          mimeType: row.resume_mime_type,
+          size: row.resume_size ?? 0,
+        },
+        resumeInsights: row.resume_insights ?? undefined,
+        teacherAssessments: teacherMap.get(row.id),
+        translatorExercise: translatorMap.get(row.id),
+      };
+    });
+
+  const active = mapped.filter((row) => row.status === "active");
+  const rejected = mapped.filter((row) => row.status === "rejected");
+  return { active, rejected };
 }
 
 export async function deleteCareerApplicantFromSupabase(id: string): Promise<boolean> {
