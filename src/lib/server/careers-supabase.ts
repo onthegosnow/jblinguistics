@@ -262,7 +262,6 @@ export async function listCareerApplicantsFromSupabase(): Promise<{
         roles: row.roles ?? ["translator"],
         inviteSentAt: row.invite_sent_at ?? undefined,
         hireSentAt: row.hire_sent_at ?? undefined,
-        inviteSentAt: row.invite_sent_at ?? undefined,
         resume: {
           filename: row.resume_filename,
           mimeType: row.resume_mime_type,
