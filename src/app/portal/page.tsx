@@ -1710,19 +1710,34 @@ export default function PortalPage() {
                         {teachLangs.length ? (
                         <div>
                           <p className="font-semibold text-slate-800">Teaching languages</p>
-                          <p>{teachLangs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(", ")}</p>
+                          <p>
+                            {teachLangs
+                              .map((l) => (typeof l === "string" ? l : String(l)))
+                              .map((l) => l.charAt(0).toUpperCase() + l.slice(1))
+                              .join(", ")}
+                          </p>
                         </div>
                       ) : null}
                       {transLangs.length ? (
                         <div>
                           <p className="font-semibold text-slate-800">Translating languages</p>
-                          <p>{transLangs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(", ")}</p>
+                          <p>
+                            {transLangs
+                              .map((l) => (typeof l === "string" ? l : String(l)))
+                              .map((l) => l.charAt(0).toUpperCase() + l.slice(1))
+                              .join(", ")}
+                          </p>
                         </div>
                       ) : null}
                       {!teachLangs.length && !transLangs.length && basicLangs.length ? (
                         <div>
                           <p className="font-semibold text-slate-800">Languages</p>
-                          <p>{basicLangs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(", ")}</p>
+                          <p>
+                            {basicLangs
+                              .map((l) => (typeof l === "string" ? l : String(l)))
+                              .map((l) => l.charAt(0).toUpperCase() + l.slice(1))
+                              .join(", ")}
+                          </p>
                         </div>
                       ) : null}
                     </div>
