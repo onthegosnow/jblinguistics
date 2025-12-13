@@ -1577,7 +1577,7 @@ export default function PortalPage() {
               </div>
               {showPreview && (() => {
                 const photoUpload = profileUploads.find((u) => String(u.kind || "").toLowerCase().includes("photo"));
-                const previewPhotoUrl = profile?.photo_url || photoUpload?.signedUrl;
+                const previewPhotoUrl = (profile as any)?.photo_url || photoUpload?.signedUrl;
                 const parsedFields = sectionsFromFields();
                 const parsed = parsedFields.overview || parsedFields.background.length || parsedFields.focus.length || parsedFields.tagline
                   ? parsedFields
