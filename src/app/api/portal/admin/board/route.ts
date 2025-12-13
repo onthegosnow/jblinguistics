@@ -8,27 +8,31 @@ export async function GET(request: NextRequest) {
   requireAdmin(request.headers.get("x-admin-token") ?? undefined);
   const supabase = createSupabaseAdminClient();
   const { searchParams } = new URL(request.url);
-  const room = (searchParams.get("room") || "announcements").trim();
+  const allowedRooms = ["announcements", "staff_lounge", "onboarding", "hive", "feature_requests"];
+  const room = (searchParams.get("room") || "announcements").trim().toLowerCase().replace(/\s+/g, "_");
+  const safeRoom = allowedRooms.includes(room) ? room : "announcements";
 
   const { data, error } = await supabase
     .from("board_messages")
     .select("id, room, user_id, author_name, message, created_at")
+    .ilike("room", safeRoom)
     .order("created_at", { ascending: false })
-    .limit(500)
-    .ilike("room", room || "announcements");
+    .limit(500);
 
   if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 
   return NextResponse.json({
     messages: data ?? [],
-    rooms: ["announcements", "staff_lounge", "onboarding", "hive", "feature_requests"],
+    rooms: allowedRooms,
   });
 }
 
 export async function POST(request: NextRequest) {
   requireAdmin(request.headers.get("x-admin-token") ?? undefined);
   const body = (await request.json().catch(() => ({}))) as { room?: string; message?: string; author?: string };
-  const room = (body.room || "announcements").trim();
+  const allowedRooms = ["announcements", "staff_lounge", "onboarding", "hive", "feature_requests"];
+  const room = (body.room || "announcements").trim().toLowerCase().replace(/\s+/g, "_");
+  const safeRoom = allowedRooms.includes(room) ? room : "announcements";
   const message = (body.message || "").trim();
   if (!message) {
     return NextResponse.json({ message: "Message required." }, { status: 400 });
@@ -36,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase.from("board_messages").insert({
-    room,
+    room: safeRoom,
     user_id: ADMIN_USER_ID,
     author_name: body.author || "JB Linguistics",
     message,

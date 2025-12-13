@@ -71,6 +71,24 @@ export function PublicStaffPreview({ token }: { token: string }) {
   const pending = profiles.filter((p) => (p.visibility ?? "pending") !== "visible");
   const visible = profiles.filter((p) => (p.visibility ?? "pending") === "visible");
 
+  const bucketProfiles = (list: Profile[]) => {
+    const teacherOnly = list.filter((p) => p.roles?.includes("teacher") && !p.roles?.includes("translator"));
+    const translatorOnly = list.filter((p) => p.roles?.includes("translator") && !p.roles?.includes("teacher"));
+    const dual = list.filter((p) => p.roles?.includes("teacher") && p.roles?.includes("translator"));
+    const other = list.filter((p) => !p.roles || p.roles.length === 0);
+    return { teacherOnly, translatorOnly, dual, other };
+  };
+
+  const renderBucket = (title: string, list: Profile[]) => {
+    if (!list.length) return null;
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-slate-100">{title}</p>
+        <div className="grid gap-3 md:grid-cols-2">{list.map(renderCard)}</div>
+      </div>
+    );
+  };
+
   const renderCard = (profile: Profile) => {
     const overviews = profile.overview?.length ? profile.overview : [];
     const specialties = profile.specialties ?? [];
@@ -153,16 +171,32 @@ export function PublicStaffPreview({ token }: { token: string }) {
         {pending.length ? (
           <div className="space-y-2">
             <p className="text-sm text-amber-300 font-semibold">Pending profiles</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              {pending.map(renderCard)}
-            </div>
+            {(() => {
+              const buckets = bucketProfiles(pending);
+              return (
+                <div className="space-y-3">
+                  {renderBucket("Teacher", buckets.teacherOnly)}
+                  {renderBucket("Translator", buckets.translatorOnly)}
+                  {renderBucket("Dual role", buckets.dual)}
+                  {renderBucket("Unspecified", buckets.other)}
+                </div>
+              );
+            })()}
           </div>
         ) : null}
         <div className="space-y-2">
           <p className="text-sm text-slate-200 font-semibold">Visible profiles</p>
-          <div className="grid gap-3 md:grid-cols-2">
-            {visible.map(renderCard)}
-          </div>
+          {(() => {
+            const buckets = bucketProfiles(visible);
+            return (
+              <div className="space-y-3">
+                {renderBucket("Teacher", buckets.teacherOnly)}
+                {renderBucket("Translator", buckets.translatorOnly)}
+                {renderBucket("Dual role", buckets.dual)}
+                {renderBucket("Unspecified", buckets.other)}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

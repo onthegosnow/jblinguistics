@@ -87,6 +87,7 @@ type ApplicantRecord = {
   message?: string;
   roles: string[];
   workingLanguages?: TeacherAssessmentLanguage[];
+  inviteSentAt?: string | null;
   hireSentAt?: string | null;
   resume: { filename: string; mimeType: string; size: number };
   resumeInsights?: {
@@ -231,6 +232,7 @@ export default function AssessmentsAdminPage() {
   const [assignmentFiles, setAssignmentFiles] = useState<FileList | null>(null);
   const [deletingApplicantId, setDeletingApplicantId] = useState<string | null>(null);
   const [sendingHireId, setSendingHireId] = useState<string | null>(null);
+  const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
   const [uploadingOnboarding, setUploadingOnboarding] = useState(false);
   const [onboardingFiles, setOnboardingFiles] = useState<Record<string, File | null>>({});
   const [manualApplicant, setManualApplicant] = useState({
@@ -638,6 +640,32 @@ export default function AssessmentsAdminPage() {
         setSendingHireId(null);
         const sentAt = new Date().toISOString();
         setApplicants((prev) => prev.map((item) => (item.id === applicant.id ? { ...item, hireSentAt: sentAt } : item)));
+      }
+    },
+    [token]
+  );
+
+  const sendInvite = useCallback(
+    async (applicant: ApplicantRecord) => {
+      if (!token) return;
+      setError(null);
+      setSendingInviteId(applicant.id);
+      try {
+        const response = await fetch("/api/careers/applicants/invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-token": token },
+          body: JSON.stringify({ name: applicant.name, email: applicant.email, applicationId: applicant.id }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.message || "Unable to send interview invite.");
+        }
+        const sentAt = new Date().toISOString();
+        setApplicants((prev) => prev.map((item) => (item.id === applicant.id ? { ...item, inviteSentAt: sentAt } : item)));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to send interview invite.");
+      } finally {
+        setSendingInviteId(null);
       }
     },
     [token]
@@ -1517,6 +1545,23 @@ export default function AssessmentsAdminPage() {
                         )}
                       </div>
                       <div className="flex flex-col gap-1 text-xs text-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => sendInvite(applicant)}
+                          disabled={sendingInviteId === applicant.id}
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                            sendingInviteId === applicant.id
+                              ? "bg-slate-700/60 text-slate-200 cursor-wait"
+                              : "bg-slate-600 text-white hover:bg-slate-500"
+                          }`}
+                        >
+                          {sendingInviteId === applicant.id ? "Sending…" : "Invite to interview"}
+                        </button>
+                        {applicant.inviteSentAt && (
+                          <span className="text-[11px] text-emerald-200">
+                            Invited {new Date(applicant.inviteSentAt).toLocaleString()}
+                          </span>
+                        )}
                         <label className="inline-flex items-center">
                           <span className="sr-only">Upload signed PDF</span>
                           <input
