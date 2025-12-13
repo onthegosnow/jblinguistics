@@ -30,7 +30,6 @@ type CareerApplicationRow = {
   roles: string[] | null;
   hire_sent_at: string | null;
   invite_sent_at: string | null;
-  invite_sent_at: string | null;
   resume_filename: string;
   resume_mime_type: string;
   resume_size: number | null;
