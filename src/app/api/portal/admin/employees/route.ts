@@ -128,7 +128,11 @@ export async function GET(request: NextRequest) {
   (applicants as Array<{ email?: string }>).forEach((a) => applicantByEmail.set((a.email ?? "").toLowerCase(), a));
   const envelopeByApplicant = new Map<string, any>();
   (envelopes as Array<{ applicant_id?: string | null; completed_at?: string | null }>).forEach((e) => {
-    if (e.applicant_id && (!envelopeByApplicant.has(e.applicant_id) || envelopeByApplicant.get(e.applicant_id).completed_at < e.completed_at)) {
+    if (!e.applicant_id) return;
+    const existing = envelopeByApplicant.get(e.applicant_id);
+    const existingTime = existing?.completed_at ? new Date(existing.completed_at).getTime() : 0;
+    const currentTime = e.completed_at ? new Date(e.completed_at).getTime() : 0;
+    if (!existing || currentTime > existingTime) {
       envelopeByApplicant.set(e.applicant_id, e);
     }
   });
