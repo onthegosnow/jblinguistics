@@ -314,6 +314,52 @@ export default function PortalPage() {
   const [overviewField, setOverviewField] = useState("");
   const [backgroundField, setBackgroundField] = useState("");
   const [focusField, setFocusField] = useState("");
+
+  const certOptions = [
+    "TESOL/TEFL/CELTA/DELTA",
+    "State/IB teaching cert",
+    "MA Applied Linguistics",
+    "ATA certified",
+    "Court-certified interpreter",
+    "Legal/Medical translation",
+    "HIPAA",
+    "UN/embassy/secure clearance",
+    "DoD/ITAR/FOIA handling",
+    "Security clearance (specify)",
+  ] as const;
+  const certSlug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const sanitizeList = (list: string[]) =>
+    (list || [])
+      .map((l) => l.trim())
+      .filter(
+        (l) =>
+          l &&
+          (() => {
+            const normalized = l
+              .replace(/[^a-z0-9]+/gi, " ")
+              .replace(/\s+/g, " ")
+              .trim()
+              .toLowerCase();
+            const headingTokens = [
+              "overview",
+              "educational",
+              "professional",
+              "background",
+              "educational professional background",
+              "professional background",
+              "linguistic",
+              "linguistic focus",
+              "focus",
+              "certification",
+              "certifications",
+            ];
+            if (headingTokens.some((h) => normalized === h || normalized.includes(h))) return false;
+            if (/^s$/i.test(normalized)) return false;
+            if (normalized.length <= 1) return false;
+            return true;
+          })()
+      );
+  const cleanMultiline = (val: string) => sanitizeList(val.split("\n")).join("\n");
   const [showPreview, setShowPreview] = useState(false);
   const [previewFocus, setPreviewFocus] = useState<"top" | "center">("top");
 
@@ -376,18 +422,25 @@ export default function PortalPage() {
       sections.tagline = sections.overview.split(".")[0]?.trim() || "";
     }
 
+    sections.background = sanitizeList(sections.background);
+    sections.focus = sanitizeList(sections.focus);
+
     return sections;
   };
 
   const sectionsFromFields = () => {
-    const background = backgroundField
-      .split("\n")
-      .map((l) => l.replace(/^[-•]\s*/, "").trim())
-      .filter(Boolean);
-    const focus = focusField
-      .split("\n")
-      .map((l) => l.replace(/^[-•]\s*/, "").trim())
-      .filter(Boolean);
+    const background = sanitizeList(
+      backgroundField
+        .split("\n")
+        .map((l) => l.replace(/^[-•]\s*/, "").trim())
+        .filter(Boolean)
+    );
+    const focus = sanitizeList(
+      focusField
+        .split("\n")
+        .map((l) => l.replace(/^[-•]\s*/, "").trim())
+        .filter(Boolean)
+    );
     return {
       tagline: taglineField.trim(),
       overview: overviewField.trim(),
@@ -556,8 +609,8 @@ export default function PortalPage() {
         const parsed = parseBioSections(data.profile?.bio ?? "");
         setTaglineField(parsed.tagline ?? "");
         setOverviewField(parsed.overview ?? "");
-        setBackgroundField((parsed.background ?? []).join("\n"));
-        setFocusField((parsed.focus ?? []).join("\n"));
+        setBackgroundField(sanitizeList(parsed.background ?? []).join("\n"));
+        setFocusField(sanitizeList(parsed.focus ?? []).join("\n"));
         setProfileForm({
           name: data.profile?.name ?? "",
           bio: data.profile?.bio ?? "",
@@ -582,6 +635,10 @@ export default function PortalPage() {
     if (!token) return;
     setProfileLoading(true);
     setProfileError(null);
+    const cleanedBackground = cleanMultiline(backgroundField);
+    const cleanedFocus = cleanMultiline(focusField);
+    if (cleanedBackground !== backgroundField) setBackgroundField(cleanedBackground);
+    if (cleanedFocus !== focusField) setFocusField(cleanedFocus);
     const assembledBio = buildBioFromFields();
     try {
       const response = await fetch("/api/portal/profile", {
@@ -691,18 +748,41 @@ export default function PortalPage() {
       const res = await fetch("/api/portal/profile/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-portal-token": token },
-        body: JSON.stringify({ prompt: aiPrompt || undefined }),
+        body: JSON.stringify({
+          prompt: aiPrompt || undefined,
+          current: {
+            tagline: taglineField,
+            overview: overviewField,
+            background: sanitizeList(backgroundField.split("\n")),
+            focus: sanitizeList(focusField.split("\n")),
+          },
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Unable to generate bio.");
       if (data.draft) {
         setAiDraft(data.draft);
         const parsed = parseBioSections(data.draft);
+        const sanitizedBackground = sanitizeList(parsed.background ?? []);
+        const sanitizedFocus = sanitizeList(parsed.focus ?? []);
+        const fallbackFocus =
+          sanitizedFocus.length === 0 && focusField.trim()
+            ? sanitizeList(focusField.split("\n"))
+            : sanitizedFocus;
+        const fallbackBackground =
+          sanitizedBackground.length === 0 && backgroundField.trim()
+            ? sanitizeList(backgroundField.split("\n"))
+            : sanitizedBackground;
+        const assembled = buildBioFromSections({
+          tagline: parsed.tagline,
+          overview: parsed.overview,
+          background: fallbackBackground,
+          focus: fallbackFocus,
+        });
         setTaglineField(parsed.tagline ?? "");
         setOverviewField(parsed.overview ?? "");
-        setBackgroundField((parsed.background ?? []).join("\n"));
-        setFocusField((parsed.focus ?? []).join("\n"));
-        const assembled = buildBioFromSections(parsed);
+        setBackgroundField(fallbackBackground.join("\n"));
+        setFocusField(fallbackFocus.join("\n"));
         setProfileForm((prev) => ({ ...prev, bio: assembled }));
         const resumeHint = data.resumeName ? ` using ${data.resumeName}` : "";
         setAiStatus(`Draft ready${resumeHint}. Review and click Save profile to keep it.`);
@@ -1627,22 +1707,22 @@ export default function PortalPage() {
 
                   <div className="rounded-3xl bg-white text-slate-900 shadow-inner shadow-slate-900/5 border border-slate-200 p-6 space-y-4">
                     <div className="flex flex-wrap gap-4 text-sm text-slate-700">
-                      {teachLangs.length ? (
+                        {teachLangs.length ? (
                         <div>
                           <p className="font-semibold text-slate-800">Teaching languages</p>
-                          <p>{teachLangs.join(", ")}</p>
+                          <p>{teachLangs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(", ")}</p>
                         </div>
                       ) : null}
                       {transLangs.length ? (
                         <div>
                           <p className="font-semibold text-slate-800">Translating languages</p>
-                          <p>{transLangs.join(", ")}</p>
+                          <p>{transLangs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(", ")}</p>
                         </div>
                       ) : null}
                       {!teachLangs.length && !transLangs.length && basicLangs.length ? (
                         <div>
                           <p className="font-semibold text-slate-800">Languages</p>
-                          <p>{basicLangs.join(", ")}</p>
+                          <p>{basicLangs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(", ")}</p>
                         </div>
                       ) : null}
                     </div>
@@ -1763,7 +1843,7 @@ export default function PortalPage() {
                   <div>
                     <h3 className="text-sm font-semibold text-white">Upload onboarding documents</h3>
                     <p className="text-xs text-slate-400">
-                      Headshot, ID, certifications, tax forms. Uploads are append-only and stored in your employee file.
+                      Headshot, ID, certifications, and education documents. Uploads are append-only and stored in your employee file.
                     </p>
                     <p className="text-[11px] text-amber-300 mt-1">
                       For AI bio: upload a PDF or Word resume (no Pages). If using Pages, export to PDF first.
@@ -1794,8 +1874,13 @@ export default function PortalPage() {
                     <select name="kind" className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white">
                       <option value="photo">Photo / headshot</option>
                       <option value="id">ID / passport</option>
-                      <option value="cert">Certification</option>
-                      <option value="tax">Tax form</option>
+                      <option value="cert">Certification (unspecified)</option>
+                      {certOptions.map((c) => (
+                        <option key={c} value={`cert_${certSlug(c)}`}>
+                          Certification: {c}
+                        </option>
+                      ))}
+                      <option value="education">Education document</option>
                       <option value="resume_override">Replace resume (PDF/Word)</option>
                       <option value="other">Other</option>
                     </select>

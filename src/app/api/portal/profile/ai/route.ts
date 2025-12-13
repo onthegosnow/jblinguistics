@@ -9,7 +9,9 @@ const MAX_TEXT_CHARS = 60000;
 
 async function getPdfParse() {
   const mod: any = await import("pdf-parse");
-  return mod.default ?? mod;
+  const fn = mod?.default ?? mod;
+  if (typeof fn !== "function") throw new Error("pdf-parse module did not export a function");
+  return fn as (buffer: Buffer) => Promise<{ text?: string }>;
 }
 
 async function getMammoth() {
@@ -69,8 +71,12 @@ export async function POST(request: NextRequest) {
   const user = await requirePortalUserFromToken(token);
   if (!OPENAI_API_KEY) return NextResponse.json({ message: "OPENAI_API_KEY not set" }, { status: 500 });
 
-  const body = (await request.json().catch(() => ({}))) as { prompt?: string };
+  const body = (await request.json().catch(() => ({}))) as {
+    prompt?: string;
+    current?: { tagline?: string; overview?: string; background?: string[]; focus?: string[] };
+  };
   const userPrompt = body.prompt?.trim();
+  const current = body.current ?? {};
 
   const supabase = createSupabaseAdminClient();
 
@@ -174,12 +180,21 @@ export async function POST(request: NextRequest) {
       isBase64
         ? "The resume was provided as a truncated base64 string; infer best you can from it."
         : "The resume text may be truncated; focus on clear highlights and specialties.",
+      "Start from the provided current bio fields; improve them per the user request, don’t discard them.",
+      "If current bullets exist, keep them unless the user explicitly asks to change them; only refine wording.",
+      "If the user asks to add something, integrate it into the appropriate section (e.g., overview) while preserving existing content.",
+      "Never leave the linguistic focus empty; if none is requested, keep the current focus bullets.",
+      "If the user request mentions a theme (e.g., hosting language learning trips), add a concise sentence about it in the OVERVIEW.",
     ].join(" ");
 
     const finalPrompt = [
-      userPrompt ? `User preference: ${userPrompt}` : "",
-      summaryNotice ? `Note: ${summaryNotice}` : "",
       `Contractor metadata: ${metadataBlock}`,
+      current.tagline ? `Current tagline: ${current.tagline}` : "",
+      current.overview ? `Current overview: ${current.overview}` : "",
+      current.background?.length ? `Current background bullets:\n- ${current.background.join("\n- ")}` : "",
+      current.focus?.length ? `Current linguistic focus bullets:\n- ${current.focus.join("\n- ")}` : "",
+      userPrompt ? `User request: ${userPrompt}` : "",
+      summaryNotice ? `Note: ${summaryNotice}` : "",
       isBase64 ? "Resume file (base64-encoded, possibly truncated):" : "Resume text (possibly truncated):",
       text,
     ]

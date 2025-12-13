@@ -24,6 +24,19 @@ const translatorLanguageLabels = translatorLanguages.reduce<Record<string, strin
   acc[lang.id] = lang.label;
   return acc;
 }, {});
+const certOptions = [
+  "TESOL/TEFL/CELTA/DELTA",
+  "State/IB teaching cert",
+  "MA Applied Linguistics",
+  "ATA certified",
+  "Court-certified interpreter",
+  "Legal/Medical translation",
+  "HIPAA",
+  "UN/embassy/secure clearance",
+  "DoD/ITAR/FOIA handling",
+  "Security clearance (specify)",
+] as const;
+const certSlug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 type SubmissionRecord = {
   id: string;
@@ -1977,35 +1990,36 @@ export default function AssessmentsAdminPage() {
                             <div>
                               <p className="text-[11px] text-slate-400 mb-1">Certifications / clearances</p>
                               <div className="flex flex-wrap gap-2">
-                                {[
-                                  "TESOL/TEFL/CELTA/DELTA",
-                                  "State/IB teaching cert",
-                                  "MA Applied Linguistics",
-                                  "ATA certified",
-                                  "Court-certified interpreter",
-                                  "Legal/Medical translation",
-                                  "HIPAA",
-                                  "UN/embassy/secure clearance",
-                                  "DoD/ITAR/FOIA handling",
-                                  "Security clearance (specify)",
-                                ].map((cert) => (
-                                  <label key={cert} className="flex items-center gap-1 text-[11px] text-slate-300">
-                                    <input
-                                      type="checkbox"
-                                      checked={employeeRolesDraft[emp.id]?.certifications?.includes(cert) ?? false}
-                                      onChange={(e) => {
-                                        setEmployeeRolesDraft((prev) => {
-                                          const current = prev[emp.id]?.certifications ?? [];
-                                          const next = e.target.checked
-                                            ? Array.from(new Set([...current, cert]))
-                                            : current.filter((c) => c !== cert);
-                                          return { ...prev, [emp.id]: { ...(prev[emp.id] ?? {}), certifications: next } };
-                                        });
-                                      }}
-                                    />
-                                    {cert}
-                                  </label>
-                                ))}
+                                {certOptions.map((cert) => {
+                                  const slug = `cert_${certSlug(cert)}`;
+                                  const certUpload =
+                                    emp.uploads.find((u) => u.kind === slug && u.signedUrl) ||
+                                    emp.uploads.find((u) => u.kind === "cert" && u.signedUrl);
+                                  return (
+                                    <label key={cert} className="flex items-center gap-1 text-[11px] text-slate-300">
+                                      <input
+                                        type="checkbox"
+                                        checked={employeeRolesDraft[emp.id]?.certifications?.includes(cert) ?? false}
+                                        onChange={(e) => {
+                                          setEmployeeRolesDraft((prev) => {
+                                            const current = prev[emp.id]?.certifications ?? [];
+                                            const next = e.target.checked
+                                              ? Array.from(new Set([...current, cert]))
+                                              : current.filter((c) => c !== cert);
+                                            return { ...prev, [emp.id]: { ...(prev[emp.id] ?? {}), certifications: next } };
+                                          });
+                                        }}
+                                      />
+                                      {certUpload ? (
+                                        <a href={certUpload.signedUrl} target="_blank" rel="noopener noreferrer" className="underline text-teal-300">
+                                          {cert}
+                                        </a>
+                                      ) : (
+                                        cert
+                                      )}
+                                    </label>
+                                  );
+                                })}
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -2179,26 +2193,25 @@ export default function AssessmentsAdminPage() {
                               <p className="text-xs text-slate-400">No uploads yet.</p>
                             ) : (
                               <ul className="text-xs text-slate-200 space-y-1">
-                                {emp.uploads.map((u) => (
-                                  <li key={u.id} className="flex items-center gap-2">
-                                    <span className="font-semibold">{u.kind}</span>
-                                    {u.signedUrl ? (
-                                      <a
-                                        href={u.signedUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-teal-300 underline"
-                                      >
-                                        {u.filename}
-                                      </a>
-                                    ) : (
-                                      <span>{u.filename}</span>
-                                    )}
-                                    <span className="text-[11px] text-slate-500">
-                                      {u.createdAt ? new Date(u.createdAt).toLocaleString() : ""}
-                                    </span>
-                                  </li>
-                                ))}
+                                {emp.uploads.map((u) => {
+                                  const displayKind =
+                                    u.kind && u.kind.startsWith("cert_")
+                                      ? `Certification: ${u.kind.replace(/^cert_/, "").replace(/-/g, " ")}`
+                                      : u.kind;
+                                  return (
+                                    <li key={u.id} className="flex items-center gap-2">
+                                      <span className="font-semibold">{displayKind}</span>
+                                      {u.signedUrl ? (
+                                        <a href={u.signedUrl} target="_blank" rel="noopener noreferrer" className="text-teal-300 underline">
+                                          {u.filename}
+                                        </a>
+                                      ) : (
+                                        <span>{u.filename}</span>
+                                      )}
+                                      <span className="text-[11px] text-slate-500">{u.createdAt ? new Date(u.createdAt).toLocaleString() : ""}</span>
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             )}
                             <div className="mt-2 flex flex-col gap-2">
@@ -2210,7 +2223,13 @@ export default function AssessmentsAdminPage() {
                                 <option value="photo">Photo</option>
                                 <option value="id">ID</option>
                                 <option value="address">Address</option>
-                                <option value="cert">Certification</option>
+                                <option value="cert">Certification (unspecified)</option>
+                                {certOptions.map((c) => (
+                                  <option key={c} value={`cert_${certSlug(c)}`}>
+                                    Certification: {c}
+                                  </option>
+                                ))}
+                                <option value="education">Education document</option>
                                 <option value="other">Other</option>
                               </select>
                               <input
@@ -2232,6 +2251,28 @@ export default function AssessmentsAdminPage() {
                               </button>
                             </div>
                           </div>
+                          {emp.uploads.some((u) => u.kind === "education") ? (
+                            <div className="mt-3">
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-300 mb-1">Education documents</p>
+                              <ul className="text-xs text-slate-200 space-y-1">
+                                {emp.uploads
+                                  .filter((u) => u.kind === "education")
+                                  .map((u) => (
+                                    <li key={u.id} className="flex items-center gap-2">
+                                      <span className="font-semibold">Education</span>
+                                      {u.signedUrl ? (
+                                        <a href={u.signedUrl} target="_blank" rel="noopener noreferrer" className="text-teal-300 underline">
+                                          {u.filename}
+                                        </a>
+                                      ) : (
+                                        <span>{u.filename}</span>
+                                      )}
+                                      <span className="text-[11px] text-slate-500">{u.createdAt ? new Date(u.createdAt).toLocaleString() : ""}</span>
+                                    </li>
+                                  ))}
+                              </ul>
+                            </div>
+                          ) : null}
                           <div className="flex flex-wrap gap-2 items-center">
                             <label className="text-xs text-slate-300">
                               Termination date:
