@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
   const envelopes = envelopesRes.data ?? [];
 
   // hydrate assessments tied to applications
-  const appIds = applicants.map((a) => a.id).filter(Boolean);
+  const appIds = (applicants as Array<{ id?: string }>).map((a) => a.id).filter(Boolean) as string[];
   let teacherAssessmentsByApp = new Map<string, any[]>();
   let translatorExerciseByApp = new Map<string, any>();
   if (appIds.length) {
@@ -125,9 +125,9 @@ export async function GET(request: NextRequest) {
 
   // Quick lookup maps
   const applicantByEmail = new Map<string, any>();
-  applicants.forEach((a) => applicantByEmail.set((a.email ?? "").toLowerCase(), a));
+  (applicants as Array<{ email?: string }>).forEach((a) => applicantByEmail.set((a.email ?? "").toLowerCase(), a));
   const envelopeByApplicant = new Map<string, any>();
-  envelopes.forEach((e) => {
+  (envelopes as Array<{ applicant_id?: string | null; completed_at?: string | null }>).forEach((e) => {
     if (e.applicant_id && (!envelopeByApplicant.has(e.applicant_id) || envelopeByApplicant.get(e.applicant_id).completed_at < e.completed_at)) {
       envelopeByApplicant.set(e.applicant_id, e);
     }
