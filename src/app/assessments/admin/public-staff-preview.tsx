@@ -49,7 +49,7 @@ export function PublicStaffPreview({ token }: { token: string }) {
     void loadProfiles();
   }, [token]);
 
-  const updateVisibility = async (profile: Profile, action: "approve" | "hide") => {
+  const updateVisibility = async (profile: Profile, action: "approve" | "hide" | "delete") => {
     if (!token) return;
     setError(null);
     try {
