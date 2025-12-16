@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { TealNav } from "@/components/teal-nav";
 import { useLanguage } from "@/lib/language-context";
@@ -10,6 +10,14 @@ import { useLanguage } from "@/lib/language-context";
 type InquiryStatus = "idle" | "loading" | "success" | "error";
 
 export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeInner />
+    </Suspense>
+  );
+}
+
+function HomeInner() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const preferredStaff = searchParams.get("preferredStaff") ?? searchParams.get("staff") ?? undefined;
