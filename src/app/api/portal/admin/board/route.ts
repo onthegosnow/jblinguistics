@@ -9,15 +9,17 @@ export async function GET(request: NextRequest) {
   const supabase = createSupabaseAdminClient();
   const { searchParams } = new URL(request.url);
   const allowedRooms = ["announcements", "staff_lounge", "onboarding", "hive", "feature_requests"];
-  const room = (searchParams.get("room") || "announcements").trim().toLowerCase().replace(/\s+/g, "_");
-  const safeRoom = allowedRooms.includes(room) ? room : "announcements";
+  const roomRaw = (searchParams.get("room") || "announcements").trim().toLowerCase().replace(/\s+/g, "_");
+  const room = roomRaw === "all" ? "all" : roomRaw;
+  const safeRoom = allowedRooms.includes(room) ? room : room === "all" ? "all" : "announcements";
 
-  const { data, error } = await supabase
-    .from("board_messages")
-    .select("id, room, user_id, author_name, message, created_at")
-    .ilike("room", safeRoom)
-    .order("created_at", { ascending: false })
-    .limit(500);
+  const query = supabase.from("board_messages").select("id, room, user_id, author_name, message, created_at").order("created_at", {
+    ascending: false,
+  });
+  const { data, error } =
+    safeRoom === "all"
+      ? await query.limit(1000)
+      : await query.ilike("room", safeRoom).limit(500);
 
   if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { TealNav } from "@/components/teal-nav";
 import { useLanguage } from "@/lib/language-context";
 
@@ -10,6 +11,8 @@ type InquiryStatus = "idle" | "loading" | "success" | "error";
 
 export default function Home() {
   const { t } = useLanguage();
+  const searchParams = useSearchParams();
+  const preferredStaff = searchParams.get("preferredStaff") ?? searchParams.get("staff") ?? undefined;
   const [inquiryStatus, setInquiryStatus] = useState<InquiryStatus>("idle");
   const [inquiryMessage, setInquiryMessage] = useState<string | null>(null);
 
@@ -20,6 +23,9 @@ export default function Home() {
     formData.set("source", "home_contact");
     if (!formData.get("marketingOptIn")) {
       formData.set("marketingOptIn", "no");
+    }
+    if (preferredStaff) {
+      formData.set("preferredStaff", preferredStaff);
     }
     setInquiryStatus("loading");
     setInquiryMessage(null);
@@ -462,6 +468,8 @@ export default function Home() {
                   </div>
                 </div>
 
+                <input type="hidden" name="preferredStaff" value={preferredStaff ?? ""} />
+
                 <div>
                   <label className="block mb-1 text-slate-800" htmlFor="contact-details">
                     {t.contact.details}
@@ -471,7 +479,8 @@ export default function Home() {
                     id="contact-details"
                     rows={4}
                     className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                    placeholder={t.contact.detailsPlaceholder}
+                    placeholder={preferredStaff ? `This note will be routed to ${preferredStaff}` : t.contact.detailsPlaceholder}
+                    defaultValue={preferredStaff ? `Request for ${preferredStaff}: ` : undefined}
                   />
                 </div>
 

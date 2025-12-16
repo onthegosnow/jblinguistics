@@ -2,19 +2,12 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createSupabaseAdminClient } from "@/lib/supabase-server";
 
-const DOCUSIGN_POWERFORM_BASE =
-  "https://na4.docusign.net/Member/PowerFormSigning.aspx?PowerFormId=063afaed-c871-441a-8842-43f37f4be944&env=na4&acct=2b24bf93-0c1a-4a00-ac3d-94a41015425c&v=2";
-
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = Number(process.env.SMTP_PORT ?? "587");
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM;
 const APPLICATION_INBOX = process.env.CAREER_APPLICATION_EMAIL ?? "jblinguisticsllc@gmail.com";
-
-function buildPowerFormUrl(name: string, email: string) {
-  return `${DOCUSIGN_POWERFORM_BASE}&Freelancer_UserName=${encodeURIComponent(name)}&Freelancer_Email=${encodeURIComponent(email)}`;
-}
 
 export async function POST(request: Request) {
   try {
@@ -63,48 +56,18 @@ export async function POST(request: Request) {
       "Warm regards,",
       "JB Linguistics Team",
     ].join("\n");
-    const htmlBody = `
-      <p>Hi ${firstName},</p>
-      <p>Welcome to JB Linguistics! We’re excited to have you joining our global team of educators and language specialists.</p>
-      <p>You’ll receive a separate email from DocuSign shortly with the subject:<br/>
-      <strong>“Welcome to JB Linguistics — Please Complete Your New-Hire Agreement.”</strong></p>
-      <p>Please open that DocuSign email, review your Freelance Teaching & Translation Agreement, and complete all required fields.</p>
-      <p>After you sign, you’ll receive another email with your Teacher/Translator Portal login details so you can:</p>
-      <ul>
-        <li>Complete your bio</li>
-        <li>Upload a profile photo</li>
-        <li>Update your contact details</li>
-        <li>Add your certifications</li>
-      </ul>
-      <p>If you don’t see the DocuSign email within a few minutes, please check your spam or promotions folder and mark it as “Not spam.”</p>
-      <p>If you have any questions at any point, just reply to this email.</p>
-      <p>Warm regards,<br/>JB Linguistics Team</p>
-    `;
-
-    const personalizedUrl = buildPowerFormUrl(name, email);
+    const htmlBody = textBody.replace(/\n/g, "<br/>");
 
     await transporter.sendMail({
       from: SMTP_FROM ?? APPLICATION_INBOX ?? SMTP_USER,
       to: email,
       bcc: APPLICATION_INBOX,
       subject,
-      text: `${textBody}\n\nComplete your agreement here:\n${personalizedUrl}\n`,
-      html: `${htmlBody}<p><strong>Complete your agreement here:</strong> <a href="${personalizedUrl}">${personalizedUrl}</a></p>`,
+      text: textBody,
+      html: htmlBody,
     });
 
-    // Log the personalized PowerForm URL (DocuSign will handle the prefilled fields when the link is used)
-    console.info("DocuSign PowerForm URL (emailed):", personalizedUrl);
-
-    if (applicationId) {
-      try {
-        const supabase = createSupabaseAdminClient();
-        await supabase.from("career_applications").update({ hire_sent_at: new Date().toISOString() }).eq("id", applicationId);
-      } catch (err) {
-        console.warn("Unable to update hire_sent_at", err);
-      }
-    }
-
-    return NextResponse.json({ success: true, hireSentAt: new Date().toISOString() });
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Hire email error", err);
     const status = 500;

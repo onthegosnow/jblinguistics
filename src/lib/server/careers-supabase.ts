@@ -30,6 +30,7 @@ type CareerApplicationRow = {
   roles: string[] | null;
   hire_sent_at: string | null;
   invite_sent_at: string | null;
+  docu_sign_sent_at: string | null;
   resume_filename: string;
   resume_mime_type: string;
   resume_size: number | null;
@@ -262,6 +263,7 @@ export async function listCareerApplicantsFromSupabase(): Promise<{
         roles: row.roles ?? ["translator"],
         inviteSentAt: row.invite_sent_at ?? undefined,
         hireSentAt: row.hire_sent_at ?? undefined,
+        docuSignSentAt: (row as any).docu_sign_sent_at ?? undefined,
         resume: {
           filename: row.resume_filename,
           mimeType: row.resume_mime_type,

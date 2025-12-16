@@ -11,12 +11,13 @@ export async function GET(request: NextRequest) {
   const roomRaw = (searchParams.get("room") || "announcements").trim().toLowerCase();
   const safeRoom = allowedRooms.includes(roomRaw.replace(/\s+/g, "_")) ? roomRaw.replace(/\s+/g, "_") : "announcements";
 
-  const { data, error } = await supabase
-    .from("board_messages")
-    .select("id, room, user_id, author_name, message, created_at")
-    .ilike("room", safeRoom)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const query = supabase.from("board_messages").select("id, room, user_id, author_name, message, created_at").order("created_at", {
+    ascending: false,
+  });
+  const { data, error } =
+    safeRoom === "all"
+      ? await query.limit(500)
+      : await query.ilike("room", safeRoom).limit(200);
 
   if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 

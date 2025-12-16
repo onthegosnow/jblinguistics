@@ -137,6 +137,23 @@ export default async function TeacherProfilePage({ params }: Props) {
             </section>
           </div>
         </div>
+
+        <div className="mt-8 rounded-3xl border border-slate-200 bg-white/90 p-5">
+          <h2 className="text-base font-semibold text-sky-900">
+            Ready to work with {person.name}?
+          </h2>
+          <p className="mt-2 text-sm text-slate-700">
+            Tell us about your lesson goals and we’ll confirm availability with {person.name}.
+          </p>
+          <div className="mt-4">
+            <Link
+              href={`/#contact?preferredStaff=${encodeURIComponent(person.name)}`}
+              className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm"
+            >
+              Contact {person.name}
+            </Link>
+          </div>
+        </div>
       </section>
     </main>
   );

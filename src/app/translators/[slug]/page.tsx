@@ -104,10 +104,10 @@ export default async function TranslatorProfilePage({ params }: Props) {
           </p>
           <div className="mt-4">
             <Link
-              href="/#contact"
+              href={`/#contact?preferredStaff=${encodeURIComponent(person.name)}`}
               className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm"
             >
-              Contact JB
+              Contact {person.name}
             </Link>
           </div>
         </div>

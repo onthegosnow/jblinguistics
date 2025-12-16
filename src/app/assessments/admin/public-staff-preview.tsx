@@ -92,6 +92,18 @@ export function PublicStaffPreview({ token }: { token: string }) {
   const renderCard = (profile: Profile) => {
     const overviews = profile.overview?.length ? profile.overview : [];
     const specialties = profile.specialties ?? [];
+    const primaryRole =
+      profile.roles?.includes("teacher") && !profile.roles?.includes("translator")
+        ? "teacher"
+        : profile.roles?.includes("translator") && !profile.roles?.includes("teacher")
+        ? "translator"
+        : "teacher";
+    const publicUrl =
+      profile.visibility === "visible" && profile.slug
+        ? primaryRole === "translator"
+          ? `/translators/${profile.slug}`
+          : `/teachers/${profile.slug}`
+        : undefined;
     return (
       <div
         key={profile.slug || profile.user_id || profile.id}
@@ -148,6 +160,37 @@ export function PublicStaffPreview({ token }: { token: string }) {
               Hide
             </button>
           )}
+          {publicUrl ? (
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            >
+              View public
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              const qs = new URLSearchParams();
+              if (profile.slug) qs.set("slug", profile.slug);
+              if (profile.user_id) qs.set("userId", profile.user_id);
+              qs.set("token", token);
+              window.open(`/api/admin/public-staff/preview?${qs.toString()}`, "_blank");
+            }}
+            className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            disabled={!profile.slug && !profile.user_id}
+          >
+            Preview
+          </button>
+          <button
+            type="button"
+            onClick={() => updateVisibility(profile, "delete")}
+            className="rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500"
+          >
+            Delete
+          </button>
         </div>
       </div>
     );
@@ -168,10 +211,10 @@ export function PublicStaffPreview({ token }: { token: string }) {
       {error && <p className="text-sm text-rose-300">{error}</p>}
       {loading ? <p className="text-sm text-slate-300">Loading…</p> : null}
       <div className="space-y-3">
-        {pending.length ? (
-          <div className="space-y-2">
-            <p className="text-sm text-amber-300 font-semibold">Pending profiles</p>
-            {(() => {
+        <div className="space-y-2">
+          <p className="text-sm text-amber-300 font-semibold">Pending profiles</p>
+          {pending.length ? (
+            (() => {
               const buckets = bucketProfiles(pending);
               return (
                 <div className="space-y-3">
@@ -181,9 +224,11 @@ export function PublicStaffPreview({ token }: { token: string }) {
                   {renderBucket("Unspecified", buckets.other)}
                 </div>
               );
-            })()}
-          </div>
-        ) : null}
+            })()
+          ) : (
+            <p className="text-xs text-slate-400">No pending profiles.</p>
+          )}
+        </div>
         <div className="space-y-2">
           <p className="text-sm text-slate-200 font-semibold">Visible profiles</p>
           {(() => {

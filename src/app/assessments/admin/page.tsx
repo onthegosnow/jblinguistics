@@ -11,6 +11,7 @@ import {
 import { translatorLanguages, type TranslatorExerciseLanguage } from "@/lib/translator-exercise";
 
 const STORAGE_KEY = "jb_assessment_admin_token";
+const normalizeRoom = (value: string) => value?.trim().toLowerCase().replace(/\s+/g, "_");
 const teacherLanguageLabels = teacherAssessmentLanguages.reduce<Record<string, string>>((acc, lang) => {
   acc[lang.id] = lang.label;
   return acc;
@@ -89,6 +90,7 @@ type ApplicantRecord = {
   workingLanguages?: TeacherAssessmentLanguage[];
   inviteSentAt?: string | null;
   hireSentAt?: string | null;
+  docuSignSentAt?: string | null;
   resume: { filename: string; mimeType: string; size: number };
   resumeInsights?: {
     summary: string;
@@ -233,6 +235,7 @@ export default function AssessmentsAdminPage() {
   const [deletingApplicantId, setDeletingApplicantId] = useState<string | null>(null);
   const [sendingHireId, setSendingHireId] = useState<string | null>(null);
   const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
+  const [savingNotesId, setSavingNotesId] = useState<string | null>(null);
   const [uploadingOnboarding, setUploadingOnboarding] = useState(false);
   const [onboardingFiles, setOnboardingFiles] = useState<Record<string, File | null>>({});
   const [manualApplicant, setManualApplicant] = useState({
@@ -363,7 +366,7 @@ export default function AssessmentsAdminPage() {
         fetch("/api/portal/admin/crm/contacts", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/employees", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/hive", { headers: { "x-admin-token": token } }),
-        fetch("/api/portal/admin/board", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/board?room=all", { headers: { "x-admin-token": token } }),
       ]);
       if (!resultsRes.ok) {
         const data = await resultsRes.json().catch(() => ({}));
@@ -599,21 +602,31 @@ export default function AssessmentsAdminPage() {
         />
         <button
           type="button"
-          className="mt-2 inline-flex items-center rounded-full bg-slate-600 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-500"
+          className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-white ${
+            savingNotesId === applicant.id ? "bg-slate-700/60 cursor-wait" : "bg-slate-600 hover:bg-slate-500"
+          }`}
           onClick={async () => {
             if (!token) return;
-            const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "x-admin-token": token },
-              body: JSON.stringify({ action: "note", interviewNotes: applicant.interviewNotes ?? "" }),
-            });
-            if (!res.ok) {
-              const data = await res.json().catch(() => ({}));
-              setError(data.message || "Unable to save notes.");
+            setSavingNotesId(applicant.id);
+            setError(null);
+            try {
+              const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-admin-token": token },
+                body: JSON.stringify({ action: "note", interviewNotes: applicant.interviewNotes ?? "" }),
+              });
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || "Unable to save notes.");
+              }
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Unable to save notes.");
+            } finally {
+              setSavingNotesId(null);
             }
           }}
         >
-          Save notes
+          {savingNotesId === applicant.id ? "Saving…" : "Save notes"}
         </button>
       </div>
     </>
@@ -634,12 +647,12 @@ export default function AssessmentsAdminPage() {
           const data = await response.json().catch(() => ({}));
           throw new Error(data.message || "Unable to send onboarding email.");
         }
+        const sentAt = new Date().toISOString();
+        setApplicants((prev) => prev.map((item) => (item.id === applicant.id ? { ...item, hireSentAt: sentAt } : item)));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to send onboarding email.");
       } finally {
         setSendingHireId(null);
-        const sentAt = new Date().toISOString();
-        setApplicants((prev) => prev.map((item) => (item.id === applicant.id ? { ...item, hireSentAt: sentAt } : item)));
       }
     },
     [token]
@@ -1145,11 +1158,11 @@ export default function AssessmentsAdminPage() {
               </select>
             </div>
             <div className="rounded-2xl border border-slate-700 bg-slate-900 p-3 max-h-[60vh] overflow-auto space-y-2">
-              {boardMessages.filter((m) => m.room === boardRoom).length === 0 ? (
+              {boardMessages.filter((m) => normalizeRoom(m.room) === normalizeRoom(boardRoom)).length === 0 ? (
                 <p className="text-sm text-slate-400">No messages yet.</p>
               ) : (
                 boardMessages
-                  .filter((m) => m.room === boardRoom)
+                  .filter((m) => normalizeRoom(m.room) === normalizeRoom(boardRoom))
                   .map((m) => (
                     <div key={m.id} className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100">
                       <div className="flex items-center justify-between text-[11px] text-slate-400">
@@ -1517,15 +1530,47 @@ export default function AssessmentsAdminPage() {
                           </span>
                         ) : null}
                       </div>
-                      <div className="flex flex-wrap gap-2 items-center">
-                      <button
-                        type="button"
-                        onClick={() => downloadResume(applicant)}
-                        className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-600"
-                      >
-                        Download resume
-                      </button>
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap gap-3 items-center">
+                        <button
+                          type="button"
+                          onClick={() => downloadResume(applicant)}
+                          className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-600"
+                        >
+                          Download resume
+                        </button>
+                        <div className="flex items-center gap-2 text-[11px] text-slate-200 bg-slate-800 px-2 py-1 rounded-full">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(applicant.docuSignSentAt)}
+                            onChange={async (e) => {
+                              if (!token) return;
+                              const checked = e.target.checked;
+                              setSendingHireId(applicant.id);
+                              setError(null);
+                              try {
+                                const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                  body: JSON.stringify({ action: "docu_sign_sent", hireSent: checked }),
+                                });
+                                if (!res.ok) {
+                                  const data = await res.json().catch(() => ({}));
+                                  throw new Error(data.message || "Unable to update DocuSign checkbox.");
+                                }
+                                const sentAt = checked ? new Date().toISOString() : null;
+                                setApplicants((prev) =>
+                                  prev.map((item) => (item.id === applicant.id ? { ...item, docuSignSentAt: sentAt } : item))
+                                );
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Unable to update DocuSign checkbox.");
+                              } finally {
+                                setSendingHireId(null);
+                              }
+                            }}
+                          />
+                          <span>DocuSign sent</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
                         <button
                           type="button"
                           onClick={() => sendHire(applicant)}
@@ -1536,14 +1581,13 @@ export default function AssessmentsAdminPage() {
                               : "bg-amber-400 text-slate-900 hover:bg-amber-300"
                           }`}
                         >
-                          {sendingHireId === applicant.id ? "Sending…" : "Send DocuSign"}
+                          {sendingHireId === applicant.id ? "Sending…" : "Send hire email"}
                         </button>
-                        {applicant.hireSentAt && (
-                          <span className="text-[11px] text-emerald-200">
-                            Sent {new Date(applicant.hireSentAt).toLocaleString()}
-                          </span>
-                        )}
                       </div>
+                        <div className="flex flex-col text-[11px] text-emerald-200 gap-1">
+                          {applicant.hireSentAt && <span>Hire email: {new Date(applicant.hireSentAt).toLocaleString()}</span>}
+                          {applicant.docuSignSentAt && <span>DocuSign: {new Date(applicant.docuSignSentAt).toLocaleString()}</span>}
+                        </div>
                       <div className="flex flex-col gap-1 text-xs text-slate-200">
                         <button
                           type="button"

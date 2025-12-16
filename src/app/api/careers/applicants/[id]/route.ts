@@ -36,7 +36,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!id) {
       return NextResponse.json({ message: "Missing applicant id" }, { status: 400 });
     }
-    const body = (await request.json().catch(() => ({}))) as { action?: string; interviewNotes?: string };
+    const body = (await request.json().catch(() => ({}))) as {
+      action?: string;
+      interviewNotes?: string;
+      hireSent?: boolean;
+    };
 
     if (body.action === "note") {
       const supabase = createSupabaseAdminClient();
@@ -46,6 +50,31 @@ export async function POST(request: NextRequest, context: RouteContext) {
         .eq("id", id);
       if (error) {
         const msg = error.message.includes("column") ? "Add column interview_notes to career_applications" : error.message;
+        return NextResponse.json({ message: msg }, { status: 400 });
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (body.action === "hire_sent") {
+      const supabase = createSupabaseAdminClient();
+      const { error } = await supabase
+        .from("career_applications")
+        .update({ hire_sent_at: body.hireSent ? new Date().toISOString() : null })
+        .eq("id", id);
+      if (error) {
+        const msg = error.message;
+        return NextResponse.json({ message: msg }, { status: 400 });
+      }
+      return NextResponse.json({ success: true });
+    }
+    if (body.action === "docu_sign_sent") {
+      const supabase = createSupabaseAdminClient();
+      const { error } = await supabase
+        .from("career_applications")
+        .update({ docu_sign_sent_at: body.hireSent ? new Date().toISOString() : null })
+        .eq("id", id);
+      if (error) {
+        const msg = error.message;
         return NextResponse.json({ message: msg }, { status: 400 });
       }
       return NextResponse.json({ success: true });

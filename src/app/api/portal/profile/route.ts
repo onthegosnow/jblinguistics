@@ -124,9 +124,14 @@ export async function GET(request: NextRequest) {
 
   const { data: pubProfile } = await supabase
     .from("public_staff_profiles")
-    .select("visibility")
+    .select("visibility, photo_url, slug")
     .eq("user_id", user.id)
     .maybeSingle();
+
+  // If portal has no photo but public profile does, reuse it
+  if (!data.photo_url && pubProfile?.photo_url) {
+    data.photo_url = pubProfile.photo_url;
+  }
 
   return NextResponse.json({
     profile: {

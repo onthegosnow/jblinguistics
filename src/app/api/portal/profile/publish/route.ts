@@ -55,7 +55,11 @@ export async function POST(request: NextRequest) {
       slugify(portalUser?.name || portalUser?.email || user.email || "profile") ||
       `user-${String(user.id).slice(0, 8)}`;
     const slug = baseSlug || `user-${String(user.id).slice(0, 8)}`;
-    const photoUrl = portalUser?.photo_url || existing?.photo_url || placeholderPhoto;
+    const photoUrl =
+      portalUser?.photo_url ||
+      uploads?.find((u: any) => u.kind === "photo")?.signedUrl ||
+      existing?.photo_url ||
+      placeholderPhoto;
     const locationParts = [portalUser?.city, portalUser?.state, portalUser?.country].filter(Boolean);
     const location = locationParts.join(", ");
 
