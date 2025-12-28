@@ -12,7 +12,31 @@ import { translatorLanguages, type TranslatorExerciseLanguage } from "@/lib/tran
 
 const STORAGE_KEY = "jb_assessment_admin_token";
 const normalizeRoom = (value: string) => value?.trim().toLowerCase().replace(/\s+/g, "_");
-const teacherLanguageLabels = teacherAssessmentLanguages.reduce<Record<string, string>>((acc, lang) => {
+const extraTeacherLanguages = [
+  { id: "farsi", label: "Farsi" },
+  { id: "arabic", label: "Arabic" },
+  { id: "polish", label: "Polish" },
+] as const;
+const teacherLanguageOptions = [
+  { id: "english", label: "English" },
+  { id: "german", label: "German" },
+  { id: "french", label: "French" },
+  { id: "dutch", label: "Dutch" },
+  { id: "danish", label: "Danish" },
+  { id: "swedish", label: "Swedish" },
+  { id: "norwegian", label: "Norwegian" },
+  { id: "russian", label: "Russian" },
+  { id: "italian", label: "Italian" },
+  { id: "spanish", label: "Spanish" },
+  { id: "portuguese", label: "Portuguese" },
+  { id: "mandarin", label: "Mandarin" },
+  { id: "japanese", label: "Japanese" },
+  { id: "korean", label: "Korean" },
+  { id: "farsi", label: "Farsi" },
+  { id: "arabic", label: "Arabic" },
+  { id: "polish", label: "Polish" },
+] as const;
+const teacherLanguageLabels = teacherLanguageOptions.reduce<Record<string, string>>((acc, lang) => {
   acc[lang.id] = lang.label;
   return acc;
 }, {});
@@ -21,7 +45,27 @@ teacherLanguageLabels["zh"] = "Chinese (Simplified)";
 teacherLanguageLabels["zh-TW"] = "Chinese (Traditional)";
 teacherLanguageLabels["ja"] = "Japanese";
 teacherLanguageLabels["ko"] = "Korean";
-const translatorLanguageLabels = translatorLanguages.reduce<Record<string, string>>((acc, lang) => {
+const translatorLanguageOptions = [
+  { id: "english", label: "English" },
+  { id: "german", label: "German" },
+  { id: "french", label: "French" },
+  { id: "dutch", label: "Dutch" },
+  { id: "danish", label: "Danish" },
+  { id: "swedish", label: "Swedish" },
+  { id: "norwegian", label: "Norwegian" },
+  { id: "russian", label: "Russian" },
+  { id: "italian", label: "Italian" },
+  { id: "spanish", label: "Spanish" },
+  { id: "portuguese", label: "Portuguese" },
+  { id: "mandarin", label: "Mandarin" },
+  { id: "japanese", label: "Japanese" },
+  { id: "korean", label: "Korean" },
+  { id: "farsi", label: "Farsi" },
+  { id: "arabic", label: "Arabic" },
+  { id: "polish", label: "Polish" },
+  { id: "other", label: "Other" },
+] as const;
+const translatorLanguageLabels = translatorLanguageOptions.reduce<Record<string, string>>((acc, lang) => {
   acc[lang.id] = lang.label;
   return acc;
 }, {});
@@ -87,7 +131,7 @@ type ApplicantRecord = {
   availability?: string;
   message?: string;
   roles: string[];
-  workingLanguages?: TeacherAssessmentLanguage[];
+  workingLanguages?: string[];
   inviteSentAt?: string | null;
   hireSentAt?: string | null;
   docuSignSentAt?: string | null;
@@ -237,7 +281,7 @@ export default function AssessmentsAdminPage() {
   const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
   const [savingNotesId, setSavingNotesId] = useState<string | null>(null);
   const [uploadingOnboarding, setUploadingOnboarding] = useState(false);
-  const [onboardingFiles, setOnboardingFiles] = useState<Record<string, File | null>>({});
+  const [onboardingFiles, setOnboardingFiles] = useState<Record<string, File[]>>({});
   const [manualApplicant, setManualApplicant] = useState({
     name: "",
     email: "",
@@ -249,6 +293,8 @@ export default function AssessmentsAdminPage() {
   const [expandedEmployees, setExpandedEmployees] = useState<Record<string, boolean>>({});
   const [employeeNoteDraft, setEmployeeNoteDraft] = useState<Record<string, string>>({});
   const [employeeUploadDraft, setEmployeeUploadDraft] = useState<Record<string, { file: File | null; kind: string }>>({});
+  const [employeeUploadKindDraft, setEmployeeUploadKindDraft] = useState<Record<string, Record<string, string>>>({});
+  const [deletingUploadId, setDeletingUploadId] = useState<string | null>(null);
   const [employeeTermination, setEmployeeTermination] = useState<Record<string, string>>({});
   const [employeeRolesDraft, setEmployeeRolesDraft] = useState<
     Record<
@@ -262,6 +308,7 @@ export default function AssessmentsAdminPage() {
       }
     >
   >({});
+  const [photoErrors, setPhotoErrors] = useState<Record<string, boolean>>({});
   const [rejectingApplicantId, setRejectingApplicantId] = useState<string | null>(null);
   const [rolesSaved, setRolesSaved] = useState<Record<string, number>>({});
   const [pendingProfilesOpen, setPendingProfilesOpen] = useState(false);
@@ -301,7 +348,17 @@ export default function AssessmentsAdminPage() {
       contractName?: string;
       assignments: Array<{ id: string; title: string; status: string; client?: string; languagePair?: string }>;
       notes: Array<{ id: string; note: string; createdAt: string; createdBy?: string | null }>;
-      uploads: Array<{ id: string; kind: string; filename: string; createdAt: string; mimeType?: string | null; size?: number | null; path?: string | null; signedUrl?: string }>;
+      uploads: Array<{
+        id: string;
+        kind: string;
+        filename: string;
+        createdAt: string;
+        mimeType?: string | null;
+        size?: number | null;
+        path?: string | null;
+        signedUrl?: string;
+        source?: "portal" | "admin";
+      }>;
       application?: ApplicantRecord;
     }>
   >([]);
@@ -437,6 +494,7 @@ export default function AssessmentsAdminPage() {
           return { ...emp, application: app };
         }) ?? [];
       setEmployees(mergedEmployees);
+      setPhotoErrors({});
       // prime role drafts
       const nextRoles: Record<string, any> = {};
       mergedEmployees.forEach((emp: any) => {
@@ -972,6 +1030,30 @@ export default function AssessmentsAdminPage() {
       await refreshData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to upload file.");
+    }
+  };
+
+  const deleteEmployeeUpload = async (userId: string, upload: { id: string; path?: string | null }) => {
+    if (!token) return;
+    const confirmed = typeof window === "undefined" ? true : window.confirm("Delete this file?");
+    if (!confirmed) return;
+    setDeletingUploadId(upload.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/portal/admin/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ action: "deleteUpload", userId, uploadId: upload.id, path: upload.path ?? null }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to delete file.");
+      }
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete file.");
+    } finally {
+      setDeletingUploadId(null);
     }
   };
 
@@ -1607,12 +1689,16 @@ export default function AssessmentsAdminPage() {
                           </span>
                         )}
                         <label className="inline-flex items-center">
-                          <span className="sr-only">Upload signed PDF</span>
+                          <span className="sr-only">Upload onboarding PDFs</span>
                           <input
                             type="file"
+                            multiple
                             accept="application/pdf"
                             onChange={(e) =>
-                              setOnboardingFiles((prev) => ({ ...prev, [applicant.id]: e.target.files?.[0] ?? null }))
+                              setOnboardingFiles((prev) => {
+                                const files = e.target.files ? Array.from(e.target.files) : [];
+                                return { ...prev, [applicant.id]: files };
+                              })
                             }
                             className="hidden"
                             id={`upload-${applicant.id}`}
@@ -1621,7 +1707,9 @@ export default function AssessmentsAdminPage() {
                             htmlFor={`upload-${applicant.id}`}
                             className="inline-flex cursor-pointer items-center rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-60"
                           >
-                            {onboardingFiles[applicant.id]?.name ?? "Upload signed PDF"}
+                            {onboardingFiles[applicant.id]?.length
+                              ? `${onboardingFiles[applicant.id].length} PDF${onboardingFiles[applicant.id].length > 1 ? "s" : ""} selected`
+                              : "Upload onboarding PDFs"}
                           </label>
                         </label>
                         <button
@@ -1632,35 +1720,37 @@ export default function AssessmentsAdminPage() {
                               setError("Enter the admin token to upload.");
                               return;
                             }
-                            const file = onboardingFiles[applicant.id];
-                            if (!file) {
-                              setError("Select a signed PDF first.");
+                            const files = onboardingFiles[applicant.id] ?? [];
+                            if (!files.length) {
+                              setError("Select onboarding PDF(s) first.");
                               return;
                             }
                             setUploadingOnboarding(true);
                             setError(null);
                             try {
-                              const fd = new FormData();
-                              fd.append("email", applicant.email || "");
-                              fd.append("name", applicant.name || "");
-                              fd.append("applicantId", applicant.id);
-                              const roles: string[] = applicant.roles?.length ? applicant.roles : ["teacher"];
-                              fd.append("roles", roles.join(","));
-                              if (applicant.workingLanguages?.length) {
-                                fd.append("languages", applicant.workingLanguages.join(","));
+                              for (const file of files) {
+                                const fd = new FormData();
+                                fd.append("email", applicant.email || "");
+                                fd.append("name", applicant.name || "");
+                                fd.append("applicantId", applicant.id);
+                                const roles: string[] = applicant.roles?.length ? applicant.roles : ["teacher"];
+                                fd.append("roles", roles.join(","));
+                                if (applicant.workingLanguages?.length) {
+                                  fd.append("languages", applicant.workingLanguages.join(","));
+                                }
+                                fd.append("completedAt", new Date().toISOString().slice(0, 10));
+                                fd.append("file", file);
+                                const res = await fetch("/api/portal/admin/onboarding", {
+                                  method: "POST",
+                                  headers: { "x-admin-token": token },
+                                  body: fd,
+                                });
+                                if (!res.ok) {
+                                  const data = await res.json().catch(() => ({}));
+                                  throw new Error(data.message || "Upload failed");
+                                }
                               }
-                              fd.append("completedAt", new Date().toISOString().slice(0, 10));
-                              fd.append("file", file);
-                              const res = await fetch("/api/portal/admin/onboarding", {
-                                method: "POST",
-                                headers: { "x-admin-token": token },
-                                body: fd,
-                              });
-                              if (!res.ok) {
-                                const data = await res.json().catch(() => ({}));
-                                throw new Error(data.message || "Upload failed");
-                              }
-                              setOnboardingFiles((prev) => ({ ...prev, [applicant.id]: null }));
+                              setOnboardingFiles((prev) => ({ ...prev, [applicant.id]: [] }));
                               // Remove from applicants view once onboarded
                               setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
                               await refreshData();
@@ -1956,11 +2046,12 @@ export default function AssessmentsAdminPage() {
                     <div key={emp.id} className="rounded-2xl border border-slate-700 p-4 space-y-3">
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div className="flex items-center gap-3">
-                          {emp.photoUrl ? (
+                          {emp.photoUrl && !photoErrors[emp.id] ? (
                             <img
                               src={emp.photoUrl}
                               alt={`${emp.name} photo`}
                               className="h-16 w-16 rounded-full object-cover border border-slate-600"
+                              onError={() => setPhotoErrors((prev) => ({ ...prev, [emp.id]: true }))}
                             />
                           ) : (
                             <div className="h-16 w-16 rounded-full bg-slate-700 text-slate-200 flex items-center justify-center text-sm font-semibold">
@@ -2032,7 +2123,7 @@ export default function AssessmentsAdminPage() {
                               <div>
                                 <p className="text-[11px] text-slate-400 mb-1">Teaching languages</p>
                                 <div className="flex flex-wrap gap-2">
-                                  {teacherAssessmentLanguages.map((lang: { id: string; label: string }, idx) => (
+                                  {teacherLanguageOptions.map((lang: { id: string; label: string }, idx) => (
                                     <label key={`${String(lang.id)}-${idx}`} className="flex items-center gap-1 text-[11px] text-slate-300">
                                       <input
                                         type="checkbox"
@@ -2055,7 +2146,7 @@ export default function AssessmentsAdminPage() {
                               <div>
                                 <p className="text-[11px] text-slate-400 mb-1">Translating languages</p>
                                 <div className="flex flex-wrap gap-2">
-                                  {translatorLanguages.map((lang: { id: string; label: string }, idx) => (
+                                  {translatorLanguageOptions.map((lang: { id: string; label: string }, idx) => (
                                     <label key={`${String(lang.id)}-${idx}`} className="flex items-center gap-1 text-[11px] text-slate-300">
                                       <input
                                         type="checkbox"
@@ -2288,7 +2379,7 @@ export default function AssessmentsAdminPage() {
                                       ? `Certification: ${u.kind.replace(/^cert_/, "").replace(/-/g, " ")}`
                                       : u.kind;
                                   return (
-                                    <li key={u.id} className="flex items-center gap-2">
+                                    <li key={u.id} className="flex flex-wrap items-center gap-2">
                                       <span className="font-semibold">{displayKind}</span>
                                       {u.signedUrl ? (
                                         <a href={u.signedUrl} target="_blank" rel="noopener noreferrer" className="text-teal-300 underline">
@@ -2298,29 +2389,82 @@ export default function AssessmentsAdminPage() {
                                         <span>{u.filename}</span>
                                       )}
                                       <span className="text-[11px] text-slate-500">{u.createdAt ? new Date(u.createdAt).toLocaleString() : ""}</span>
+                                      <select
+                                        className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-white"
+                                        value={
+                                          employeeUploadKindDraft[emp.id]?.[u.id] ??
+                                          (u.kind || "photo")
+                                        }
+                                        onChange={(e) =>
+                                          setEmployeeUploadKindDraft((prev) => ({
+                                            ...prev,
+                                            [emp.id]: { ...(prev[emp.id] ?? {}), [u.id]: e.target.value },
+                                          }))
+                                        }
+                                      >
+                                        <option value="photo">Photo / headshot</option>
+                                        <option value="id">ID / passport</option>
+                                        <option value="cert">Certification (unspecified)</option>
+                                        {certOptions.map((c) => (
+                                          <option key={c} value={`cert_${certSlug(c)}`}>
+                                            Certification: {c}
+                                          </option>
+                                        ))}
+                                        <option value="education">Education document</option>
+                                        <option value="resume_override">Replace resume (PDF/Word)</option>
+                                        <option value="other">Other</option>
+                                      </select>
+                                      <button
+                                        type="button"
+                                        className="rounded-full bg-slate-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-slate-600"
+                                        onClick={async () => {
+                                          const newKind = employeeUploadKindDraft[emp.id]?.[u.id] ?? u.kind;
+                                          if (!newKind || !token) return;
+                                          try {
+                                            await fetch("/api/portal/admin/employees", {
+                                              method: "POST",
+                                              headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                              body: JSON.stringify({ action: "uploads", userId: emp.id, uploads: [{ id: u.id, kind: newKind }] }),
+                                            });
+                                            await refreshData();
+                                          } catch (err) {
+                                            setError(err instanceof Error ? err.message : "Unable to update upload type.");
+                                          }
+                                        }}
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="rounded-full bg-rose-700/90 px-2 py-1 text-[11px] font-semibold text-white hover:bg-rose-600 disabled:opacity-60"
+                                        onClick={() => deleteEmployeeUpload(emp.id, u)}
+                                        disabled={deletingUploadId === u.id}
+                                      >
+                                        {deletingUploadId === u.id ? "Deleting…" : "Delete"}
+                                      </button>
                                     </li>
                                   );
                                 })}
                               </ul>
                             )}
                             <div className="mt-2 flex flex-col gap-2">
-                              <select
-                                className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                                onChange={(e) => setEmployeeUploadDraft((prev) => ({ ...prev, [emp.id]: { ...(prev[emp.id] ?? {}), kind: e.target.value } }))}
-                                value={employeeUploadDraft[emp.id]?.kind ?? "photo"}
-                              >
-                                <option value="photo">Photo</option>
-                                <option value="id">ID</option>
-                                <option value="address">Address</option>
-                                <option value="cert">Certification (unspecified)</option>
-                                {certOptions.map((c) => (
-                                  <option key={c} value={`cert_${certSlug(c)}`}>
-                                    Certification: {c}
-                                  </option>
-                                ))}
-                                <option value="education">Education document</option>
-                                <option value="other">Other</option>
-                              </select>
+                          <select
+                            className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                            onChange={(e) => setEmployeeUploadDraft((prev) => ({ ...prev, [emp.id]: { ...(prev[emp.id] ?? {}), kind: e.target.value } }))}
+                            value={employeeUploadDraft[emp.id]?.kind ?? "photo"}
+                          >
+                            <option value="photo">Photo / headshot</option>
+                            <option value="id">ID / passport</option>
+                            <option value="cert">Certification (unspecified)</option>
+                            {certOptions.map((c) => (
+                              <option key={c} value={`cert_${certSlug(c)}`}>
+                                Certification: {c}
+                              </option>
+                            ))}
+                            <option value="education">Education document</option>
+                            <option value="resume_override">Replace resume (PDF/Word)</option>
+                            <option value="other">Other</option>
+                          </select>
                               <input
                                 type="file"
                                 onChange={(e) =>

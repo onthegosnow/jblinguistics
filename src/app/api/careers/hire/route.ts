@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       "– Update your contact details",
       "– Add your certifications",
       "",
-      'If you don’t see the DocuSign email within a few minutes, please check your spam or promotions folder and mark it as “Not spam.”',
+      'If you don’t see the DocuSign email within the next couple hours, please check your spam or promotions folder and mark it as “Not spam.”',
       "",
       "If you have any questions at any point, just reply to this email.",
       "",

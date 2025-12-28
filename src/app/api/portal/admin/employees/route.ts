@@ -5,7 +5,7 @@ import { createPortalPasswordHash, requireAdmin } from "@/lib/server/storage";
 import { generateTempPassword, sendPortalCredentials } from "@/lib/server/portal-supabase";
 
 type ActionPayload = {
-  action?: "note" | "status" | "delete" | "roles";
+  action?: "note" | "status" | "delete" | "roles" | "uploads" | "profile" | "deleteUpload";
   userId?: string;
   note?: string;
   createdBy?: string;
@@ -16,6 +16,13 @@ type ActionPayload = {
   teachingLanguages?: string[];
   translatingLanguages?: string[];
   certifications?: string[];
+  uploads?: Array<{ id: string; kind: string }>;
+  name?: string;
+  tagline?: string;
+  overview?: string;
+  languages?: string[];
+  uploadId?: string;
+  path?: string | null;
 };
 
 export async function GET(request: NextRequest) {
@@ -85,6 +92,16 @@ export async function GET(request: NextRequest) {
   const assignments = assignmentsRes.data ?? [];
   const applicants = applicantsRes.data ?? [];
   const envelopes = envelopesRes.data ?? [];
+
+  const preferredPhotoByUser = new Map<string, { url: string; createdAt: number }>();
+  const fallbackPhotoByUser = new Map<string, { url: string; createdAt: number }>();
+  const legacyPhotoByUser = new Map<string, string | null>();
+  const isImage = (mime?: string | null, filename?: string | null, path?: string | null) => {
+    const lowerMime = (mime ?? "").toLowerCase();
+    if (lowerMime.startsWith("image/")) return true;
+    const name = filename || path || "";
+    return /\.(png|jpe?g|webp|gif)$/i.test(name);
+  };
 
   // hydrate assessments tied to applications
   const appIds = (applicants as Array<{ id?: string }>).map((a) => a.id).filter(Boolean) as string[];
@@ -168,6 +185,7 @@ export async function GET(request: NextRequest) {
     }
   >();
   users.forEach((u) => {
+    legacyPhotoByUser.set(u.id, u.photo_url ?? null);
     employeeMap.set(u.id, {
       id: u.id,
       name: u.name,
@@ -184,7 +202,7 @@ export async function GET(request: NextRequest) {
       city: u.city ?? null,
       state: u.state ?? null,
       country: u.country ?? null,
-      photoUrl: u.photo_url ?? null,
+      photoUrl: null,
       notes: [],
       uploads: [],
       assignments: [],
@@ -225,6 +243,19 @@ export async function GET(request: NextRequest) {
         const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(u.path, 60 * 60);
         if (!signed.error) signedUrl = signed.data.signedUrl;
       }
+      if (signedUrl && isImage(u.mime_type, u.filename, u.path)) {
+        const createdAtMs = u.created_at ? new Date(u.created_at).getTime() : 0;
+        const existingFallback = fallbackPhotoByUser.get(u.user_id);
+        if (!existingFallback || createdAtMs > existingFallback.createdAt) {
+          fallbackPhotoByUser.set(u.user_id, { url: signedUrl, createdAt: createdAtMs });
+        }
+        if (u.kind === "photo") {
+          const existingPreferred = preferredPhotoByUser.get(u.user_id);
+          if (!existingPreferred || createdAtMs > existingPreferred.createdAt) {
+            preferredPhotoByUser.set(u.user_id, { url: signedUrl, createdAt: createdAtMs });
+          }
+        }
+      }
       item.uploads.push({
         id: u.id,
         kind: u.kind ?? "file",
@@ -234,6 +265,7 @@ export async function GET(request: NextRequest) {
         path: u.path,
         signedUrl,
         createdAt: u.created_at,
+        source: "admin",
       });
     }
   }
@@ -246,6 +278,19 @@ export async function GET(request: NextRequest) {
         const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(u.path, 60 * 60);
         if (!signed.error) signedUrl = signed.data.signedUrl;
       }
+      if (signedUrl && isImage(u.mime_type, u.filename, u.path)) {
+        const createdAtMs = u.created_at ? new Date(u.created_at).getTime() : 0;
+        const existingFallback = fallbackPhotoByUser.get(u.user_id);
+        if (!existingFallback || createdAtMs > existingFallback.createdAt) {
+          fallbackPhotoByUser.set(u.user_id, { url: signedUrl, createdAt: createdAtMs });
+        }
+        if (u.kind === "photo") {
+          const existingPreferred = preferredPhotoByUser.get(u.user_id);
+          if (!existingPreferred || createdAtMs > existingPreferred.createdAt) {
+            preferredPhotoByUser.set(u.user_id, { url: signedUrl, createdAt: createdAtMs });
+          }
+        }
+      }
       item.uploads.push({
         id: u.id,
         kind: u.kind ?? "file",
@@ -255,20 +300,15 @@ export async function GET(request: NextRequest) {
         path: u.path,
         signedUrl,
         createdAt: u.created_at,
+        source: "portal",
       });
-
-      // Always pick the most recent photo upload as the display photo
-      if (u.kind === "photo" && signedUrl) {
-        const existingCreatedAt = (item as any).__photoCreatedAt as string | undefined;
-        const isNewer =
-          !existingCreatedAt ||
-          (u.created_at && new Date(u.created_at).getTime() > new Date(existingCreatedAt).getTime());
-        if (isNewer) {
-          (item as any).__photoCreatedAt = u.created_at ?? null;
-          item.photoUrl = signedUrl;
-        }
-      }
     }
+  }
+
+  for (const emp of employeeMap.values()) {
+    const preferred = preferredPhotoByUser.get(emp.id);
+    const fallback = fallbackPhotoByUser.get(emp.id);
+    emp.photoUrl = preferred?.url ?? fallback?.url ?? legacyPhotoByUser.get(emp.id) ?? null;
   }
 
   assignments.forEach((a) => {
@@ -438,6 +478,116 @@ export async function POST(request: NextRequest) {
       })
       .eq("user_id", body.userId);
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  // Allow admins to reclassify existing uploads
+  if (body.action === "uploads") {
+    if (!body.userId) return NextResponse.json({ message: "userId required." }, { status: 400 });
+    if (!body.uploads?.length) return NextResponse.json({ message: "No uploads provided." }, { status: 400 });
+    const supabase = createSupabaseAdminClient();
+    for (const u of body.uploads) {
+      await supabase.from("portal_user_uploads").update({ kind: u.kind }).eq("id", u.id).eq("user_id", body.userId);
+      await supabase.from("portal_employee_uploads").update({ kind: u.kind }).eq("id", u.id).eq("user_id", body.userId);
+    }
+    return NextResponse.json({ success: true });
+  }
+
+  if (body.action === "deleteUpload") {
+    if (!body.userId || !body.uploadId) {
+      return NextResponse.json({ message: "userId and uploadId required." }, { status: 400 });
+    }
+    const [{ data: portalRow }, { data: employeeRow }] = await Promise.all([
+      supabase.from("portal_user_uploads").select("id, user_id, path, kind").eq("id", body.uploadId).maybeSingle(),
+      supabase.from("portal_employee_uploads").select("id, user_id, path, kind").eq("id", body.uploadId).maybeSingle(),
+    ]);
+    if (!portalRow && !employeeRow) {
+      return NextResponse.json({ message: "Upload not found." }, { status: 404 });
+    }
+    const ownerId = portalRow?.user_id ?? employeeRow?.user_id ?? null;
+    if (ownerId && ownerId !== body.userId) {
+      return NextResponse.json({ message: "Upload does not belong to this user." }, { status: 403 });
+    }
+
+    if (portalRow) {
+      await supabase.from("portal_user_uploads").delete().eq("id", body.uploadId).eq("user_id", body.userId);
+    }
+    if (employeeRow) {
+      await supabase.from("portal_employee_uploads").delete().eq("id", body.uploadId).eq("user_id", body.userId);
+    }
+
+    const storagePath = body.path ?? portalRow?.path ?? employeeRow?.path ?? null;
+    if (storagePath) {
+      const removed = await supabase.storage.from(RESUME_BUCKET).remove([storagePath]);
+      if (removed.error && !removed.error.message?.toLowerCase().includes("not found")) {
+        return NextResponse.json({ message: removed.error.message }, { status: 500 });
+      }
+    }
+
+    if ((portalRow?.kind === "photo" || employeeRow?.kind === "photo") && body.userId) {
+      await supabase.from("portal_users").update({ photo_url: null }).eq("id", body.userId);
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  // Admin profile edit: update portal_users, portal_employees, and public_staff_profiles snapshot
+  if (body.action === "profile") {
+    if (!body.userId) return NextResponse.json({ message: "userId required." }, { status: 400 });
+    const supabase = createSupabaseAdminClient();
+    const { data: userRow } = await supabase.from("portal_users").select("email, name, languages, bio").eq("id", body.userId).maybeSingle();
+    const slug = userRow?.email ? String(userRow.email).split("@")[0] : body.userId;
+    const teacherRole = body.teacherRole ?? false;
+    const translatorRole = body.translatorRole ?? false;
+    const visibility = teacherRole || translatorRole ? "pending" : "hidden";
+    // Update portal_users
+    await supabase
+      .from("portal_users")
+      .update({
+        name: body.name ?? userRow?.name ?? slug,
+        languages: body.languages ?? userRow?.languages ?? [],
+        bio: body.overview ? body.overview : body.tagline ? body.tagline : userRow?.bio ?? "",
+      })
+      .eq("id", body.userId);
+
+    // Upsert employee roles/languages/certs
+    await supabase
+      .from("portal_employees")
+      .upsert({
+        user_id: body.userId,
+        teacher_role: teacherRole,
+        translator_role: translatorRole,
+        teaching_languages: body.teachingLanguages ?? [],
+        translating_languages: body.translatingLanguages ?? [],
+        certifications: body.certifications ?? [],
+        staff_visibility: visibility,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", body.userId);
+
+    // Snapshot to public_staff_profiles
+    const { data: existingProfile } = await supabase.from("public_staff_profiles").select("visibility").eq("user_id", body.userId).maybeSingle();
+    const existingVisibility = existingProfile?.visibility ?? "pending";
+    await supabase
+      .from("public_staff_profiles")
+      .upsert({
+        user_id: body.userId,
+        slug,
+        name: body.name ?? userRow?.name ?? slug,
+        tagline: body.tagline ?? "",
+        overview: body.overview ? [body.overview] : [],
+        teaching_languages: body.teachingLanguages ?? [],
+        translating_languages: body.translatingLanguages ?? [],
+        specialties: body.certifications ?? [],
+        roles: [
+          ...(teacherRole ? ["teacher"] : []),
+          ...(translatorRole ? ["translator"] : []),
+        ],
+        visibility: existingVisibility === "visible" ? "visible" : visibility,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", body.userId);
+
     return NextResponse.json({ success: true });
   }
 

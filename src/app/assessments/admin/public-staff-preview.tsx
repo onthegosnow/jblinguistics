@@ -21,10 +21,66 @@ type Profile = {
   updated_at?: string;
 };
 
+const languageOptions = [
+  "english",
+  "german",
+  "french",
+  "dutch",
+  "danish",
+  "swedish",
+  "norwegian",
+  "russian",
+  "italian",
+  "spanish",
+  "portuguese",
+  "mandarin",
+  "japanese",
+  "korean",
+  "farsi",
+  "arabic",
+  "polish",
+  "other",
+];
+const labelForLang: Record<string, string> = {
+  english: "English",
+  german: "German",
+  french: "French",
+  dutch: "Dutch",
+  danish: "Danish",
+  swedish: "Swedish",
+  norwegian: "Norwegian",
+  russian: "Russian",
+  italian: "Italian",
+  spanish: "Spanish",
+  portuguese: "Portuguese",
+  mandarin: "Mandarin",
+  japanese: "Japanese",
+  korean: "Korean",
+  farsi: "Farsi",
+  arabic: "Arabic",
+  polish: "Polish",
+  other: "Other",
+};
+
 export function PublicStaffPreview({ token }: { token: string }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState<string | null>(null);
+  const [actioning, setActioning] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState<Record<string, boolean>>({});
+  const [drafts, setDrafts] = useState<
+    Record<
+      string,
+      {
+        tagline?: string;
+        overview?: string;
+        teaching_languages: string[];
+        translating_languages: string[];
+        specialties: string[];
+      }
+    >
+  >({});
 
   const loadProfiles = async () => {
     if (!token) return;
@@ -52,6 +108,7 @@ export function PublicStaffPreview({ token }: { token: string }) {
   const updateVisibility = async (profile: Profile, action: "approve" | "hide" | "delete") => {
     if (!token) return;
     setError(null);
+    setActioning(`${profile.slug || profile.user_id || ""}:${action}`);
     try {
       const res = await fetch("/api/admin/public-staff", {
         method: "POST",
@@ -62,9 +119,12 @@ export function PublicStaffPreview({ token }: { token: string }) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Unable to update visibility.");
       }
+      setLastAction(`${action === "approve" ? "Published" : action === "hide" ? "Hidden" : "Deleted"} ${profile.name || profile.slug || ""}`);
       await loadProfiles();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update visibility.");
+    } finally {
+      setActioning(null);
     }
   };
 
@@ -90,6 +150,15 @@ export function PublicStaffPreview({ token }: { token: string }) {
   };
 
   const renderCard = (profile: Profile) => {
+    const key = profile.slug || profile.user_id || "";
+    const editing = editMode[key] ?? false;
+    const draft = drafts[key] ?? {
+      tagline: profile.tagline ?? "",
+      overview: profile.overview?.join("\n") ?? "",
+      teaching_languages: profile.teaching_languages ?? [],
+      translating_languages: profile.translating_languages ?? [],
+      specialties: profile.specialties ?? [],
+    };
     const overviews = profile.overview?.length ? profile.overview : [];
     const specialties = profile.specialties ?? [];
     const primaryRole =
@@ -104,6 +173,46 @@ export function PublicStaffPreview({ token }: { token: string }) {
           ? `/translators/${profile.slug}`
           : `/teachers/${profile.slug}`
         : undefined;
+
+    const toggleLang = (list: "teaching_languages" | "translating_languages", lang: string) => {
+      setDrafts((prev) => {
+        const currentDraft = prev[key] ?? draft;
+        const current = currentDraft[list] ?? [];
+        const nextList = current.includes(lang) ? current.filter((l) => l !== lang) : [...current, lang];
+        return { ...prev, [key]: { ...currentDraft, [list]: nextList } };
+      });
+    };
+
+    const updateDraft = (partial: Partial<typeof draft>) => {
+      setDrafts((prev) => ({ ...prev, [key]: { ...draft, ...partial } }));
+    };
+
+    const saveProfileEdits = async () => {
+      setError(null);
+      try {
+        await fetch("/api/portal/admin/employees", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-token": token },
+          body: JSON.stringify({
+            action: "profile",
+            userId: profile.user_id,
+            tagline: draft.tagline,
+            overview: draft.overview,
+            teachingLanguages: draft.teaching_languages,
+            translatingLanguages: draft.translating_languages,
+            certifications: draft.specialties,
+            teacherRole: profile.roles?.includes("teacher") ?? false,
+            translatorRole: profile.roles?.includes("translator") ?? false,
+            name: profile.name,
+          }),
+        });
+        await loadProfiles();
+        setEditMode((m) => ({ ...m, [key]: false }));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to save profile.");
+      }
+    };
+
     return (
       <div
         key={profile.slug || profile.user_id || profile.id}
@@ -117,49 +226,140 @@ export function PublicStaffPreview({ token }: { token: string }) {
           )}
           <div>
             <p className="text-base font-semibold text-white">{profile.name}</p>
-            <p className="text-xs text-slate-400">{profile.slug}</p>
             <p className="text-xs text-slate-400">{profile.roles?.join(", ")}</p>
-            <p className="text-xs text-slate-400">Visibility: {profile.visibility ?? "pending"}</p>
           </div>
         </div>
-        {profile.tagline ? <p className="text-sm text-slate-100">{profile.tagline}</p> : null}
-        <div className="space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Overview</p>
-          {overviews.length ? (
-            overviews.map((para, idx) => (
-              <p key={idx} className="text-sm text-slate-200">
-                {para}
-              </p>
-            ))
-          ) : (
-            <p className="text-xs text-slate-400">No overview yet.</p>
-          )}
-        </div>
-        <p className="text-xs text-slate-400">
-          Teaching: {(profile.teaching_languages ?? []).join(", ") || "—"} · Translating: {(profile.translating_languages ?? []).join(", ") || "—"}
-        </p>
-        <p className="text-xs text-slate-400">Location: {profile.location || profile.region || "—"}</p>
-        {specialties.length ? (
-          <p className="text-xs text-slate-300">Specialties: {specialties.join(", ")}</p>
-        ) : null}
+        {editing ? (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs text-slate-300">Tagline</label>
+              <input
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white"
+                value={draft.tagline ?? ""}
+                onChange={(e) => updateDraft({ tagline: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-300">Overview</label>
+              <textarea
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white"
+                rows={5}
+                value={draft.overview ?? ""}
+                onChange={(e) => updateDraft({ overview: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Teaching languages</p>
+              <div className="flex flex-wrap gap-2">
+                {languageOptions.map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => toggleLang("teaching_languages", lang)}
+                    className={`rounded-full px-2 py-1 text-[11px] ${
+                      draft.teaching_languages.includes(lang) ? "bg-teal-500 text-slate-900" : "bg-slate-800 text-slate-300"
+                    }`}
+                  >
+                    {labelForLang[lang] ?? lang}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Translating languages</p>
+              <div className="flex flex-wrap gap-2">
+                {languageOptions.map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => toggleLang("translating_languages", lang)}
+                    className={`rounded-full px-2 py-1 text-[11px] ${
+                      draft.translating_languages.includes(lang) ? "bg-teal-500 text-slate-900" : "bg-slate-800 text-slate-300"
+                    }`}
+                  >
+                    {labelForLang[lang] ?? lang}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-300">Specialties (comma separated)</label>
+              <input
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white"
+                value={(draft.specialties ?? []).join(", ")}
+                onChange={(e) =>
+                  updateDraft({ specialties: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })
+                }
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={saveProfileEdits}
+                className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400"
+              >
+                Save profile
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditMode((m) => ({ ...m, [key]: false }))}
+                className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {profile.tagline ? <p className="text-sm text-slate-100">{profile.tagline}</p> : null}
+            <div className="space-y-1">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Overview</p>
+              {overviews.length ? (
+                overviews.map((para, idx) => (
+                  <p key={idx} className="text-sm text-slate-200">
+                    {para}
+                  </p>
+                ))
+              ) : (
+                <p className="text-xs text-slate-400">No overview yet.</p>
+              )}
+            </div>
+            <p className="text-xs text-slate-400">
+              Teaching: {(profile.teaching_languages ?? []).map((l) => labelForLang[l] ?? l).join(", ") || "—"} ·
+              Translating: {(profile.translating_languages ?? []).map((l) => labelForLang[l] ?? l).join(", ") || "—"}
+            </p>
+            {specialties.length ? <p className="text-xs text-slate-300">Specialties: {specialties.join(", ")}</p> : null}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 pt-2">
-          {profile.visibility !== "visible" ? (
+          {!editing ? (
             <button
               type="button"
-              onClick={() => updateVisibility(profile, "approve")}
-              className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400"
+              onClick={() => {
+                setDrafts((prev) => ({ ...prev, [key]: draft }));
+                setEditMode((m) => ({ ...m, [key]: true }));
+              }}
+              className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
             >
-              Approve & publish
+              Edit
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => updateVisibility(profile, "hide")}
-              className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-600"
-            >
-              Hide
-            </button>
-          )}
+          ) : null}
+          <button
+            type="button"
+            onClick={() => updateVisibility(profile, "approve")}
+            className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-60"
+            disabled={actioning === `${profile.slug || profile.user_id || ""}:approve`}
+          >
+            {actioning === `${profile.slug || profile.user_id || ""}:approve` ? "Publishing…" : "Approve & publish"}
+          </button>
+          <button
+            type="button"
+            onClick={() => updateVisibility(profile, "hide")}
+            className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+            disabled={actioning === `${profile.slug || profile.user_id || ""}:hide`}
+          >
+            {actioning === `${profile.slug || profile.user_id || ""}:hide` ? "Hiding…" : "Hide"}
+          </button>
           {publicUrl ? (
             <a
               href={publicUrl}
@@ -187,9 +387,10 @@ export function PublicStaffPreview({ token }: { token: string }) {
           <button
             type="button"
             onClick={() => updateVisibility(profile, "delete")}
-            className="rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500"
+            className="rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+            disabled={actioning === `${profile.slug || profile.user_id || ""}:delete`}
           >
-            Delete
+            {actioning === `${profile.slug || profile.user_id || ""}:delete` ? "Deleting…" : "Delete"}
           </button>
         </div>
       </div>
@@ -211,6 +412,7 @@ export function PublicStaffPreview({ token }: { token: string }) {
       {error && <p className="text-sm text-rose-300">{error}</p>}
       {loading ? <p className="text-sm text-slate-300">Loading…</p> : null}
       <div className="space-y-3">
+        {lastAction ? <p className="text-xs text-emerald-300">{lastAction}</p> : null}
         <div className="space-y-2">
           <p className="text-sm text-amber-300 font-semibold">Pending profiles</p>
           {pending.length ? (

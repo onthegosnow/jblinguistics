@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePortalUserFromToken } from "@/lib/server/storage";
-import { createSupabaseAdminClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient, RESUME_BUCKET } from "@/lib/supabase-server";
 
 const placeholderPhoto =
   "https://placehold.co/400x400?text=Profile";
@@ -55,7 +55,43 @@ export async function POST(request: NextRequest) {
       slugify(portalUser?.name || portalUser?.email || user.email || "profile") ||
       `user-${String(user.id).slice(0, 8)}`;
     const slug = baseSlug || `user-${String(user.id).slice(0, 8)}`;
-    const photoUrl = portalUser?.photo_url || existing?.photo_url || placeholderPhoto;
+    // Prefer latest uploaded photo (user or employee upload), then existing/profile photo
+    const isImage = (path?: string | null, mime?: string | null, filename?: string | null) => {
+      if ((mime ?? "").toLowerCase().startsWith("image/")) return true;
+      const name = path || filename || "";
+      return /\.(png|jpe?g|webp|gif)$/i.test(name);
+    };
+    const [userUploadsRes, employeeUploadsRes] = await Promise.all([
+      supabase
+        .from("portal_user_uploads")
+        .select("path, kind, mime_type, filename, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("portal_employee_uploads")
+        .select("path, kind, mime_type, filename, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+    ]);
+    const uploads = [...(userUploadsRes.data ?? []), ...(employeeUploadsRes.data ?? [])].filter((u) =>
+      isImage((u as any).path, (u as any).mime_type, (u as any).filename)
+    );
+    const preferred = uploads.find((u) => (u as any).kind === "photo");
+    const chosen =
+      preferred ??
+      uploads.sort(
+        (a, b) =>
+          (new Date((b as any).created_at).getTime() || 0) - (new Date((a as any).created_at).getTime() || 0)
+      )[0];
+    let photoUrl = portalUser?.photo_url || existing?.photo_url || placeholderPhoto;
+    if (chosen?.path) {
+      const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(chosen.path, 60 * 60 * 24 * 365); // 1 year
+      if (!signed.error && signed.data?.signedUrl) {
+        photoUrl = signed.data.signedUrl;
+        // keep portal_users in sync so the dashboard preview shows the fresh link
+        await supabase.from("portal_users").update({ photo_url: photoUrl }).eq("id", user.id);
+      }
+    }
     const locationParts = [portalUser?.city, portalUser?.state, portalUser?.country].filter(Boolean);
     const location = locationParts.join(", ");
 

@@ -104,70 +104,125 @@ export async function GET(request: NextRequest) {
       profile.visibility = profile.visibility ?? emp.staff_visibility ?? "pending";
     }
 
-    // Photo fallback: latest portal photo upload
-    if (!profile.photo_url && profile.user_id) {
-      const { data: uploads } = await supabase
-        .from("portal_user_uploads")
-        .select("path")
-        .eq("user_id", profile.user_id)
-        .eq("kind", "photo")
-        .order("created_at", { ascending: false })
-        .limit(1);
-      const path = uploads?.[0]?.path;
+    // Photo: prefer latest portal upload (employee or user), even if a stale photo_url exists
+    if (profile.user_id) {
+      const isImage = (path?: string | null, mime?: string | null, filename?: string | null) => {
+        if ((mime ?? "").toLowerCase().startsWith("image/")) return true;
+        const name = path || filename || "";
+        return /\.(png|jpe?g|webp|gif)$/i.test(name);
+      };
+      const [userUploadsRes, employeeUploadsRes] = await Promise.all([
+        supabase
+          .from("portal_user_uploads")
+          .select("path, kind, mime_type, filename, created_at")
+          .eq("user_id", profile.user_id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("portal_employee_uploads")
+          .select("path, kind, mime_type, filename, created_at")
+          .eq("user_id", profile.user_id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const uploads = [...(userUploadsRes.data ?? []), ...(employeeUploadsRes.data ?? [])].filter((u) =>
+        isImage(u.path, (u as any).mime_type, (u as any).filename)
+      );
+      // prefer explicit photo kind, else latest image
+      const preferred = uploads.find((u) => (u as any).kind === "photo");
+      const chosen = preferred ?? uploads.sort((a, b) => (new Date((b as any).created_at).getTime() || 0) - (new Date((a as any).created_at).getTime() || 0))[0];
+      const path = chosen?.path;
       if (path) {
-        const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(path, 60 * 60);
+        const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(path, 60 * 60 * 24); // 24h for preview
         if (!signed.error && signed.data?.signedUrl) {
           profile.photo_url = signed.data.signedUrl;
         }
       }
     }
 
+    const placeholderPhoto = "https://placehold.co/1200x600?text=Profile";
+    if (!profile.photo_url) profile.photo_url = placeholderPhoto;
+
     // Derive structured sections from overview text if needed
-    const teachingLanguages = profile.teaching_languages ?? [];
-    const translatingLanguages = profile.translating_languages ?? [];
-    const tagline = profile.tagline || "";
-    const languagesLine = profile.languages_display || "";
-
-    // Try to parse bullets from overview paragraphs if separate fields are empty
-    const parseSection = (label: string, nextLabels: string[]) => {
-      const text = (Array.isArray(profile.overview) ? profile.overview.join(" ") : profile.overview || "") as string;
-      const lower = text.toLowerCase();
-      const start = lower.indexOf(label.toLowerCase() + ":");
-      if (start === -1) return [];
-      const nextIdx = nextLabels
-        .map((l) => lower.indexOf(l.toLowerCase() + ":"))
-        .filter((i) => i !== -1 && i > start);
-      const end = nextIdx.length ? Math.min(...nextIdx) : text.length;
-      const slice = text.slice(start + label.length + 1, end).trim();
-      return slice
-        .split(" - ")
-        .flatMap((s) => s.split(". "))
-        .map((s) => s.trim().replace(/^[.-]\s*/, ""))
-        .filter(Boolean);
+    const normalizeText = (value?: any) =>
+      Array.isArray(value) ? value.filter(Boolean).join("\n") : typeof value === "string" ? value : "";
+    const rawOverview = normalizeText(profile.overview);
+    const sectionOrder = [
+      { key: "tagline", label: "Tagline" },
+      { key: "overview", label: "Overview" },
+      { key: "educational_background", label: "Educational & Professional Background" },
+      { key: "linguistic_focus", label: "Linguistic Focus" },
+      { key: "certifications", label: "Certifications" },
+      { key: "specialtiesText", label: "Specialties" },
+      { key: "teaching_languages_text", label: "Teaching Languages" },
+      { key: "translating_languages_text", label: "Translating Languages" },
+    ] as const;
+    const parseLabeledSections = (text: string) => {
+      const lines = text.replace(/\r\n/g, "\n").split("\n");
+      let current: (typeof sectionOrder)[number]["key"] | null = null;
+      const buckets: Record<string, string[]> = {};
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        const match = sectionOrder.find((s) => line.toLowerCase().startsWith(`${s.label.toLowerCase()}:`));
+        if (match) {
+          current = match.key;
+          const remainder = line.slice(match.label.length + 1).trim();
+          if (remainder) {
+            buckets[current] = buckets[current] ?? [];
+            buckets[current].push(remainder);
+          }
+          continue;
+        }
+        if (current) {
+          buckets[current] = buckets[current] ?? [];
+          buckets[current].push(line);
+        }
+      }
+      return buckets;
     };
+    const buckets = parseLabeledSections(rawOverview);
+    const cleanTagline = (value: string) => value.replace(/^tagline:\s*/i, "").trim();
+    const tagline = cleanTagline(buckets.tagline?.join(" ") || profile.tagline || "");
+    const languagesLine = profile.languages_display || "";
+    const cap = (value: string) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : "");
+    const parseBullets = (value?: string[]) =>
+      (value ?? [])
+        .flatMap((v) => v.split(/\n+/))
+        .flatMap((v) => v.split(/\s+-\s+/))
+        .map((v) => v.replace(/^[•-]\s*/, "").trim())
+        .filter(Boolean);
 
+    // Prefer structured fields; otherwise use labeled sections; otherwise infer from text
     const eduBullets =
-      profile.educational_background && profile.educational_background.length
+      (profile.educational_background && profile.educational_background.length
         ? profile.educational_background
-        : parseSection("Educational & Professional Background", ["Linguistic Focus", "Certifications", "Specialties"]);
+        : parseBullets(buckets.educational_background)) ?? [];
     const focusBullets =
-      profile.linguistic_focus && profile.linguistic_focus.length
+      (profile.linguistic_focus && profile.linguistic_focus.length
         ? profile.linguistic_focus
-        : parseSection("Linguistic Focus", ["Certifications", "Specialties"]);
+        : parseBullets(buckets.linguistic_focus)) ?? [];
     const certBullets =
-      profile.specialties && profile.specialties.length
-        ? profile.specialties
-        : parseSection("Certifications", ["Specialties"]);
+      (profile.specialties && profile.specialties.length ? profile.specialties : parseBullets(buckets.certifications)) ?? [];
 
-    // Overview paragraphs (if provided separately)
-    const overviewParas =
-      eduBullets.length || focusBullets.length || certBullets.length
-        ? []
-        : Array.isArray(profile.overview)
-          ? profile.overview
-          : profile.overview
-            ? [profile.overview]
-            : [];
+    const overviewText = buckets.overview?.join("\n").trim() || rawOverview;
+    const overviewParas = overviewText
+      ? overviewText
+          .split(/\n{2,}/)
+          .map((p) => p.trim())
+          .filter(Boolean)
+      : [];
+    const teachingLanguages =
+      profile.teaching_languages && profile.teaching_languages.length
+        ? profile.teaching_languages
+        : buckets.teaching_languages_text
+          ? buckets.teaching_languages_text.join(" ").split(/[,;/\s]+/).filter(Boolean)
+          : [];
+    const translatingLanguages =
+      profile.translating_languages && profile.translating_languages.length
+        ? profile.translating_languages
+        : buckets.translating_languages_text
+          ? buckets.translating_languages_text.join(" ").split(/[,;/\s]+/).filter(Boolean)
+          : [];
     const overviewHtml = overviewParas
       .map((p: string) => `<p style="margin:8px 0;color:#334155;line-height:1.6;">${esc(p)}</p>`)
       .join("");
@@ -180,7 +235,7 @@ export async function GET(request: NextRequest) {
               .map(
                 (a) =>
                   `<span style="padding:6px 10px;border-radius:999px;background:#e0f2fe;color:#0f172a;font-size:12px;border:1px solid #cbd5e1;">${esc(
-                    a
+                    cap(a)
                   )}</span>`
               )
               .join("")}</div>
@@ -222,9 +277,8 @@ export async function GET(request: NextRequest) {
           </div>
           <div class="body">
             <h1>${esc(profile.name || "")}</h1>
-            <div style="color:#475569;font-size:13px;margin-bottom:4px;">${esc(profile.visibility || "pending")}</div>
             <div class="roles">
-              ${(profile.roles || []).map((r: string) => `<span class="pill">${esc(r)}</span>`).join("")}
+              ${(profile.roles || []).map((r: string) => `<span class="pill">${esc(cap(r))}</span>`).join("")}
             </div>
             ${tagline ? `<div style="color:#0f172a;font-weight:500;margin:2px 0;">${esc(tagline)}</div>` : ""}
             ${languagesLine ? `<div style="color:#475569;font-size:13px;">${esc(languagesLine)}</div>` : ""}
