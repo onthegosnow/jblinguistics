@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       application?: any;
       assignments: Array<{ id: string; title: string; status: string; client?: string | null; languagePair?: string | null }>;
       notes: Array<{ id: string; note: string; createdAt: string; createdBy?: string | null }>;
-      uploads: Array<{ id: string; kind: string; filename: string; createdAt: string; mimeType?: string | null; size?: number | null; path?: string | null; signedUrl?: string }>;
+      uploads: Array<{ id: string; kind: string; filename: string; createdAt: string; mimeType?: string | null; size?: number | null; path?: string | null; signedUrl?: string; source?: "portal" | "admin" }>;
     }
   >();
   users.forEach((u) => {

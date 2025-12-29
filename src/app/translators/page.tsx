@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { hasRole, type StaffMember } from "@/lib/staff";
-import { getPublicStaffByRole } from "@/lib/public-staff";
+import { getPublicStaffByRole, getPublicStaffStatus } from "@/lib/public-staff";
 
 const splitDisplayLanguages = (value: string): string[] =>
   String(value || "")
@@ -45,9 +45,18 @@ const getSpecList = (person: StaffMember): string[] => {
 
 export default function TranslatorsPage() {
   const [translators, setTranslators] = useState<StaffMember[]>([]);
+  const [dataWarning, setDataWarning] = useState<string | null>(null);
 
   useEffect(() => {
-    getPublicStaffByRole("translator").then((list) => setTranslators(list));
+    getPublicStaffByRole("translator").then((list) => {
+      setTranslators(list);
+      const status = getPublicStaffStatus();
+      if (status.source !== "supabase") {
+        setDataWarning(status.reason || "Falling back to static staff data (Supabase unavailable).");
+      } else {
+        setDataWarning(null);
+      }
+    });
   }, []);
 
   // Options for filters
@@ -149,6 +158,11 @@ export default function TranslatorsPage() {
         <p className="mt-3 text-sm md:text-base text-slate-700 max-w-3xl">
           JB Linguistics provides written translations, localization, and simultaneous/consecutive interpretation in 20+ languages. Meet some of our translators and conference interpreters.
         </p>
+        {dataWarning ? (
+          <div className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Staff data is using the static fallback: {dataWarning}. Check Supabase env vars on the deployment.
+          </div>
+        ) : null}
 
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
@@ -314,13 +328,16 @@ export default function TranslatorsPage() {
               key={t.slug}
               className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 overflow-hidden flex flex-col"
             >
+              {(() => {
+                const imageSrc = t.image || (t as any).photo_url || "/Brand/JB LOGO no TEXT.png";
+                return (
               <div
                 className={`relative h-64 overflow-hidden flex items-start ${
                   t.imageFit === "contain" ? "bg-slate-200" : ""
                 }`}
               >
                 <Image
-                  src={t.image}
+                  src={imageSrc}
                   alt={t.name}
                   fill
                   className="object-cover"
@@ -330,6 +347,8 @@ export default function TranslatorsPage() {
                   }}
                 />
               </div>
+                );
+              })()}
               <div className="p-4 flex-1 flex flex-col">
                 <h2 className="text-lg font-semibold text-sky-900">
                   {t.name}
