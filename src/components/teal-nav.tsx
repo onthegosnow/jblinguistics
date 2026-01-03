@@ -44,9 +44,17 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
   const [teachers, setTeachers] = useState<StaffMember[]>([]);
   const [translators, setTranslators] = useState<StaffMember[]>([]);
 
+  const prioritizeFounder = (list: StaffMember[]) =>
+    [...list].sort((a, b) => {
+      const aFounder = a.slug === "jonathan-brooks" ? -1 : 0;
+      const bFounder = b.slug === "jonathan-brooks" ? -1 : 0;
+      if (aFounder !== bFounder) return aFounder - bFounder;
+      return a.name.localeCompare(b.name);
+    });
+
   useEffect(() => {
-    getPublicStaffByRole("teacher").then(setTeachers);
-    getPublicStaffByRole("translator").then(setTranslators);
+    getPublicStaffByRole("teacher").then((list) => setTeachers(prioritizeFounder(list)));
+    getPublicStaffByRole("translator").then((list) => setTranslators(prioritizeFounder(list)));
   }, []);
 
   const topTeachers = useMemo(() => teachers.slice(0, 3), [teachers]);
@@ -437,6 +445,16 @@ function TranslationDropdown({
   );
 }
 
+function titleCaseLangs(value?: string) {
+  if (!value) return "";
+  return value
+    .split(/[,/|·•–-]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(", ");
+}
+
 function CombinedStaffDropdown({
   label,
   teachers,
@@ -504,17 +522,20 @@ function CombinedStaffDropdown({
                   >
                     <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
                       <Image
-                        src={person.image}
+                        src={person.image || (person as any).photo_url || "/Brand/JB LOGO no TEXT.png"}
                         alt={person.name}
                         fill
                         sizes="40px"
                         className="object-cover"
                         style={{ objectPosition: person.imageFocus ?? "center" }}
+                        unoptimized={Boolean((person as any).photo_url)}
                       />
                     </div>
                     <div>
                       <span className="font-semibold text-sky-900 block">{person.name}</span>
-                      <span className="block text-[10px] text-slate-500">{person.languages}</span>
+                      <span className="block text-[10px] text-slate-500">
+                        {person.languages || (person as any).languages_display || ""}
+                      </span>
                     </div>
                   </Link>
                 ))}
@@ -540,20 +561,23 @@ function CombinedStaffDropdown({
                   >
                     <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
                       <Image
-                        src={person.image}
+                        src={person.image || (person as any).photo_url || "/Brand/JB LOGO no TEXT.png"}
                         alt={person.name}
                         fill
                         sizes="40px"
                         className="object-cover"
                         style={{ objectPosition: person.imageFocus ?? "center" }}
+                        unoptimized={Boolean((person as any).photo_url)}
                       />
                     </div>
-                    <div>
-                      <span className="font-semibold text-sky-900 block">{person.name}</span>
-                      <span className="block text-[10px] text-slate-500">{person.languages}</span>
-                    </div>
-                  </Link>
-                ))}
+                  <div>
+                    <span className="font-semibold text-sky-900 block">{person.name}</span>
+                    <span className="block text-[10px] text-slate-500">
+                      {titleCaseLangs(person.languages || (person as any).languages_display)}
+                    </span>
+                  </div>
+                </Link>
+              ))}
               </div>
               <Link
                 href="/translators"

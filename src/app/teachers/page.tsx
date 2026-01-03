@@ -37,13 +37,50 @@ const getSpecialties = (person: StaffMember): string[] => {
   return inferSpecialtiesFromTagline(person.tagline);
 };
 
+const prioritizeFounder = (list: StaffMember[]) =>
+  [...list].sort((a, b) => {
+    const aFounder = a.slug === "jonathan-brooks" ? -1 : 0;
+    const bFounder = b.slug === "jonathan-brooks" ? -1 : 0;
+    if (aFounder !== bFounder) return aFounder - bFounder;
+    return a.name.localeCompare(b.name);
+  });
+
+const titleCaseLangs = (value: string) =>
+  value
+    .split(/[,/|·•–-]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(", ");
+
+const stripTaglineLabel = (value?: string) => {
+  if (!value) return "";
+  const cleaned = value.replace(/^\s*tagline:\s*/i, "").trim();
+  const parts = cleaned.split(/overview:/i);
+  return (parts[0] || cleaned).trim();
+};
+
+const normalizeTagline = (t: StaffMember) => {
+  const stripped = stripTaglineLabel(t.tagline);
+  const langs = Array.isArray((t as any).teaching_languages) && (t as any).teaching_languages.length
+    ? titleCaseLangs((t as any).teaching_languages.join(", "))
+    : titleCaseLangs(t.languages || "");
+  if (!stripped) return "";
+  if (stripped.toLowerCase() === (t.name || "").toLowerCase()) return "";
+  if (stripped.toLowerCase() === langs.toLowerCase()) return "";
+  if (stripped.toLowerCase().startsWith((t.name || "").toLowerCase())) return "";
+  if (langs && stripped.toLowerCase().includes(langs.toLowerCase())) return "";
+  if ((t.name || "") && stripped.toLowerCase().includes((t.name || "").toLowerCase())) return "";
+  return stripped;
+};
+
 export default function TeachersPage() {
   const [teachers, setTeachers] = useState<StaffMember[]>([]);
   const [dataWarning, setDataWarning] = useState<string | null>(null);
 
   useEffect(() => {
     getPublicStaffByRole("teacher").then((list) => {
-      setTeachers(list);
+      setTeachers(prioritizeFounder(list));
       const status = getPublicStaffStatus();
       if (status.source !== "supabase") {
         setDataWarning(status.reason || "Falling back to static staff data (Supabase unavailable).");
@@ -231,18 +268,16 @@ export default function TeachersPage() {
               key={t.slug}
               className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 overflow-hidden flex flex-col"
             >
-              {(() => {
-                const imageSrc = t.image || (t as any).photo_url || "/Brand/JB LOGO no TEXT.png";
-                return (
               <div
                 className={`relative h-64 overflow-hidden flex items-start ${
                   t.imageFit === "contain" ? "bg-slate-200" : ""
                 }`}
               >
                 <Image
-                  src={imageSrc}
+                  src={t.image || (t as any).photo_url || "/Brand/JB LOGO no TEXT.png"}
                   alt={t.name}
                   fill
+                  unoptimized
                   className="object-cover"
                   style={{
                     objectPosition: t.imageFocus ?? "50% 35%",
@@ -250,16 +285,22 @@ export default function TeachersPage() {
                   }}
                 />
               </div>
-                );
-              })()}
               <div className="p-4 flex-1 flex flex-col">
                 <h2 className="text-lg font-semibold text-sky-900">
                   {t.name}
                 </h2>
-                <p className="text-xs text-teal-700 mt-1">{t.languages}</p>
-                <p className="mt-2 text-xs text-slate-700 line-clamp-3">
-                  {t.tagline}
+                <p className="text-xs text-teal-700 mt-1">
+                  {Array.isArray((t as any).teaching_languages) && (t as any).teaching_languages.length
+                    ? `Teaching: ${titleCaseLangs((t as any).teaching_languages.join(", "))}`
+                    : t.languages
+                      ? titleCaseLangs(t.languages)
+                      : ""}
                 </p>
+                {normalizeTagline(t) ? (
+                  <p className="mt-2 text-xs text-slate-700 line-clamp-3">
+                    {normalizeTagline(t)}
+                  </p>
+                ) : null}
                 <div className="mt-3">
                   <Link
                     href={`/teachers/${t.slug}`}

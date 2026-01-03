@@ -330,7 +330,7 @@ export default function PortalPage() {
   const certSlug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   const sanitizeList = (list: string[]) =>
     (list || [])
-      .map((l) => l.trim())
+      .map((l) => l.trim().replace(/^[sS]\s+/, "")) // strip stray leading "s " artifacts from parsing
       .filter(
         (l) =>
           l &&

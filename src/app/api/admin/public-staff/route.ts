@@ -122,6 +122,20 @@ export async function POST(request: NextRequest) {
     }
     const supabase = createSupabaseAdminClient();
     const now = new Date().toISOString();
+    const updatePortalVisibility = async (uid: string | null | undefined, vis: "visible" | "hidden") => {
+      if (!uid) return;
+      const publish_teacher = vis === "visible";
+      const publish_translator = vis === "visible";
+      await supabase
+        .from("portal_employees")
+        .update({
+          staff_visibility: vis,
+          publish_teacher,
+          publish_translator,
+        })
+        .eq("user_id", uid);
+    };
+
     if (body.action === "delete") {
       const del = await supabase
         .from("public_staff_profiles")
@@ -130,9 +144,7 @@ export async function POST(request: NextRequest) {
       if (del.error) {
         return NextResponse.json({ message: del.error.message }, { status: 500 });
       }
-      if (body.userId) {
-        await supabase.from("portal_employees").update({ staff_visibility: "hidden" }).eq("user_id", body.userId);
-      }
+      await updatePortalVisibility(body.userId, "hidden");
     } else {
       const visibility = body.action === "approve" ? "visible" : "hidden";
       let profilePayload: any = {
@@ -179,16 +191,12 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      const upsert = await supabase
-        .from("public_staff_profiles")
-        .upsert(profilePayload, { onConflict: "user_id" });
+      // Table does not have a unique constraint on user_id, so rely on default primary key conflict handling
+      const upsert = await supabase.from("public_staff_profiles").upsert(profilePayload);
       if (upsert.error) {
         return NextResponse.json({ message: upsert.error.message }, { status: 500 });
       }
-
-      if (body.userId) {
-        await supabase.from("portal_employees").update({ staff_visibility: visibility }).eq("user_id", body.userId);
-      }
+      await updatePortalVisibility(body.userId, visibility);
     }
     return NextResponse.json({ success: true });
   } catch (err) {

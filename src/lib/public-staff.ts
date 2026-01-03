@@ -12,6 +12,12 @@ export function getPublicStaffStatus() {
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+const normalizeBaseUrl = (raw?: string) => {
+  if (!raw) return undefined;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return `https://${raw}`;
+};
+
 async function fetchFromSupabase(): Promise<PublicStaff[]> {
   if (!SUPABASE_URL || !SUPABASE_ANON) {
     publicStaffStatus = { source: "static", reason: "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY" };
@@ -61,13 +67,13 @@ async function fetchFromSupabase(): Promise<PublicStaff[]> {
 }
 
 export async function getPublicStaff(): Promise<PublicStaff[]> {
-  // First try direct Supabase
-  const supa = await fetchFromSupabase();
-  if (supa.length) return supa;
+  const baseUrl =
+    normalizeBaseUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
+    (typeof process !== "undefined" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
-  // Fallback: hit our own API (uses service role server-side)
   try {
-    const res = await fetch("/api/public-staff", { next: { revalidate: 0 } });
+    const apiUrl = `${baseUrl}/api/public-staff`;
+    const res = await fetch(apiUrl, { next: { revalidate: 0 } });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.profiles) && data.profiles.length) {
@@ -83,6 +89,10 @@ export async function getPublicStaff(): Promise<PublicStaff[]> {
   } catch (err) {
     publicStaffStatus = { source: "static", reason: "Internal API error" };
   }
+
+  // Then try direct Supabase
+  const supa = await fetchFromSupabase();
+  if (supa.length) return supa;
 
   publicStaffStatus = { source: "static", reason: publicStaffStatus.reason || "Supabase returned no rows" };
   // fallback to static staff

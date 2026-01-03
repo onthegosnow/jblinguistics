@@ -159,7 +159,49 @@ export function PublicStaffPreview({ token }: { token: string }) {
       translating_languages: profile.translating_languages ?? [],
       specialties: profile.specialties ?? [],
     };
-    const overviews = profile.overview?.length ? profile.overview : [];
+    const parseProfile = () => {
+      try {
+        const stripTagline = (txt?: string | null) => {
+          if (!txt) return "";
+          const cleaned = txt.replace(/^\s*tagline:\s*/i, "").trim();
+          const parts = cleaned.split(/overview:/i);
+          return (parts[0] || cleaned).trim();
+        };
+        const normalize = (txt: string) =>
+          txt
+            .replace(/\*\*/g, "")
+            .replace(/^[*•-]\s*/, "")
+            .trim();
+        const raw = Array.isArray(profile.overview) ? profile.overview.join("\n") : String(profile.overview || "");
+        const block = (label: string) => {
+          const regex = new RegExp(`${label}\\s*:?\\s*([\\s\\S]*?)(?=\\n\\s*[A-Z][A-Z ]+:?|$)`, "i");
+          const m = raw.match(regex);
+          return m ? normalize(m[1]) : "";
+        };
+        const splitParas = (txt: string) =>
+          txt
+            .split(/\n+/)
+            .map((p) => normalize(p))
+            .filter(Boolean);
+        const cleanList = (items: string[]) =>
+          Array.from(
+            new Set(
+              (items || [])
+                .map((i) => i.trim())
+                .filter((i) => i && !/^tagline\b/i.test(i) && !/background/i.test(i) && !/focus/i.test(i))
+            )
+          );
+        const overviewBlock = block("overview") || "";
+        const tagline = stripTagline(profile.tagline || (overviewBlock ? overviewBlock.split(".")[0]?.trim() : ""));
+        const overviewParas = cleanList(overviewBlock ? splitParas(overviewBlock) : splitParas(raw));
+        return { tagline, overview: overviewParas };
+      } catch (err) {
+        return { tagline: profile.tagline || "", overview: Array.isArray(profile.overview) ? profile.overview : [] };
+      }
+    };
+
+    const display = parseProfile();
+    const overviews = display.overview;
     const specialties = profile.specialties ?? [];
     const primaryRole =
       profile.roles?.includes("teacher") && !profile.roles?.includes("translator")
@@ -311,7 +353,7 @@ export function PublicStaffPreview({ token }: { token: string }) {
           </div>
         ) : (
           <div className="space-y-2">
-            {profile.tagline ? <p className="text-sm text-slate-100">{profile.tagline}</p> : null}
+            {display.tagline ? <p className="text-sm text-slate-100">{display.tagline}</p> : null}
             <div className="space-y-1">
               <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Overview</p>
               {overviews.length ? (

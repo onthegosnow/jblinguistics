@@ -174,15 +174,15 @@ export async function POST(request: NextRequest) {
       "Structure the output clearly:",
       "- Tagline: 1 sentence (concise) after the name and languages.",
       "- OVERVIEW: 2-3 sentences, paragraph. This cannot be empty.",
-      "- EDUCATIONAL & PROFESSIONAL BACKGROUND: bullet list, 4-7 bullets, summarizing relevant experience, credentials, sectors, modalities.",
-      "- LINGUISTIC FOCUS: bullet list, 3-6 bullets, focusing on language specialties, teaching/translation strengths, sectors served.",
+      "- EDUCATIONAL & PROFESSIONAL BACKGROUND: bullet list, 4-7 bullets, summarizing relevant experience, credentials, sectors, modalities. If you only have one point, split it into 3-4 clear bullets.",
+      "- LINGUISTIC FOCUS: bullet list, 3-6 bullets, focusing on language specialties, teaching/translation strengths, sectors served. If you only have one point, split it into 3-4 concise bullets.",
       "Return plain text without Markdown or asterisks; no bold, no headings markup—just readable text and bullet lines prefixed with '-'.",
       isBase64
         ? "The resume was provided as a truncated base64 string; infer best you can from it."
         : "The resume text may be truncated; focus on clear highlights and specialties.",
       "Start from the provided current bio fields and user prompt; improve them per the request—do not discard useful existing bullets.",
       "If current bullets exist, keep them unless explicitly asked to change them; refine wording to be clear and strong.",
-      "Never leave the overview or focus empty; synthesize concise points from the resume if needed.",
+      "Never leave the overview or focus empty; synthesize concise points from the resume if needed. Do not emit stray letters or prefixes (e.g., leading 's ').",
       "If the user request mentions a theme (e.g., hosting language learning trips), add a concise sentence about it in the OVERVIEW.",
     ].join(" ");
 

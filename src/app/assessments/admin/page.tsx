@@ -2086,6 +2086,7 @@ export default function AssessmentsAdminPage() {
                             {expandedEmployees[emp.id] ? "Hide details" : "Details"}
                           </button>
                         </div>
+                        
                       </div>
                       {expandedEmployees[emp.id] && (
                         <div className="space-y-3 border-t border-slate-700/70 pt-3">

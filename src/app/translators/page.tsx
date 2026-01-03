@@ -43,6 +43,33 @@ const getSpecList = (person: StaffMember): string[] => {
   return Array.isArray(specs) ? specs.filter(Boolean) : [];
 };
 
+const titleCaseLangs = (value: string) =>
+  value
+    .split(/[,/|·•–-]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(", ");
+
+const stripTaglineLabel = (value?: string) => {
+  if (!value) return "";
+  const cleaned = value.replace(/^\s*tagline:\s*/i, "").trim();
+  const parts = cleaned.split(/overview:/i);
+  return (parts[0] || cleaned).trim();
+};
+
+const normalizeTagline = (t: StaffMember) => {
+  const stripped = stripTaglineLabel(t.tagline);
+  const langs = titleCaseLangs(t.languages || getStructuredLanguages(t).join(", "));
+  if (!stripped) return "";
+  if (stripped.toLowerCase() === (t.name || "").toLowerCase()) return "";
+  if (stripped.toLowerCase() === langs.toLowerCase()) return "";
+  if (stripped.toLowerCase().startsWith((t.name || "").toLowerCase())) return "";
+  if (langs && stripped.toLowerCase().includes(langs.toLowerCase())) return "";
+  if ((t.name || "") && stripped.toLowerCase().includes((t.name || "").toLowerCase())) return "";
+  return stripped;
+};
+
 export default function TranslatorsPage() {
   const [translators, setTranslators] = useState<StaffMember[]>([]);
   const [dataWarning, setDataWarning] = useState<string | null>(null);
@@ -340,6 +367,7 @@ export default function TranslatorsPage() {
                   src={imageSrc}
                   alt={t.name}
                   fill
+                  unoptimized
                   className="object-cover"
                   style={{
                     objectPosition: t.imageFocus ?? "50% 35%",
@@ -353,10 +381,14 @@ export default function TranslatorsPage() {
                 <h2 className="text-lg font-semibold text-sky-900">
                   {t.name}
                 </h2>
-                <p className="text-xs text-teal-700 mt-1">{t.languages}</p>
-                <p className="mt-2 text-xs text-slate-700 line-clamp-3">
-                  {t.tagline}
+                <p className="text-xs text-teal-700 mt-1">
+                  {t.languages ? titleCaseLangs(t.languages) : titleCaseLangs(getStructuredLanguages(t).join(", "))}
                 </p>
+                {normalizeTagline(t) ? (
+                  <p className="mt-2 text-xs text-slate-700 line-clamp-3">
+                    {normalizeTagline(t)}
+                  </p>
+                ) : null}
                 {/* Specialty chips */}
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {(() => {
