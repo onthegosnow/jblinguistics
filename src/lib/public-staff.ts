@@ -67,8 +67,10 @@ async function fetchFromSupabase(): Promise<PublicStaff[]> {
 }
 
 export async function getPublicStaff(): Promise<PublicStaff[]> {
+  const browserOrigin = typeof window !== "undefined" ? window.location.origin : undefined;
   const baseUrl =
     normalizeBaseUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
+    (browserOrigin ? browserOrigin : undefined) ||
     (typeof process !== "undefined" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
   try {
