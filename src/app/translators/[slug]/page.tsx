@@ -24,8 +24,12 @@ export default async function TranslatorProfilePage({ params }: Props) {
     .filter(Boolean)
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(", ");
-  const teachingLangs = Array.isArray((person as any).teaching_languages) ? (person as any).teaching_languages : [];
-  const translatingLangs = Array.isArray((person as any).translating_languages) ? (person as any).translating_languages : [];
+  const teachingLangs: string[] = Array.isArray((person as any).teaching_languages)
+    ? (person as any).teaching_languages
+    : [];
+  const translatingLangs: string[] = Array.isArray((person as any).translating_languages)
+    ? (person as any).translating_languages
+    : [];
 
   const parseSections = () => {
     try {
@@ -131,7 +135,7 @@ export default async function TranslatorProfilePage({ params }: Props) {
               <section>
                 <h2 className="text-sm font-semibold text-sky-900 uppercase tracking-wide">Teaching Languages</h2>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {teachingLangs.map((l) => (
+                  {teachingLangs.map((l: string) => (
                     <span key={l} className="rounded-full bg-slate-100 text-slate-800 px-3 py-1 text-xs font-semibold border border-slate-200">
                       {String(l).charAt(0).toUpperCase() + String(l).slice(1)}
                     </span>
@@ -144,7 +148,7 @@ export default async function TranslatorProfilePage({ params }: Props) {
               <section>
                 <h2 className="text-sm font-semibold text-sky-900 uppercase tracking-wide">Translating Languages</h2>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {translatingLangs.map((l) => (
+                  {translatingLangs.map((l: string) => (
                     <span key={l} className="rounded-full bg-slate-100 text-slate-800 px-3 py-1 text-xs font-semibold border border-slate-200">
                       {String(l).charAt(0).toUpperCase() + String(l).slice(1)}
                     </span>
