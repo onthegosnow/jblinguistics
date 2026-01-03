@@ -16,6 +16,8 @@ const extraTeacherLanguages = [
   { id: "farsi", label: "Farsi" },
   { id: "arabic", label: "Arabic" },
   { id: "polish", label: "Polish" },
+  { id: "hindi", label: "Hindi" },
+  { id: "swahili", label: "Swahili" },
 ] as const;
 const teacherLanguageOptions = [
   { id: "english", label: "English" },
@@ -35,6 +37,8 @@ const teacherLanguageOptions = [
   { id: "farsi", label: "Farsi" },
   { id: "arabic", label: "Arabic" },
   { id: "polish", label: "Polish" },
+  { id: "hindi", label: "Hindi" },
+  { id: "swahili", label: "Swahili" },
 ] as const;
 const teacherLanguageLabels = teacherLanguageOptions.reduce<Record<string, string>>((acc, lang) => {
   acc[lang.id] = lang.label;
@@ -63,6 +67,8 @@ const translatorLanguageOptions = [
   { id: "farsi", label: "Farsi" },
   { id: "arabic", label: "Arabic" },
   { id: "polish", label: "Polish" },
+  { id: "hindi", label: "Hindi" },
+  { id: "swahili", label: "Swahili" },
   { id: "other", label: "Other" },
 ] as const;
 const translatorLanguageLabels = translatorLanguageOptions.reduce<Record<string, string>>((acc, lang) => {

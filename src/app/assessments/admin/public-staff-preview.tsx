@@ -39,6 +39,8 @@ const languageOptions = [
   "farsi",
   "arabic",
   "polish",
+  "hindi",
+  "swahili",
   "other",
 ];
 const labelForLang: Record<string, string> = {
@@ -59,6 +61,8 @@ const labelForLang: Record<string, string> = {
   farsi: "Farsi",
   arabic: "Arabic",
   polish: "Polish",
+  hindi: "Hindi",
+  swahili: "Swahili",
   other: "Other",
 };
 
