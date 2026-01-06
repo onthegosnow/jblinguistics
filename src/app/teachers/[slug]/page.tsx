@@ -25,9 +25,9 @@ export default async function TeacherProfilePage({ params }: Props) {
   const languagesDisplayRaw = person.languages || (Array.isArray(person.langs) ? person.langs.join(", ") : "");
   const languagesDisplay = languagesDisplayRaw
     .split(/[,/|·•–-]+/)
-    .map((s) => s.trim())
+    .map((s: string) => s.trim())
     .filter(Boolean)
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .map((s: string) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(", ");
   const teachingLangs: string[] = Array.isArray((person as any).teaching_languages)
     ? (person as any).teaching_languages
