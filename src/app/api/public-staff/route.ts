@@ -45,9 +45,10 @@ export async function GET() {
   }
 
   const signedPhotoByUser = new Map<string, string>();
+  const SIGN_TTL_SECONDS = 60 * 60 * 24 * 180; // 180 days
   for (const [uid, upload] of latestPhotoByUser.entries()) {
     if (!upload?.path) continue;
-    const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(upload.path, 60 * 60 * 24 * 30); // 30 days
+    const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(upload.path, SIGN_TTL_SECONDS);
     if (!signed.error && signed.data?.signedUrl) {
       signedPhotoByUser.set(uid, signed.data.signedUrl);
     }
@@ -143,8 +144,15 @@ export async function GET() {
     });
   });
 
-  return NextResponse.json({
-    source: "supabase-service",
-    profiles: enriched,
-  });
+  return NextResponse.json(
+    {
+      source: "supabase-service",
+      profiles: enriched,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
 }
