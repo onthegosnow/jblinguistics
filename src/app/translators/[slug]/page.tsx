@@ -10,8 +10,13 @@ export const dynamic = "force-dynamic";
 
 export default async function TranslatorProfilePage({ params }: Props) {
   const { slug } = await params;
-  const map = await getPublicStaffMap();
-  const person = map.get(slug);
+  let person: any = null;
+  try {
+    const map = await getPublicStaffMap();
+    person = map.get(slug);
+  } catch (err) {
+    return notFound();
+  }
 
   if (!person || !(person.roles?.includes("translator") || person.role === "translator")) {
     return notFound();
