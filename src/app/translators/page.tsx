@@ -169,6 +169,8 @@ export default function TranslatorsPage() {
   const [lang, setLang] = useState<string>("");
   const [region, setRegion] = useState<string>("");
   const [spec, setSpec] = useState<string>("");
+  // pagination removed; keep a no-op setter for filters reset safety
+  const setPage = (_n: number) => {};
 
   const hasActive = useMemo(
     () => Boolean(q.trim() || lang || region || spec),
