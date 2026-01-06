@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { useState } from "react";
 import { getPublicStaffMap } from "@/lib/public-staff";
 
 type Props = { params: { slug: string } };
@@ -100,6 +101,7 @@ export default async function TranslatorProfilePage({ params }: Props) {
   const specialties =
     (Array.isArray(person.specialties) && person.specialties.length ? person.specialties : person.expertise) ?? [];
   const photo = person.image || person.photo_url || "/Brand/JB LOGO no TEXT.png";
+  const [imgSrc, setImgSrc] = useState<string>(photo);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-sky-50 text-slate-900 pb-16">
@@ -112,10 +114,11 @@ export default async function TranslatorProfilePage({ params }: Props) {
           <div className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 overflow-hidden">
             <div className="relative h-[30rem] bg-slate-900">
               <Image
-                src={photo}
+                src={imgSrc}
                 alt={person.name}
                 fill
                 unoptimized
+                onError={() => setImgSrc("/Brand/JB LOGO no TEXT.png")}
                 className="object-contain"
                 style={{
                   objectPosition: person.imageFocus ?? "center",
