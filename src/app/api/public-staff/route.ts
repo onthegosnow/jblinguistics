@@ -66,7 +66,15 @@ export async function GET() {
   const profileByUser = new Map<string, any>();
   const enriched =
     data?.map((row) => {
-      const signedPhoto = row.user_id ? signedPhotoByUser.get(row.user_id) : null;
+      const upload = row.user_id ? latestPhotoByUser.get(row.user_id) : null;
+      let signedPhoto = row.user_id ? signedPhotoByUser.get(row.user_id) : null;
+      if (!signedPhoto && upload?.path) {
+        const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(upload.path, SIGN_TTL_SECONDS);
+        if (!signed.error && signed.data?.signedUrl) {
+          signedPhoto = signed.data.signedUrl;
+          signedPhotoByUser.set(row.user_id, signedPhoto);
+        }
+      }
       const portalUser = row.user_id ? userById.get(row.user_id) : null;
       const emp = row.user_id ? empById.get(row.user_id) : null;
 
@@ -93,7 +101,7 @@ export async function GET() {
 
       const merged = {
         ...row,
-        photo_url: signedPhoto || row.photo_url || portalUser?.photo_url || row.photo_url,
+        photo_url: signedPhoto || portalUser?.photo_url || null,
         name: portalUser?.name || row.name,
         tagline: row.tagline || taglineFromBio || "",
         overview: overviewFromBio ?? [],
