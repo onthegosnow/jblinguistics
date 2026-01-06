@@ -111,15 +111,17 @@ export default async function TranslatorProfilePage({ params }: Props) {
         <div className="mt-4 grid md:grid-cols-[1.1fr,1.4fr] gap-6 items-start">
           <div className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 overflow-hidden">
             <div className="relative h-[30rem] bg-slate-900">
-              <Image
+              <img
                 src={photo}
                 alt={person.name}
-                fill
-                unoptimized
-                className="object-contain"
+                className="absolute inset-0 w-full h-full object-contain"
                 style={{
                   objectPosition: person.imageFocus ?? "center",
                   objectFit: person.imageFit ?? "contain",
+                }}
+                onError={(e) => {
+                  if (e.currentTarget.src.endsWith("/Brand/JB LOGO no TEXT.png")) return;
+                  e.currentTarget.src = "/Brand/JB LOGO no TEXT.png";
                 }}
               />
             </div>
