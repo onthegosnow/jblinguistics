@@ -5,6 +5,29 @@ import { useMemo, useState, useEffect } from "react";
 import { hasRole, type StaffMember } from "@/lib/staff";
 import { getPublicStaffByRole, getPublicStaffStatus } from "@/lib/public-staff";
 
+const ADMIN_LANGS = [
+  "english",
+  "german",
+  "french",
+  "dutch",
+  "danish",
+  "swedish",
+  "norwegian",
+  "russian",
+  "italian",
+  "spanish",
+  "portuguese",
+  "mandarin",
+  "japanese",
+  "korean",
+  "farsi",
+  "arabic",
+  "polish",
+  "hindi",
+  "swahili",
+  "other",
+];
+
 const splitDisplayLanguages = (value: string): string[] =>
   String(value || "")
     .split(/[,/|·•–-]+/)
@@ -106,7 +129,7 @@ export default function TeachersPage() {
 
   // Derive unique language options from staff; fall back to splitting the display string if needed
   const allLangs = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(ADMIN_LANGS);
     for (const t of teachers) {
       // Prefer a structured array if present (t.langs), else parse the display string t.languages
       const arr = getStructuredLanguages(t);

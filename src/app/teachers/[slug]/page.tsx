@@ -227,7 +227,7 @@ export default async function TeacherProfilePage({ params }: Props) {
           </p>
           <div className="mt-4">
             <Link
-              href={`/#contact?preferredStaff=${encodeURIComponent(person.name)}`}
+              href={`/#contact?preferredStaff=${encodeURIComponent(person.name)}&staff=${encodeURIComponent(person.name)}`}
               className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm"
             >
               Contact {person.name}

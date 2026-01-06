@@ -106,7 +106,10 @@ export async function GET(request: NextRequest) {
     }
   });
 
-  return NextResponse.json({ profiles: Array.from(profileMap.values()) });
+  // Hide profiles explicitly marked hidden
+  const visibleProfiles = Array.from(profileMap.values()).filter((p: any) => (p.visibility ?? "pending") !== "hidden");
+
+  return NextResponse.json({ profiles: visibleProfiles });
 }
 
 export async function POST(request: NextRequest) {
@@ -137,12 +140,17 @@ export async function POST(request: NextRequest) {
     };
 
     if (body.action === "delete") {
-      const del = await supabase
-        .from("public_staff_profiles")
-        .delete()
-        .or(`slug.eq.${body.slug ?? ""},user_id.eq.${body.userId ?? ""}`);
-      if (del.error) {
-        return NextResponse.json({ message: del.error.message }, { status: 500 });
+      // Prefer deleting by user_id when present; otherwise by slug
+      if (body.userId) {
+        const delUser = await supabase.from("public_staff_profiles").delete().eq("user_id", body.userId);
+        if (delUser.error) {
+          return NextResponse.json({ message: delUser.error.message }, { status: 500 });
+        }
+      } else if (body.slug) {
+        const delSlug = await supabase.from("public_staff_profiles").delete().eq("slug", body.slug);
+        if (delSlug.error) {
+          return NextResponse.json({ message: delSlug.error.message }, { status: 500 });
+        }
       }
       await updatePortalVisibility(body.userId, "hidden");
     } else {

@@ -5,6 +5,29 @@ import { useMemo, useState, useEffect } from "react";
 import { hasRole, type StaffMember } from "@/lib/staff";
 import { getPublicStaffByRole, getPublicStaffStatus } from "@/lib/public-staff";
 
+const ADMIN_LANGS = [
+  "english",
+  "german",
+  "french",
+  "dutch",
+  "danish",
+  "swedish",
+  "norwegian",
+  "russian",
+  "italian",
+  "spanish",
+  "portuguese",
+  "mandarin",
+  "japanese",
+  "korean",
+  "farsi",
+  "arabic",
+  "polish",
+  "hindi",
+  "swahili",
+  "other",
+];
+
 const splitDisplayLanguages = (value: string): string[] =>
   String(value || "")
     .split(/[,/|·•–-]+/)
@@ -102,7 +125,7 @@ export default function TranslatorsPage() {
 
   // Options for filters
   const allLangs = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(ADMIN_LANGS);
     translators.forEach((t) => {
       const arr = getStructuredLanguages(t);
       arr.forEach((l) => set.add(l));
@@ -147,10 +170,6 @@ export default function TranslatorsPage() {
   const [region, setRegion] = useState<string>("");
   const [spec, setSpec] = useState<string>("");
 
-  // Pagination
-  const PAGE_SIZE = 9;
-  const [page, setPage] = useState(1);
-
   const hasActive = useMemo(
     () => Boolean(q.trim() || lang || region || spec),
     [q, lang, region, spec]
@@ -185,10 +204,7 @@ export default function TranslatorsPage() {
     });
   }, [translators, q, lang, region, spec]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredTranslators.length / PAGE_SIZE));
-  const start = (page - 1) * PAGE_SIZE;
-  const end = Math.min(filteredTranslators.length, start + PAGE_SIZE);
-  const pageItems = filteredTranslators.slice(start, start + PAGE_SIZE);
+  const pageItems = filteredTranslators;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 to-slate-100 text-slate-900 pb-16">
@@ -396,7 +412,11 @@ export default function TranslatorsPage() {
                   {t.name}
                 </h2>
                 <p className="text-xs text-teal-700 mt-1">
-                  {t.languages ? titleCaseLangs(t.languages) : titleCaseLangs(getStructuredLanguages(t).join(", "))}
+                  {Array.isArray((t as any).translating_languages) && (t as any).translating_languages.length
+                    ? `Translating: ${titleCaseLangs((t as any).translating_languages.join(", "))}`
+                    : t.languages
+                      ? titleCaseLangs(t.languages)
+                      : titleCaseLangs(getStructuredLanguages(t).join(", "))}
                 </p>
                 {cardSummary(t) ? (
                   <p className="mt-2 text-xs text-slate-700 line-clamp-3">
@@ -447,41 +467,6 @@ export default function TranslatorsPage() {
               </div>
             </article>
           ))}
-        </div>
-        {/* Pagination */}
-        <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-600">
-            Showing <span className="font-semibold">{filteredTranslators.length ? start + 1 : 0}</span>–<span className="font-semibold">{end}</span> of <span className="font-semibold">{filteredTranslators.length}</span>
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 text-xs rounded-full border border-slate-300 bg-white text-slate-700 disabled:opacity-40"
-            >
-              Prev
-            </button>
-            {Array.from({ length: totalPages }).map((_, i) => {
-              const n = i + 1;
-              const active = n === page;
-              return (
-                <button
-                  key={n}
-                  onClick={() => setPage(n)}
-                  className={`px-3 py-1.5 text-xs rounded-full border ${active ? "bg-sky-900 text-white border-sky-900" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}
-                >
-                  {n}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-3 py-1.5 text-xs rounded-full border border-slate-300 bg-white text-slate-700 disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
         </div>
       </section>
     </main>
