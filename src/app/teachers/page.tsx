@@ -74,6 +74,20 @@ const normalizeTagline = (t: StaffMember) => {
   return stripped;
 };
 
+const cardSummary = (t: StaffMember) => {
+  const tagline = normalizeTagline(t);
+  if (tagline) return tagline;
+  const overview =
+    Array.isArray((t as any).overview) && (t as any).overview.length
+      ? (t as any).overview
+      : [];
+  if (overview.length) {
+    const first = String(overview[0] || "").replace(/^Tagline:\s*/i, "").trim();
+    if (first) return first;
+  }
+  return "";
+};
+
 export default function TeachersPage() {
   const [teachers, setTeachers] = useState<StaffMember[]>([]);
   const [dataWarning, setDataWarning] = useState<string | null>(null);
@@ -270,7 +284,7 @@ export default function TeachersPage() {
             >
               <div
                 className={`relative h-64 overflow-hidden flex items-start ${
-                  t.imageFit === "contain" ? "bg-slate-200" : ""
+                  (t as any).imageFit === "contain" ? "bg-slate-200" : "bg-slate-100"
                 }`}
               >
                 <Image
@@ -278,10 +292,10 @@ export default function TeachersPage() {
                   alt={t.name}
                   fill
                   unoptimized
-                  className="object-cover"
+                  className={(t as any).imageFit === "contain" ? "object-contain" : "object-cover"}
                   style={{
-                    objectPosition: t.imageFocus ?? "50% 35%",
-                    objectFit: t.imageFit ?? "cover",
+                    objectPosition: (t as any).imageFocus ?? "50% 50%",
+                    objectFit: (t as any).imageFit ?? "contain",
                   }}
                 />
               </div>
@@ -296,9 +310,9 @@ export default function TeachersPage() {
                       ? titleCaseLangs(t.languages)
                       : ""}
                 </p>
-                {normalizeTagline(t) ? (
+                {cardSummary(t) ? (
                   <p className="mt-2 text-xs text-slate-700 line-clamp-3">
-                    {normalizeTagline(t)}
+                    {cardSummary(t)}
                   </p>
                 ) : null}
                 <div className="mt-3">
