@@ -6,27 +6,40 @@ import { hasRole, type StaffMember } from "@/lib/staff";
 import { getPublicStaffByRole, getPublicStaffStatus } from "@/lib/public-staff";
 
 const ADMIN_LANGS = [
-  "english",
-  "german",
-  "french",
-  "dutch",
-  "danish",
-  "swedish",
-  "norwegian",
-  "russian",
-  "italian",
-  "spanish",
-  "portuguese",
-  "mandarin",
-  "japanese",
-  "korean",
-  "farsi",
-  "arabic",
-  "polish",
-  "hindi",
-  "swahili",
-  "other",
+  { id: "english", label: "English" },
+  { id: "german", label: "German" },
+  { id: "french", label: "French" },
+  { id: "dutch", label: "Dutch" },
+  { id: "danish", label: "Danish" },
+  { id: "swedish", label: "Swedish" },
+  { id: "norwegian", label: "Norwegian" },
+  { id: "russian", label: "Russian" },
+  { id: "italian", label: "Italian" },
+  { id: "spanish", label: "Spanish" },
+  { id: "portuguese", label: "Portuguese" },
+  { id: "mandarin", label: "Mandarin" },
+  { id: "japanese", label: "Japanese" },
+  { id: "korean", label: "Korean" },
+  { id: "farsi", label: "Farsi" },
+  { id: "arabic", label: "Arabic" },
+  { id: "polish", label: "Polish" },
+  { id: "hindi", label: "Hindi" },
+  { id: "swahili", label: "Swahili" },
+  { id: "latin", label: "Latin" },
+  { id: "classical greek", label: "Classical Greek" },
+  { id: "old english", label: "Old English" },
+  { id: "other", label: "Other" },
 ];
+
+const normalizeLangId = (val: string) => String(val || "").trim().toLowerCase();
+const langLabel = (id: string) => {
+  const match = ADMIN_LANGS.find((l) => l.id === id);
+  if (match) return match.label;
+  return id
+    .split(/[\s/]+/)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(" ");
+};
 
 const splitDisplayLanguages = (value: string): string[] =>
   String(value || "")
@@ -127,15 +140,24 @@ export default function TeachersPage() {
     });
   }, []);
 
-  // Derive unique language options from staff; fall back to splitting the display string if needed
+  // Derive unique language options from staff; include admin list as seed
   const allLangs = useMemo(() => {
-    const set = new Set<string>(ADMIN_LANGS);
+    const map = new Map<string, string>();
+    ADMIN_LANGS.forEach((l) => map.set(l.id, l.label));
     for (const t of teachers) {
       // Prefer a structured array if present (t.langs), else parse the display string t.languages
       const arr = getStructuredLanguages(t);
-      arr.forEach((l) => set.add(l));
+      arr.forEach((l) => {
+        const id = normalizeLangId(l);
+        if (!id) return;
+        if (!map.has(id)) {
+          map.set(id, langLabel(id));
+        }
+      });
     }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    return Array.from(map.entries())
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [teachers]);
 
   // Derive unique regions
@@ -259,8 +281,8 @@ export default function TeachersPage() {
             >
               <option value="">All languages</option>
               {allLangs.map((l) => (
-                <option key={l} value={l}>
-                  {l}
+                <option key={l.id} value={l.id}>
+                  {l.label}
                 </option>
               ))}
             </select>
