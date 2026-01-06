@@ -67,14 +67,7 @@ export async function GET() {
   const enriched =
     data?.map((row) => {
       const upload = row.user_id ? latestPhotoByUser.get(row.user_id) : null;
-      let signedPhoto = row.user_id ? signedPhotoByUser.get(row.user_id) : null;
-      if (!signedPhoto && upload?.path) {
-        const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(upload.path, SIGN_TTL_SECONDS);
-        if (!signed.error && signed.data?.signedUrl) {
-          signedPhoto = signed.data.signedUrl;
-          signedPhotoByUser.set(row.user_id, signedPhoto);
-        }
-      }
+      const signedPhoto = row.user_id ? signedPhotoByUser.get(row.user_id) : null;
       const portalUser = row.user_id ? userById.get(row.user_id) : null;
       const emp = row.user_id ? empById.get(row.user_id) : null;
 
