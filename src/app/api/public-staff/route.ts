@@ -67,7 +67,28 @@ export async function GET() {
   const enriched =
     data?.map((row) => {
       const upload = row.user_id ? latestPhotoByUser.get(row.user_id) : null;
-      const signedPhoto = row.user_id ? signedPhotoByUser.get(row.user_id) : null;
+      let signedPhoto = row.user_id ? signedPhotoByUser.get(row.user_id) : null;
+
+      // Fallback: try to sign existing photo_url if it points to our Supabase storage
+      if (!signedPhoto) {
+        const candidate = row.photo_url || portalUser?.photo_url || null;
+        if (candidate && typeof candidate === "string" && candidate.includes(".supabase.co/storage/v1/object")) {
+          try {
+            const pathPart = candidate.split("/object/sign/")[1] || candidate.split("/object/public/")[1];
+            if (pathPart) {
+              const path = pathPart.split("?")[0];
+              const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(path, SIGN_TTL_SECONDS);
+              if (!signed.error && signed.data?.signedUrl) {
+                signedPhoto = signed.data.signedUrl;
+                if (row.user_id) signedPhotoByUser.set(row.user_id, signedPhoto);
+              }
+            }
+          } catch {
+            // ignore and fall back to logo
+          }
+        }
+      }
+
       const portalUser = row.user_id ? userById.get(row.user_id) : null;
       const emp = row.user_id ? empById.get(row.user_id) : null;
 
