@@ -70,9 +70,9 @@ export default async function TeacherProfilePage({ params }: Props) {
       const overviewSource = overviewText || normalized;
       const overviewLines = overviewSource
         .split(/\n+/)
-        .filter((line) => !new RegExp(`^(${headingPattern})\\s*:?$`, "i").test(line));
+        .filter((line: string) => !new RegExp(`^(${headingPattern})\\s*:?$`, "i").test(line));
       const overview = dedupe(
-        overviewLines.filter((line) => {
+        overviewLines.filter((line: string) => {
           const lower = line.toLowerCase();
           return (
             lower &&
