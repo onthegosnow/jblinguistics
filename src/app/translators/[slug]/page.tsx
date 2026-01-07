@@ -207,7 +207,7 @@ export default async function TranslatorProfilePage({ params }: Props) {
               <section>
                 <h2 className="text-sm font-semibold text-sky-900 uppercase tracking-wide">Specialties</h2>
                 <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
-                  {specialties.map((item) => (
+                  {specialties.map((item: string) => (
                     <li key={item} className="flex gap-2">
                       <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-teal-500" />
                       <span>{item}</span>
