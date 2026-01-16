@@ -4,6 +4,37 @@ import { requireAdmin } from "@/lib/server/storage";
 
 const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 const esc = (s: string) => (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+const splitTokens = (value: string) =>
+  value
+    .split(/[,/|·•;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+const toDisplayString = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  }
+  if (typeof value === "string") return value;
+  return "";
+};
+const toStringArray = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === "string") return splitTokens(value);
+  return [];
+};
+const toLineArray = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/\n+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -104,6 +135,14 @@ export async function GET(request: NextRequest) {
       profile.visibility = profile.visibility ?? emp.staff_visibility ?? "pending";
     }
 
+    const roleList = toStringArray(profile.roles);
+    const teachingList = toStringArray(profile.teaching_languages);
+    const translatingList = toStringArray(profile.translating_languages);
+    const specialtyList = toStringArray(profile.specialties);
+    const eduList = toLineArray(profile.educational_background);
+    const focusList = toLineArray(profile.linguistic_focus);
+    const languagesDisplay = toDisplayString(profile.languages_display);
+
     // Photo: prefer latest portal upload (employee or user), even if a stale photo_url exists
     if (profile.user_id) {
       const isImage = (path?: string | null, mime?: string | null, filename?: string | null) => {
@@ -183,26 +222,21 @@ export async function GET(request: NextRequest) {
     const buckets = parseLabeledSections(rawOverview);
     const cleanTagline = (value: string) => value.replace(/^tagline:\s*/i, "").trim();
     const tagline = cleanTagline(buckets.tagline?.join(" ") || profile.tagline || "");
-    const languagesLine = profile.languages_display || "";
+    const languagesLine = languagesDisplay;
     const cap = (value: string) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : "");
-    const parseBullets = (value?: string[]) =>
-      (value ?? [])
+    const parseBullets = (value?: string[] | string) => {
+      const raw = Array.isArray(value) ? value : typeof value === "string" ? value.split(/\n+/) : [];
+      return raw
         .flatMap((v) => v.split(/\n+/))
         .flatMap((v) => v.split(/\s+-\s+/))
         .map((v) => v.replace(/^[•-]\s*/, "").trim())
         .filter(Boolean);
+    };
 
     // Prefer structured fields; otherwise use labeled sections; otherwise infer from text
-    const eduBullets =
-      (profile.educational_background && profile.educational_background.length
-        ? profile.educational_background
-        : parseBullets(buckets.educational_background)) ?? [];
-    const focusBullets =
-      (profile.linguistic_focus && profile.linguistic_focus.length
-        ? profile.linguistic_focus
-        : parseBullets(buckets.linguistic_focus)) ?? [];
-    const certBullets =
-      (profile.specialties && profile.specialties.length ? profile.specialties : parseBullets(buckets.certifications)) ?? [];
+    const eduBullets = (eduList.length ? eduList : parseBullets(buckets.educational_background)) ?? [];
+    const focusBullets = (focusList.length ? focusList : parseBullets(buckets.linguistic_focus)) ?? [];
+    const certBullets = (specialtyList.length ? specialtyList : parseBullets(buckets.certifications)) ?? [];
 
     const overviewText = buckets.overview?.join("\n").trim() || rawOverview;
     const overviewParas = overviewText
@@ -212,14 +246,14 @@ export async function GET(request: NextRequest) {
           .filter(Boolean)
       : [];
     const teachingLanguages =
-      profile.teaching_languages && profile.teaching_languages.length
-        ? profile.teaching_languages
+      teachingList.length
+        ? teachingList
         : buckets.teaching_languages_text
           ? buckets.teaching_languages_text.join(" ").split(/[,;/\s]+/).filter(Boolean)
           : [];
     const translatingLanguages =
-      profile.translating_languages && profile.translating_languages.length
-        ? profile.translating_languages
+      translatingList.length
+        ? translatingList
         : buckets.translating_languages_text
           ? buckets.translating_languages_text.join(" ").split(/[,;/\s]+/).filter(Boolean)
           : [];
@@ -278,7 +312,7 @@ export async function GET(request: NextRequest) {
           <div class="body">
             <h1>${esc(profile.name || "")}</h1>
             <div class="roles">
-              ${(profile.roles || []).map((r: string) => `<span class="pill">${esc(cap(r))}</span>`).join("")}
+              ${roleList.map((r: string) => `<span class="pill">${esc(cap(r))}</span>`).join("")}
             </div>
             ${tagline ? `<div style="color:#0f172a;font-weight:500;margin:2px 0;">${esc(tagline)}</div>` : ""}
             ${languagesLine ? `<div style="color:#475569;font-size:13px;">${esc(languagesLine)}</div>` : ""}

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useLanguage } from "@/lib/language-context";
-import { staff, hasRole } from "@/lib/staff";
+import { getPublicStaffByRole, type PublicStaff } from "@/lib/public-staff";
 import { destinations } from "@/lib/trips";
 
 const focusAreas = [
@@ -61,10 +62,20 @@ const corporatePackages = [
 
 export default function LinguisticLearningPage() {
   const { t } = useLanguage();
-  const teachers = staff.filter((p) => hasRole(p, "teacher"));
-  const featuredTeachers = teachers.slice(0, 3);
+  const [featuredTeachers, setFeaturedTeachers] = useState<PublicStaff[]>([]);
   const tripsHighlight = destinations.slice(0, 3);
   const benefits = t.tripBenefits ?? undefined;
+
+  useEffect(() => {
+    let active = true;
+    getPublicStaffByRole("teacher").then((list) => {
+      if (!active) return;
+      setFeaturedTeachers(list.slice(0, 3));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-teal-50 text-slate-900">
@@ -239,6 +250,16 @@ export default function LinguisticLearningPage() {
                 <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="font-semibold text-sky-900">{item.label}</p>
                   <p className="mt-1">{item.description}</p>
+                  {"link" in item && item.link ? (
+                    <a
+                      href={item.link}
+                      target={item.link.startsWith("/") ? "_self" : "_blank"}
+                      rel={item.link.startsWith("/") ? undefined : "noreferrer"}
+                      className="mt-2 inline-flex items-center text-xs font-semibold text-teal-600 hover:text-teal-500 transition"
+                    >
+                      {"linkLabel" in item && item.linkLabel ? item.linkLabel : "Learn more"} →
+                    </a>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -246,31 +267,33 @@ export default function LinguisticLearningPage() {
         </section>
       ) : null}
 
-      <section className="py-12 bg-slate-900 text-slate-100">
-        <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold">Meet our teachers</h2>
-          <p className="mt-2 text-sm text-slate-300">
-            Our educator network spans aviation English, diplomacy, compliance, and customer experience. Each instructor collaborates with JB’s
-            translators to deliver consistent terminology and reporting.
-          </p>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {featuredTeachers.map((teacher) => (
-              <Link
-                key={teacher.slug}
-                href={teacher.profilePath ?? `/teachers/${teacher.slug}`}
-                className="rounded-3xl border border-white/15 bg-white/5 p-4 text-sm hover:bg-white/10 transition"
-              >
-                <p className="text-base font-semibold text-white">{teacher.name}</p>
-                <p className="text-xs text-slate-300">{teacher.languages}</p>
-                <p className="mt-2 text-slate-200 line-clamp-3">{teacher.tagline}</p>
-                <span className="mt-3 inline-flex items-center text-teal-300 text-xs font-semibold">
-                  View profile →
-                </span>
-              </Link>
-            ))}
+      {featuredTeachers.length ? (
+        <section className="py-12 bg-slate-900 text-slate-100">
+          <div className="max-w-5xl mx-auto px-4">
+            <h2 className="text-2xl font-bold">Meet our teachers</h2>
+            <p className="mt-2 text-sm text-slate-300">
+              Our educator network spans aviation English, diplomacy, compliance, and customer experience. Each instructor collaborates with JB’s
+              translators to deliver consistent terminology and reporting.
+            </p>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {featuredTeachers.map((teacher) => (
+                <Link
+                  key={teacher.slug}
+                  href={teacher.profilePath ?? `/teachers/${teacher.slug}`}
+                  className="rounded-3xl border border-white/15 bg-white/5 p-4 text-sm hover:bg-white/10 transition"
+                >
+                  <p className="text-base font-semibold text-white">{teacher.name}</p>
+                  <p className="text-xs text-slate-300">{teacher.languages}</p>
+                  <p className="mt-2 text-slate-200 line-clamp-3">{teacher.tagline}</p>
+                  <span className="mt-3 inline-flex items-center text-teal-300 text-xs font-semibold">
+                    View profile →
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
     </main>
   );
 }

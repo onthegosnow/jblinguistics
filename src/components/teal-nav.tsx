@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { languages, type Lang } from "@/lib/copy";
 import { useLanguage } from "@/lib/language-context";
-import { hasRole, type StaffMember } from "@/lib/staff";
-import { getPublicStaffByRole } from "@/lib/public-staff";
+import { getPublicStaffByRole, type PublicStaff } from "@/lib/public-staff";
 import { destinations, type Destination } from "@/lib/trips";
 import { translationServices } from "@/lib/translation-services";
 
@@ -41,10 +40,10 @@ export function TealNav({ usePageAnchors = false, className = "", ...rest }: Tea
       };
     });
   }, [t.services?.cards]);
-  const [teachers, setTeachers] = useState<StaffMember[]>([]);
-  const [translators, setTranslators] = useState<StaffMember[]>([]);
+  const [teachers, setTeachers] = useState<PublicStaff[]>([]);
+  const [translators, setTranslators] = useState<PublicStaff[]>([]);
 
-  const prioritizeFounder = (list: StaffMember[]) =>
+  const prioritizeFounder = (list: PublicStaff[]) =>
     [...list].sort((a, b) => {
       const aFounder = a.slug === "jonathan-brooks" ? -1 : 0;
       const bFounder = b.slug === "jonathan-brooks" ? -1 : 0;
@@ -463,8 +462,8 @@ function CombinedStaffDropdown({
   translatorsLabel,
 }: {
   label: string;
-  teachers: StaffMember[];
-  translators: StaffMember[];
+  teachers: PublicStaff[];
+  translators: PublicStaff[];
   teachersLabel: string;
   translatorsLabel: string;
 }) {

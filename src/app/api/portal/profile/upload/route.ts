@@ -53,12 +53,10 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id);
   }
 
-  // If this is a photo upload, set the portal user's photo_url to the latest upload
+  // If this is a photo upload, store the storage path (not signed URL)
+  // This allows us to generate fresh signed URLs on-demand
   if (kind === "photo") {
-    const signed = await supabase.storage.from(RESUME_BUCKET).createSignedUrl(path, 60 * 60 * 24 * 365); // 1 year
-    if (!signed.error && signed.data?.signedUrl) {
-      await supabase.from("portal_users").update({ photo_url: signed.data.signedUrl }).eq("id", user.id);
-    }
+    await supabase.from("portal_users").update({ photo_url: path }).eq("id", user.id);
   }
 
   return NextResponse.json({ success: true });

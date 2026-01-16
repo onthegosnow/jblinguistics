@@ -77,8 +77,8 @@ export default function TripsIndex() {
     });
   }, [items, filter, q, localizedDestinations]);
   const bildungsurlaubSteps = t.trips.bildungsurlaubSteps ?? [];
-  const BILD_APPLICATION_LINK = "https://www.bildungsurlaub.de/info/antragstellung";
-  const BILD_INFO_LINK = "https://www.bildungsurlaub.de/info/arbeitnehmer";
+  const BILD_APPLICATION_LINK = "https://www.bildungsurlaub.de/infos/faq-die-haeufigsten-fragen-zum-bildungsurlaub";
+  const BILD_INFO_LINK = "https://www.bildungsurlaub.de/infos/bildungsurlaub-auf-einen-blick";
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-10">
@@ -322,6 +322,16 @@ export default function TripsIndex() {
               <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                 <p className="text-sky-900 font-semibold">{item.label}</p>
                 <p className="mt-1">{item.description}</p>
+                {"link" in item && item.link ? (
+                  <a
+                    href={item.link}
+                    target={item.link.startsWith("/") ? "_self" : "_blank"}
+                    rel={item.link.startsWith("/") ? undefined : "noreferrer"}
+                    className="mt-2 inline-flex items-center text-xs font-semibold text-teal-600 hover:text-teal-500 transition"
+                  >
+                    {"linkLabel" in item && item.linkLabel ? item.linkLabel : "Learn more"} →
+                  </a>
+                ) : null}
               </div>
             ))}
           </div>

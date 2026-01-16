@@ -324,31 +324,43 @@ export const copy = {
           label: "Germany — Bildungsurlaub",
           description:
             "JB Linguistics is an authorized Bildungsurlaub course provider (final listings pending for select Bundesländer in 2026). We deliver the Antrag, curriculum outline, attendance records, and split invoicing.",
+          link: "https://www.bildungsurlaub.de/infos/bildungsurlaub-auf-einen-blick",
+          linkLabel: "Learn about Bildungsurlaub",
         },
         {
           label: "France — CPF / OPCO",
           description:
             "We issue bilingual course descriptions so your Compte Personnel de Formation or OPCO partner can release credits for virtual or travel-based English programs.",
+          link: "https://www.moncompteformation.gouv.fr/",
+          linkLabel: "Mon Compte Formation",
         },
         {
           label: "Netherlands — CAO learning budget",
           description:
             "Dutch employers typically route costs via CAO-leerbijeenkomsten, werk-naar-werk budgets, or the Werkkostenregeling. We provide split invoices plus detailed attendance logs.",
+          link: "https://www.stap-budget.nl/",
+          linkLabel: "STAP budget info",
         },
         {
           label: "Spain — FUNDAE bonuses",
           description:
             "Spanish organisations can offset tuition with Fundación Estatal (FUNDAE) training credits. We submit hour-by-hour attendance exports in Spanish and English.",
+          link: "https://www.fundae.es/",
+          linkLabel: "FUNDAE portal",
         },
         {
           label: "Sweden — Omställningsstudiestöd",
           description:
             "Swedish professionals can request CSN/union study support. JB prepares Swedish course descriptions, syllabi, and proof of completion for the omställningsstudiestöd application.",
+          link: "https://www.csn.se/",
+          linkLabel: "CSN info",
         },
         {
           label: "Global — Custom compliance",
           description:
             "Need SkillsFuture, tax-credit, or CSR alignment elsewhere? Share the guidelines and we will generate the curriculum, budget splits, and attendance attestations you need.",
+          link: "/#contact",
+          linkLabel: "Contact us",
         },
       ],
     },
@@ -802,31 +814,43 @@ export const copy = {
           label: "Duitsland — Bildungsurlaub",
           description:
             "JB Linguistics is een erkende Bildungsurlaub-aanbieder (laatste registraties voor bepaalde Bundesländer lopen voor 2026). Wij leveren aanvraag, curriculum, aanwezigheidsbewijzen en gesplitste facturen.",
+          link: "https://www.bildungsurlaub.de/infos/bildungsurlaub-auf-einen-blick",
+          linkLabel: "Meer over Bildungsurlaub",
         },
         {
           label: "Frankrijk — CPF / OPCO",
           description:
-            "We leveren Franstalige syllabus en offertes zodat Compte Personnel de Formation of uw OPCO snel kredieten kan vrijgeven voor virtuele of reisprogramma’s.",
+            "We leveren Franstalige syllabus en offertes zodat Compte Personnel de Formation of uw OPCO snel kredieten kan vrijgeven voor virtuele of reisprogramma's.",
+          link: "https://www.moncompteformation.gouv.fr/",
+          linkLabel: "Mon Compte Formation",
         },
         {
           label: "Nederland — CAO-opleidingsbudgetten",
           description:
             "Werkgevers gebruiken CAO-leeruren, mobiliteitsbudgetten of de werkkostenregeling. Wij verzorgen facturen per deelnemer plus aanwezigheidsoverzichten.",
+          link: "https://www.stap-budget.nl/",
+          linkLabel: "STAP-budget info",
         },
         {
           label: "Spanje — FUNDAE",
           description:
             "Spaanse organisaties kunnen gebruikmaken van Fundación Estatal (FUNDAE) opleidingskredieten. Wij leveren urenregistraties in het Spaans en Engels.",
+          link: "https://www.fundae.es/",
+          linkLabel: "FUNDAE-portaal",
         },
         {
           label: "Zweden — Omställningsstudiestöd",
           description:
             "Zweedse professionals vragen CSN/union-studieondersteuning aan; wij schrijven Zweedse cursusbeschrijvingen en deelnameverklaringen.",
+          link: "https://www.csn.se/",
+          linkLabel: "CSN-info",
         },
         {
           label: "Internationaal — maatwerk",
           description:
             "Heeft u SkillsFuture-, belastingkrediet- of CSR-eisen? Deel de richtlijnen en wij genereren syllabus, begroting en aanwezigheidsbewijzen.",
+          link: "/#contact",
+          linkLabel: "Neem contact op",
         },
       ],
     },

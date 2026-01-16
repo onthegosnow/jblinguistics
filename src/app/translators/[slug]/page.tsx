@@ -1,40 +1,57 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPublicStaffMap } from "@/lib/public-staff";
+import { getPublicStaffMap, type PublicStaff } from "@/lib/public-staff";
+import ProfileImage from "@/components/profile-image";
 
-type Props = { params: { slug: string } };
+type Props = { params: Promise<{ slug: string }> };
 
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
 
+const toDisplayString = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  }
+  if (typeof value === "string") return value;
+  return "";
+};
+const toList = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[,/|·•;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
 export default async function TranslatorProfilePage({ params }: Props) {
   const { slug } = await params;
-  let person: any = null;
+  let person: PublicStaff | undefined = undefined;
   try {
     const map = await getPublicStaffMap();
     person = map.get(slug);
   } catch (err) {
-    return notFound();
+    console.error("Error loading translator profile:", err);
+    throw err; // Re-throw to show actual error instead of 404
   }
 
   if (!person || !(person.roles?.includes("translator") || person.role === "translator")) {
     return notFound();
   }
 
-  const languagesDisplayRaw = person.languages || (Array.isArray(person.langs) ? person.langs.join(", ") : "");
+  const languagesDisplayRaw = toDisplayString(person.languages) || (Array.isArray(person.langs) ? person.langs.join(", ") : "");
   const languagesDisplay = languagesDisplayRaw
     .split(/[,/|·•–-]+/)
     .map((s: string) => s.trim())
     .filter(Boolean)
     .map((s: string) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(", ");
-  const teachingLangs: string[] = Array.isArray((person as any).teaching_languages)
-    ? (person as any).teaching_languages
-    : [];
-  const translatingLangs: string[] = Array.isArray((person as any).translating_languages)
-    ? (person as any).translating_languages
-    : [];
+  const teachingLangs: string[] = person.teaching_languages ?? [];
+  const translatingLangs: string[] = person.translating_languages ?? [];
 
   const parseSections = () => {
     try {
@@ -102,8 +119,9 @@ export default async function TranslatorProfilePage({ params }: Props) {
   };
 
   const sections = parseSections();
-  const specialties =
-    (Array.isArray(person.specialties) && person.specialties.length ? person.specialties : person.expertise) ?? [];
+  const specialties = toList(person.specialties);
+  const expertise = toList(person.expertise);
+  const specialtyList = specialties.length ? specialties : expertise;
   const photo = person.image || person.photo_url || "/Brand/JB LOGO no TEXT.png";
 
   return (
@@ -116,17 +134,13 @@ export default async function TranslatorProfilePage({ params }: Props) {
         <div className="mt-4 grid md:grid-cols-[1.1fr,1.4fr] gap-6 items-start">
           <div className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 overflow-hidden">
             <div className="relative h-[30rem] bg-slate-900">
-              <img
+              <ProfileImage
                 src={photo}
                 alt={person.name}
                 className="absolute inset-0 w-full h-full object-contain"
                 style={{
                   objectPosition: person.imageFocus ?? "center",
                   objectFit: person.imageFit ?? "contain",
-                }}
-                onError={(e) => {
-                  if (e.currentTarget.src.endsWith("/Brand/JB LOGO no TEXT.png")) return;
-                  e.currentTarget.src = "/Brand/JB LOGO no TEXT.png";
                 }}
               />
             </div>
@@ -203,11 +217,11 @@ export default async function TranslatorProfilePage({ params }: Props) {
               </section>
             ) : null}
 
-            {specialties && specialties.length ? (
+            {specialtyList.length ? (
               <section>
                 <h2 className="text-sm font-semibold text-sky-900 uppercase tracking-wide">Specialties</h2>
                 <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
-                  {specialties.map((item: string) => (
+                  {specialtyList.map((item: string) => (
                     <li key={item} className="flex gap-2">
                       <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-teal-500" />
                       <span>{item}</span>

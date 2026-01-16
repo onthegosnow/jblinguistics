@@ -21,7 +21,7 @@ export type StaffMember = {
   profilePath?: string;       // optional override path for nav links
 };
 
-export function hasRole(member: StaffMember, role: StaffRole): boolean {
+export function hasRole(member: StaffMember | { role: StaffRole; roles?: StaffRole[] }, role: StaffRole): boolean {
   if (member.roles?.length) {
     return member.roles.includes(role);
   }

@@ -2,8 +2,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
-import { hasRole, type StaffMember } from "@/lib/staff";
-import { getPublicStaffByRole, getPublicStaffStatus } from "@/lib/public-staff";
+import { hasRole } from "@/lib/staff";
+import { getPublicStaffByRole, getPublicStaffStatus, type PublicStaff } from "@/lib/public-staff";
 
 const ADMIN_LANGS = [
   { id: "english", label: "English" },
@@ -41,16 +41,24 @@ const langLabel = (id: string) => {
     .join(" ");
 };
 
-const splitDisplayLanguages = (value: string): string[] =>
-  String(value || "")
+const toDisplayString = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  }
+  if (typeof value === "string") return value;
+  return "";
+};
+
+const splitDisplayLanguages = (value: unknown): string[] =>
+  toDisplayString(value)
     .split(/[,/|·•–-]+/)
     .map((s) => s.trim())
     .filter(Boolean);
 
-const getStructuredLanguages = (person: StaffMember): string[] =>
+const getStructuredLanguages = (person: PublicStaff): string[] =>
   Array.isArray(person.langs) && person.langs.length ? person.langs : splitDisplayLanguages(person.languages);
 
-const getRegionLabel = (person: StaffMember): string => (person.region || person.location || "").trim();
+const getRegionLabel = (person: PublicStaff): string => (person.region || person.location || "").trim();
 
 const inferSpecialtiesFromTagline = (tagline?: string): string[] => {
   if (!tagline) return [];
@@ -68,19 +76,19 @@ const inferSpecialtiesFromTagline = (tagline?: string): string[] => {
   return guessed;
 };
 
-const getSpecialties = (person: StaffMember): string[] => {
+const getSpecialties = (person: PublicStaff): string[] => {
   if (Array.isArray(person.specialties) && person.specialties.length) return person.specialties;
   if (Array.isArray(person.expertise) && person.expertise.length) return person.expertise;
   return inferSpecialtiesFromTagline(person.tagline);
 };
 
-const getSpecList = (person: StaffMember): string[] => {
+const getSpecList = (person: PublicStaff): string[] => {
   const specs = getSpecialties(person);
   return Array.isArray(specs) ? specs.filter(Boolean) : [];
 };
 
-const titleCaseLangs = (value: string) =>
-  value
+const titleCaseLangs = (value: unknown) =>
+  toDisplayString(value)
     .split(/[,/|·•–-]+/)
     .map((s) => s.trim())
     .filter(Boolean)
@@ -94,7 +102,7 @@ const stripTaglineLabel = (value?: string) => {
   return (parts[0] || cleaned).trim();
 };
 
-const normalizeTagline = (t: StaffMember) => {
+const normalizeTagline = (t: PublicStaff) => {
   const stripped = stripTaglineLabel(t.tagline);
   const langs = titleCaseLangs(t.languages || getStructuredLanguages(t).join(", "));
   if (!stripped) return "";
@@ -106,12 +114,12 @@ const normalizeTagline = (t: StaffMember) => {
   return stripped;
 };
 
-const cardSummary = (t: StaffMember) => {
+const cardSummary = (t: PublicStaff) => {
   const tagline = normalizeTagline(t);
   if (tagline) return tagline;
   const overview =
-    Array.isArray((t as any).overview) && (t as any).overview.length
-      ? (t as any).overview
+    Array.isArray(t.overview) && t.overview.length
+      ? t.overview
       : [];
   if (overview.length) {
     const first = String(overview[0] || "").replace(/^Tagline:\s*/i, "").trim();
@@ -121,15 +129,15 @@ const cardSummary = (t: StaffMember) => {
 };
 
 export default function TranslatorsPage() {
-  const [translators, setTranslators] = useState<StaffMember[]>([]);
+  const [translators, setTranslators] = useState<PublicStaff[]>([]);
   const [dataWarning, setDataWarning] = useState<string | null>(null);
 
   useEffect(() => {
     getPublicStaffByRole("translator").then((list) => {
       setTranslators(list);
       const status = getPublicStaffStatus();
-      if (status.source !== "supabase") {
-        setDataWarning(status.reason || "Falling back to static staff data (Supabase unavailable).");
+      if (status.source === "unavailable") {
+        setDataWarning(status.reason || "No published translator profiles yet.");
       } else {
         setDataWarning(null);
       }
@@ -204,7 +212,7 @@ export default function TranslatorsPage() {
     const term = q.trim().toLowerCase();
     return translators.filter((t) => {
       const name = (t.name || "").toLowerCase();
-      const langsText = (t.languages || "").toLowerCase();
+      const langsText = toDisplayString(t.languages).toLowerCase();
       const reg = getRegionLabel(t).toLowerCase();
 
       const specs = getSpecialties(t);
@@ -241,7 +249,7 @@ export default function TranslatorsPage() {
         </p>
         {dataWarning ? (
           <div className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Staff data is using the static fallback: {dataWarning}. Check Supabase env vars on the deployment.
+            Public translator profiles are not available yet: {dataWarning}
           </div>
         ) : null}
 
@@ -253,7 +261,7 @@ export default function TranslatorsPage() {
             Request an interpreter
           </Link>
           <Link
-            href="/teachers/jonathan-brooks"
+            href="/translators/jonathan-brooks"
             className="inline-flex items-center rounded-full border border-sky-900/20 bg-white/80 text-sky-900 px-4 py-2 text-sm font-semibold hover:bg-sky-50 transition"
           >
             Work with Jonathan Brooks
@@ -410,11 +418,11 @@ export default function TranslatorsPage() {
               className="rounded-3xl bg-white shadow-md shadow-sky-900/10 border border-teal-100 overflow-hidden flex flex-col"
             >
               {(() => {
-                const imageSrc = t.image || (t as any).photo_url || "/Brand/JB LOGO no TEXT.png";
+                const imageSrc = t.image || t.photo_url || "/Brand/JB LOGO no TEXT.png";
                 return (
               <div
                 className={`relative h-64 overflow-hidden flex items-start ${
-                  (t as any).imageFit === "contain" ? "bg-slate-200" : "bg-slate-100"
+                  t.imageFit === "contain" ? "bg-slate-200" : "bg-slate-100"
                 }`}
               >
                 <Image
@@ -422,10 +430,10 @@ export default function TranslatorsPage() {
                   alt={t.name}
                   fill
                   unoptimized
-                  className={(t as any).imageFit === "contain" ? "object-contain" : "object-cover"}
+                  className={t.imageFit === "contain" ? "object-contain" : "object-cover"}
                   style={{
-                    objectPosition: (t as any).imageFocus ?? "50% 50%",
-                    objectFit: (t as any).imageFit ?? "contain",
+                    objectPosition: t.imageFocus ?? "50% 50%",
+                    objectFit: t.imageFit ?? "contain",
                   }}
                 />
               </div>
@@ -436,8 +444,8 @@ export default function TranslatorsPage() {
                   {t.name}
                 </h2>
                 <p className="text-xs text-teal-700 mt-1">
-                  {Array.isArray((t as any).translating_languages) && (t as any).translating_languages.length
-                    ? `Translating: ${titleCaseLangs((t as any).translating_languages.join(", "))}`
+                  {t.translating_languages && t.translating_languages.length
+                    ? `Translating: ${titleCaseLangs(t.translating_languages.join(", "))}`
                     : t.languages
                       ? titleCaseLangs(t.languages)
                       : titleCaseLangs(getStructuredLanguages(t).join(", "))}

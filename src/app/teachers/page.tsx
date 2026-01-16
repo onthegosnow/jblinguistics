@@ -2,8 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
-import { hasRole, type StaffMember } from "@/lib/staff";
-import { getPublicStaffByRole, getPublicStaffStatus } from "@/lib/public-staff";
+import { getPublicStaffByRole, getPublicStaffStatus, type PublicStaff } from "@/lib/public-staff";
 
 const ADMIN_LANGS = [
   { id: "english", label: "English" },
@@ -41,16 +40,24 @@ const langLabel = (id: string) => {
     .join(" ");
 };
 
-const splitDisplayLanguages = (value: string): string[] =>
-  String(value || "")
+const toDisplayString = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  }
+  if (typeof value === "string") return value;
+  return "";
+};
+
+const splitDisplayLanguages = (value: unknown): string[] =>
+  toDisplayString(value)
     .split(/[,/|·•–-]+/)
     .map((s) => s.trim())
     .filter(Boolean);
 
-const getStructuredLanguages = (person: StaffMember): string[] =>
+const getStructuredLanguages = (person: PublicStaff): string[] =>
   Array.isArray(person.langs) && person.langs.length ? person.langs : splitDisplayLanguages(person.languages);
 
-const getRegionLabel = (person: StaffMember): string => (person.region || person.location || "").trim();
+const getRegionLabel = (person: PublicStaff): string => (person.region || person.location || "").trim();
 
 const inferSpecialtiesFromTagline = (tagline?: string): string[] => {
   if (!tagline) return [];
@@ -67,13 +74,13 @@ const inferSpecialtiesFromTagline = (tagline?: string): string[] => {
   return guessed;
 };
 
-const getSpecialties = (person: StaffMember): string[] => {
+const getSpecialties = (person: PublicStaff): string[] => {
   if (Array.isArray(person.specialties) && person.specialties.length) return person.specialties;
   if (Array.isArray(person.expertise) && person.expertise.length) return person.expertise;
   return inferSpecialtiesFromTagline(person.tagline);
 };
 
-const prioritizeFounder = (list: StaffMember[]) =>
+const prioritizeFounder = (list: PublicStaff[]) =>
   [...list].sort((a, b) => {
     const aFounder = a.slug === "jonathan-brooks" ? -1 : 0;
     const bFounder = b.slug === "jonathan-brooks" ? -1 : 0;
@@ -81,8 +88,8 @@ const prioritizeFounder = (list: StaffMember[]) =>
     return a.name.localeCompare(b.name);
   });
 
-const titleCaseLangs = (value: string) =>
-  value
+const titleCaseLangs = (value: unknown) =>
+  toDisplayString(value)
     .split(/[,/|·•–-]+/)
     .map((s) => s.trim())
     .filter(Boolean)
@@ -96,10 +103,10 @@ const stripTaglineLabel = (value?: string) => {
   return (parts[0] || cleaned).trim();
 };
 
-const normalizeTagline = (t: StaffMember) => {
+const normalizeTagline = (t: PublicStaff) => {
   const stripped = stripTaglineLabel(t.tagline);
-  const langs = Array.isArray((t as any).teaching_languages) && (t as any).teaching_languages.length
-    ? titleCaseLangs((t as any).teaching_languages.join(", "))
+  const langs = t.teaching_languages && t.teaching_languages.length
+    ? titleCaseLangs(t.teaching_languages.join(", "))
     : titleCaseLangs(t.languages || "");
   if (!stripped) return "";
   if (stripped.toLowerCase() === (t.name || "").toLowerCase()) return "";
@@ -110,12 +117,12 @@ const normalizeTagline = (t: StaffMember) => {
   return stripped;
 };
 
-const cardSummary = (t: StaffMember) => {
+const cardSummary = (t: PublicStaff) => {
   const tagline = normalizeTagline(t);
   if (tagline) return tagline;
   const overview =
-    Array.isArray((t as any).overview) && (t as any).overview.length
-      ? (t as any).overview
+    Array.isArray(t.overview) && t.overview.length
+      ? t.overview
       : [];
   if (overview.length) {
     const first = String(overview[0] || "").replace(/^Tagline:\s*/i, "").trim();
@@ -125,15 +132,15 @@ const cardSummary = (t: StaffMember) => {
 };
 
 export default function TeachersPage() {
-  const [teachers, setTeachers] = useState<StaffMember[]>([]);
+  const [teachers, setTeachers] = useState<PublicStaff[]>([]);
   const [dataWarning, setDataWarning] = useState<string | null>(null);
 
   useEffect(() => {
     getPublicStaffByRole("teacher").then((list) => {
       setTeachers(prioritizeFounder(list));
       const status = getPublicStaffStatus();
-      if (status.source !== "supabase") {
-        setDataWarning(status.reason || "Falling back to static staff data (Supabase unavailable).");
+      if (status.source === "unavailable") {
+        setDataWarning(status.reason || "No published teacher profiles yet.");
       } else {
         setDataWarning(null);
       }
@@ -202,7 +209,7 @@ export default function TeachersPage() {
     const term = q.trim().toLowerCase();
     return teachers.filter((t) => {
       const name = (t.name || "").toLowerCase();
-      const langsText = (t.languages || "").toLowerCase();
+      const langsText = toDisplayString(t.languages).toLowerCase();
       const reg = getRegionLabel(t).toLowerCase();
 
       // specialty normalization (array or delimited string)
@@ -240,7 +247,7 @@ export default function TeachersPage() {
         </p>
         {dataWarning ? (
           <div className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Staff data is using the static fallback: {dataWarning}. Check Supabase env vars on the deployment.
+            Public teacher profiles are not available yet: {dataWarning}
           </div>
         ) : null}
         <div className="mt-4 flex flex-wrap gap-3">
@@ -329,18 +336,18 @@ export default function TeachersPage() {
             >
               <div
                 className={`relative h-64 overflow-hidden flex items-start ${
-                  (t as any).imageFit === "contain" ? "bg-slate-200" : "bg-slate-100"
+                  t.imageFit === "contain" ? "bg-slate-200" : "bg-slate-100"
                 }`}
               >
                 <Image
-                  src={t.image || (t as any).photo_url || "/Brand/JB LOGO no TEXT.png"}
+                  src={t.image || t.photo_url || "/Brand/JB LOGO no TEXT.png"}
                   alt={t.name}
                   fill
                   unoptimized
-                  className={(t as any).imageFit === "contain" ? "object-contain" : "object-cover"}
+                  className={t.imageFit === "contain" ? "object-contain" : "object-cover"}
                   style={{
-                    objectPosition: (t as any).imageFocus ?? "50% 50%",
-                    objectFit: (t as any).imageFit ?? "contain",
+                    objectPosition: t.imageFocus ?? "50% 50%",
+                    objectFit: t.imageFit ?? "contain",
                   }}
                 />
               </div>

@@ -9,6 +9,7 @@ import {
   type TeacherAssessmentAnswer,
 } from "@/lib/teacher-assessment";
 import { translatorLanguages, type TranslatorExerciseLanguage } from "@/lib/translator-exercise";
+import TripsManager from "./trips-manager";
 
 const STORAGE_KEY = "jb_assessment_admin_token";
 const normalizeRoom = (value: string) => value?.trim().toLowerCase().replace(/\s+/g, "_");
@@ -250,6 +251,7 @@ export default function AssessmentsAdminPage() {
     | "crm"
     | "hive"
     | "board"
+    | "trips"
   >("results");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -267,6 +269,8 @@ export default function AssessmentsAdminPage() {
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [loadingEmailLogs, setLoadingEmailLogs] = useState(false);
   const [showArchivedEmailLogs, setShowArchivedEmailLogs] = useState(false);
+  const [syncingPhotos, setSyncingPhotos] = useState(false);
+  const [syncPhotoResult, setSyncPhotoResult] = useState<string | null>(null);
   const [sendingBulkEmail, setSendingBulkEmail] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", email: "", password: "", roles: { teacher: true, translator: false }, languages: "" });
   const [assignmentForm, setAssignmentForm] = useState({
@@ -763,6 +767,13 @@ export default function AssessmentsAdminPage() {
     setInputToken("");
   };
 
+  const handleSignOut = () => {
+    window.sessionStorage.removeItem(STORAGE_KEY);
+    setToken("");
+    setInputToken("");
+    setError(null);
+  };
+
   const handleCreateCode = async () => {
     if (!token) return;
     setLoading(true);
@@ -877,6 +888,28 @@ export default function AssessmentsAdminPage() {
       setError(err instanceof Error ? err.message : "Unable to create portal user.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncPhotos = async () => {
+    if (!token) return;
+    setSyncingPhotos(true);
+    setSyncPhotoResult(null);
+    try {
+      const res = await fetch("/api/admin/sync-photos", {
+        method: "POST",
+        headers: { "x-admin-token": token },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncPhotoResult(data.message || "Photos synced successfully");
+      } else {
+        setSyncPhotoResult(`Error: ${data.error || "Sync failed"}`);
+      }
+    } catch (err) {
+      setSyncPhotoResult("Error: Network request failed");
+    } finally {
+      setSyncingPhotos(false);
     }
   };
 
@@ -1618,224 +1651,249 @@ export default function AssessmentsAdminPage() {
                           </span>
                         ) : null}
                       </div>
-                      <div className="flex flex-wrap gap-3 items-center">
-                        <button
-                          type="button"
-                          onClick={() => downloadResume(applicant)}
-                          className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-600"
-                        >
-                          Download resume
-                        </button>
-                        <div className="flex items-center gap-2 text-[11px] text-slate-200 bg-slate-800 px-2 py-1 rounded-full">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(applicant.docuSignSentAt)}
-                            onChange={async (e) => {
-                              if (!token) return;
-                              const checked = e.target.checked;
-                              setSendingHireId(applicant.id);
-                              setError(null);
+                      {/* Action buttons organized in logical groups */}
+                      <div className="flex flex-col gap-3">
+                        {/* Primary actions row */}
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <button
+                            type="button"
+                            onClick={() => downloadResume(applicant)}
+                            className="inline-flex items-center rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold hover:bg-slate-600"
+                          >
+                            Download resume
+                          </button>
+
+                          <div className="flex items-center gap-2 text-xs text-slate-200 bg-slate-800 px-3 py-1.5 rounded-lg">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(applicant.docuSignSentAt)}
+                              onChange={async (e) => {
+                                if (!token) return;
+                                const checked = e.target.checked;
+                                setSendingHireId(applicant.id);
+                                setError(null);
+                                try {
+                                  const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "docu_sign_sent", hireSent: checked }),
+                                  });
+                                  if (!res.ok) {
+                                    const data = await res.json().catch(() => ({}));
+                                    throw new Error(data.message || "Unable to update DocuSign checkbox.");
+                                  }
+                                  const sentAt = checked ? new Date().toISOString() : null;
+                                  setApplicants((prev) =>
+                                    prev.map((item) => (item.id === applicant.id ? { ...item, docuSignSentAt: sentAt } : item))
+                                  );
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : "Unable to update DocuSign checkbox.");
+                                } finally {
+                                  setSendingHireId(null);
+                                }
+                              }}
+                              className="h-4 w-4"
+                            />
+                            <span>DocuSign sent</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => sendHire(applicant)}
+                            disabled={sendingHireId === applicant.id}
+                            className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                              sendingHireId === applicant.id
+                                ? "bg-amber-900/50 text-amber-100 cursor-wait"
+                                : "bg-amber-400 text-slate-900 hover:bg-amber-300"
+                            }`}
+                          >
+                            {sendingHireId === applicant.id ? "Sending…" : "Send hire email"}
+                          </button>
+                        </div>
+
+                        {/* Timestamps row */}
+                        {(applicant.hireSentAt || applicant.docuSignSentAt) && (
+                          <div className="flex flex-wrap gap-3 text-xs text-emerald-200">
+                            {applicant.hireSentAt && <span>Hire email: {new Date(applicant.hireSentAt).toLocaleString()}</span>}
+                            {applicant.docuSignSentAt && <span>DocuSign: {new Date(applicant.docuSignSentAt).toLocaleString()}</span>}
+                          </div>
+                        )}
+
+                        {/* Interview & Onboarding row */}
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <button
+                            type="button"
+                            onClick={() => sendInvite(applicant)}
+                            disabled={sendingInviteId === applicant.id}
+                            className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                              sendingInviteId === applicant.id
+                                ? "bg-slate-700/60 text-slate-200 cursor-wait"
+                                : "bg-slate-600 text-white hover:bg-slate-500"
+                            }`}
+                          >
+                            {sendingInviteId === applicant.id ? "Sending…" : "Invite to interview"}
+                          </button>
+
+                          {applicant.inviteSentAt && (
+                            <span className="text-xs text-emerald-200">
+                              Invited {new Date(applicant.inviteSentAt).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Onboarding upload row */}
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <label className="inline-flex items-center">
+                            <span className="sr-only">Upload onboarding PDFs</span>
+                            <input
+                              type="file"
+                              multiple
+                              accept="application/pdf"
+                              onChange={(e) =>
+                                setOnboardingFiles((prev) => {
+                                  const files = e.target.files ? Array.from(e.target.files) : [];
+                                  return { ...prev, [applicant.id]: files };
+                                })
+                              }
+                              className="hidden"
+                              id={`upload-${applicant.id}`}
+                            />
+                            <label
+                              htmlFor={`upload-${applicant.id}`}
+                              className="inline-flex cursor-pointer items-center rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-emerald-400"
+                            >
+                              {onboardingFiles[applicant.id]?.length
+                                ? `${onboardingFiles[applicant.id].length} PDF${onboardingFiles[applicant.id].length > 1 ? "s" : ""} selected`
+                                : "Upload onboarding PDFs"}
+                            </label>
+                          </label>
+
+                          {onboardingFiles[applicant.id]?.length > 0 && (
+                            <button
+                              type="button"
+                              disabled={uploadingOnboarding}
+                              onClick={async () => {
+                                if (!token) {
+                                  setError("Enter the admin token to upload.");
+                                  return;
+                                }
+                                const files = onboardingFiles[applicant.id] ?? [];
+                                if (!files.length) {
+                                  setError("Select onboarding PDF(s) first.");
+                                  return;
+                                }
+                                setUploadingOnboarding(true);
+                                setError(null);
+                                try {
+                                  for (const file of files) {
+                                    const fd = new FormData();
+                                    fd.append("email", applicant.email || "");
+                                    fd.append("name", applicant.name || "");
+                                    fd.append("applicantId", applicant.id);
+                                    const roles: string[] = applicant.roles?.length ? applicant.roles : ["teacher"];
+                                    fd.append("roles", roles.join(","));
+                                    if (applicant.workingLanguages?.length) {
+                                      fd.append("languages", applicant.workingLanguages.join(","));
+                                    }
+                                    fd.append("completedAt", new Date().toISOString().slice(0, 10));
+                                    fd.append("file", file);
+                                    const res = await fetch("/api/portal/admin/onboarding", {
+                                      method: "POST",
+                                      headers: { "x-admin-token": token },
+                                      body: fd,
+                                    });
+                                    if (!res.ok) {
+                                      const data = await res.json().catch(() => ({}));
+                                      throw new Error(data.message || "Upload failed");
+                                    }
+                                  }
+                                  setOnboardingFiles((prev) => ({ ...prev, [applicant.id]: [] }));
+                                  // Remove from applicants view once onboarded
+                                  setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
+                                  await refreshData();
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : "Upload failed");
+                                } finally {
+                                  setUploadingOnboarding(false);
+                                }
+                              }}
+                              className="inline-flex items-center rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+                            >
+                              {uploadingOnboarding ? "Uploading…" : "Save upload"}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Secondary actions row */}
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedApplicants((prev) => ({ ...prev, [applicant.id]: !prev[applicant.id] }))}
+                            className="inline-flex items-center rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-600"
+                          >
+                            {expandedApplicants[applicant.id] ? "Hide details" : "Show details"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!token) {
+                                setError("Enter the admin token to reject.");
+                                return;
+                              }
+                              setRejectingApplicantId(applicant.id);
                               try {
                                 const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
                                   method: "POST",
                                   headers: { "Content-Type": "application/json", "x-admin-token": token },
-                                  body: JSON.stringify({ action: "docu_sign_sent", hireSent: checked }),
+                                  body: JSON.stringify({ action: "reject" }),
                                 });
                                 if (!res.ok) {
                                   const data = await res.json().catch(() => ({}));
-                                  throw new Error(data.message || "Unable to update DocuSign checkbox.");
+                                  throw new Error(data.message || "Unable to reject applicant.");
                                 }
-                                const sentAt = checked ? new Date().toISOString() : null;
-                                setApplicants((prev) =>
-                                  prev.map((item) => (item.id === applicant.id ? { ...item, docuSignSentAt: sentAt } : item))
-                                );
+                                const rejectedAt = new Date().toISOString();
+                                setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
+                                setRejectedApplicants((prev) => {
+                                  const withoutDuplicate = prev.filter((item) => item.id !== applicant.id);
+                                  return [...withoutDuplicate, { ...applicant, status: "rejected", rejectedAt }];
+                                });
+                                if (!showRejected) {
+                                  setShowRejected(true);
+                                }
+                                if (!selectedRejectedId) {
+                                  setSelectedRejectedId(applicant.id);
+                                }
+                                await refreshData();
                               } catch (err) {
-                                setError(err instanceof Error ? err.message : "Unable to update DocuSign checkbox.");
+                                setError(err instanceof Error ? err.message : "Unable to reject applicant.");
                               } finally {
-                                setSendingHireId(null);
+                                setRejectingApplicantId(null);
                               }
                             }}
-                          />
-                          <span>DocuSign sent</span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                        <button
-                          type="button"
-                          onClick={() => sendHire(applicant)}
-                          disabled={sendingHireId === applicant.id}
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            sendingHireId === applicant.id
-                              ? "bg-amber-900/50 text-amber-100 cursor-wait"
-                              : "bg-amber-400 text-slate-900 hover:bg-amber-300"
-                          }`}
-                        >
-                          {sendingHireId === applicant.id ? "Sending…" : "Send hire email"}
-                        </button>
-                      </div>
-                        <div className="flex flex-col text-[11px] text-emerald-200 gap-1">
-                          {applicant.hireSentAt && <span>Hire email: {new Date(applicant.hireSentAt).toLocaleString()}</span>}
-                          {applicant.docuSignSentAt && <span>DocuSign: {new Date(applicant.docuSignSentAt).toLocaleString()}</span>}
-                        </div>
-                      <div className="flex flex-col gap-1 text-xs text-slate-200">
-                        <button
-                          type="button"
-                          onClick={() => sendInvite(applicant)}
-                          disabled={sendingInviteId === applicant.id}
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            sendingInviteId === applicant.id
-                              ? "bg-slate-700/60 text-slate-200 cursor-wait"
-                              : "bg-slate-600 text-white hover:bg-slate-500"
-                          }`}
-                        >
-                          {sendingInviteId === applicant.id ? "Sending…" : "Invite to interview"}
-                        </button>
-                        {applicant.inviteSentAt && (
-                          <span className="text-[11px] text-emerald-200">
-                            Invited {new Date(applicant.inviteSentAt).toLocaleString()}
-                          </span>
-                        )}
-                        <label className="inline-flex items-center">
-                          <span className="sr-only">Upload onboarding PDFs</span>
-                          <input
-                            type="file"
-                            multiple
-                            accept="application/pdf"
-                            onChange={(e) =>
-                              setOnboardingFiles((prev) => {
-                                const files = e.target.files ? Array.from(e.target.files) : [];
-                                return { ...prev, [applicant.id]: files };
-                              })
-                            }
-                            className="hidden"
-                            id={`upload-${applicant.id}`}
-                          />
-                          <label
-                            htmlFor={`upload-${applicant.id}`}
-                            className="inline-flex cursor-pointer items-center rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-60"
+                            disabled={rejectingApplicantId === applicant.id}
+                            className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                              rejectingApplicantId === applicant.id
+                                ? "bg-amber-900/50 text-amber-200 cursor-not-allowed"
+                                : "bg-amber-500 text-slate-900 hover:bg-amber-400"
+                            }`}
                           >
-                            {onboardingFiles[applicant.id]?.length
-                              ? `${onboardingFiles[applicant.id].length} PDF${onboardingFiles[applicant.id].length > 1 ? "s" : ""} selected`
-                              : "Upload onboarding PDFs"}
-                          </label>
-                        </label>
-                        <button
-                          type="button"
-                          disabled={uploadingOnboarding}
-                          onClick={async () => {
-                            if (!token) {
-                              setError("Enter the admin token to upload.");
-                              return;
-                            }
-                            const files = onboardingFiles[applicant.id] ?? [];
-                            if (!files.length) {
-                              setError("Select onboarding PDF(s) first.");
-                              return;
-                            }
-                            setUploadingOnboarding(true);
-                            setError(null);
-                            try {
-                              for (const file of files) {
-                                const fd = new FormData();
-                                fd.append("email", applicant.email || "");
-                                fd.append("name", applicant.name || "");
-                                fd.append("applicantId", applicant.id);
-                                const roles: string[] = applicant.roles?.length ? applicant.roles : ["teacher"];
-                                fd.append("roles", roles.join(","));
-                                if (applicant.workingLanguages?.length) {
-                                  fd.append("languages", applicant.workingLanguages.join(","));
-                                }
-                                fd.append("completedAt", new Date().toISOString().slice(0, 10));
-                                fd.append("file", file);
-                                const res = await fetch("/api/portal/admin/onboarding", {
-                                  method: "POST",
-                                  headers: { "x-admin-token": token },
-                                  body: fd,
-                                });
-                                if (!res.ok) {
-                                  const data = await res.json().catch(() => ({}));
-                                  throw new Error(data.message || "Upload failed");
-                                }
-                              }
-                              setOnboardingFiles((prev) => ({ ...prev, [applicant.id]: [] }));
-                              // Remove from applicants view once onboarded
-                              setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
-                              await refreshData();
-                            } catch (err) {
-                              setError(err instanceof Error ? err.message : "Upload failed");
-                            } finally {
-                              setUploadingOnboarding(false);
-                            }
-                          }}
-                          className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-[11px] font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
-                        >
-                          {uploadingOnboarding ? "Uploading…" : "Save upload"}
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedApplicants((prev) => ({ ...prev, [applicant.id]: !prev[applicant.id] }))}
-                        className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-600"
-                      >
-                        {expandedApplicants[applicant.id] ? "Hide details" : "Show details"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!token) {
-                            setError("Enter the admin token to reject.");
-                            return;
-                          }
-                          setRejectingApplicantId(applicant.id);
-                          try {
-                            const res = await fetch(`/api/careers/applicants/${applicant.id}`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json", "x-admin-token": token },
-                              body: JSON.stringify({ action: "reject" }),
-                            });
-                            if (!res.ok) {
-                              const data = await res.json().catch(() => ({}));
-                              throw new Error(data.message || "Unable to reject applicant.");
-                            }
-                            const rejectedAt = new Date().toISOString();
-                            setApplicants((prev) => prev.filter((item) => item.id !== applicant.id));
-                            setRejectedApplicants((prev) => {
-                              const withoutDuplicate = prev.filter((item) => item.id !== applicant.id);
-                              return [...withoutDuplicate, { ...applicant, status: "rejected", rejectedAt }];
-                            });
-                            if (!showRejected) {
-                              setShowRejected(true);
-                            }
-                            if (!selectedRejectedId) {
-                              setSelectedRejectedId(applicant.id);
-                            }
-                            await refreshData();
-                          } catch (err) {
-                            setError(err instanceof Error ? err.message : "Unable to reject applicant.");
-                          } finally {
-                            setRejectingApplicantId(null);
-                          }
-                        }}
-                        disabled={rejectingApplicantId === applicant.id}
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                          rejectingApplicantId === applicant.id
-                            ? "bg-amber-900/50 text-amber-200 cursor-not-allowed"
-                            : "bg-amber-500 text-slate-900 hover:bg-amber-400"
-                        }`}
-                      >
-                        {rejectingApplicantId === applicant.id ? "Rejecting…" : "Reject"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteApplicant(applicant)}
-                        disabled={deletingApplicantId === applicant.id}
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            deletingApplicantId === applicant.id
-                              ? "bg-rose-900/50 text-rose-200 cursor-not-allowed"
-                              : "bg-rose-600 text-white hover:bg-rose-500"
-                          }`}
-                        >
-                          {deletingApplicantId === applicant.id ? "Removing…" : "Delete"}
-                        </button>
+                            {rejectingApplicantId === applicant.id ? "Rejecting…" : "Reject"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => deleteApplicant(applicant)}
+                            disabled={deletingApplicantId === applicant.id}
+                            className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                              deletingApplicantId === applicant.id
+                                ? "bg-rose-900/50 text-rose-200 cursor-not-allowed"
+                                : "bg-rose-600 text-white hover:bg-rose-500"
+                            }`}
+                          >
+                            {deletingApplicantId === applicant.id ? "Removing…" : "Delete"}
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <p className="mt-2 text-xs text-slate-400">
@@ -1947,7 +2005,24 @@ export default function AssessmentsAdminPage() {
       case "onboarding":
         return (
           <div className="rounded-3xl bg-slate-800 p-6">
-            <h2 className="text-xl font-semibold">Active employees</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Active employees</h2>
+              <div className="flex items-center gap-3">
+                {syncPhotoResult && (
+                  <span className={`text-xs ${syncPhotoResult.startsWith("Error") ? "text-red-400" : "text-emerald-400"}`}>
+                    {syncPhotoResult}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSyncPhotos}
+                  disabled={syncingPhotos}
+                  className="inline-flex items-center rounded-full bg-teal-600 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-500 disabled:opacity-60"
+                >
+                  {syncingPhotos ? "Syncing..." : "Sync Photos to Public Site"}
+                </button>
+              </div>
+            </div>
             {showBulkEmail && (
               <div className="mt-3 rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -3389,6 +3464,8 @@ export default function AssessmentsAdminPage() {
             </div>
           </div>
         );
+      case "trips":
+        return <TripsManager token={token} />;
       default:
         return null;
     }
@@ -3399,12 +3476,26 @@ export default function AssessmentsAdminPage() {
   return (
     <main className="min-h-screen bg-slate-900 text-white">
       <section className="max-w-5xl mx-auto px-4 py-12">
-        <p className="text-xs uppercase tracking-[0.3em] text-teal-300 font-semibold">Assessments · Admin</p>
-        <h1 className="mt-3 text-4xl font-extrabold">JB Linguistics · Secure Portal</h1>
-        <p className="mt-3 text-slate-300 text-sm">
-          Monitor submissions, trigger exports, and generate personal access codes so each candidate has a unique login. Future releases
-          will add client-level dashboards and individualized learning portals powered by these same credentials.
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-teal-300 font-semibold">Assessments · Admin</p>
+            <h1 className="mt-3 text-4xl font-extrabold">JB Linguistics · Secure Portal</h1>
+            <p className="mt-3 text-slate-300 text-sm">
+              Monitor submissions, trigger exports, and generate personal access codes so each candidate has a unique login. Future releases
+              will add client-level dashboards and individualized learning portals powered by these same credentials.
+            </p>
+          </div>
+          {hasToken && (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="ml-4 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+              title="Sign out"
+            >
+              Sign out
+            </button>
+          )}
+        </div>
 
         {!hasToken ? (
           <div className="mt-8 rounded-3xl bg-slate-800 p-6 max-w-lg">
@@ -3500,6 +3591,13 @@ export default function AssessmentsAdminPage() {
                   onClick={() => setActiveTab("crm")}
                 >
                   CRM
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "trips" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("trips")}
+                >
+                  Learning Trips
                 </button>
               </div>
               <button
