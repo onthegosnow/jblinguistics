@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient, RESUME_BUCKET } from "@/lib/supabase-server";
 
+// Force dynamic rendering - no caching
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const isImage = (path?: string | null, mime?: string | null, filename?: string | null) => {
   if ((mime ?? "").toLowerCase().startsWith("image/")) return true;
   const name = path || filename || "";

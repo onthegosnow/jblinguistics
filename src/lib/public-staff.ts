@@ -171,7 +171,7 @@ export async function getPublicStaff(): Promise<PublicStaff[]> {
 
   try {
     const apiUrl = `${baseUrl}/api/public-staff`;
-    const res = await fetch(apiUrl, { next: { revalidate: 0 } });
+    const res = await fetch(apiUrl, { cache: "no-store", next: { revalidate: 0 } });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.profiles) && data.profiles.length) {
