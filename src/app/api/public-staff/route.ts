@@ -39,9 +39,9 @@ export async function GET() {
           }
         }
 
-        // If it's already a storage path (starts with portal_user_uploads/), use as is
+        // If it's already a storage path (starts with portal_user_uploads/ or employee_uploads/), use as is
         // Otherwise, skip (might be external URL or broken)
-        if (!storagePath.startsWith('portal_user_uploads/')) {
+        if (!storagePath.startsWith('portal_user_uploads/') && !storagePath.startsWith('employee_uploads/')) {
           return profile;
         }
 

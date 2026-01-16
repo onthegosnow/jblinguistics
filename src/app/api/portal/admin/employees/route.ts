@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     assignmentsRes,
     applicantsRes,
     envelopesRes,
+    publicProfilesRes,
   ] = await Promise.all([
     supabase
       .from("portal_users")
@@ -82,6 +83,7 @@ export async function GET(request: NextRequest) {
         ].join(",")
       ),
     supabase.from("onboarding_envelopes").select("applicant_id, doc_path, completed_at, envelope_id"),
+    supabase.from("public_staff_profiles").select("user_id, visibility, roles, slug"),
   ]);
 
   const users = usersRes.data ?? [];
@@ -92,6 +94,19 @@ export async function GET(request: NextRequest) {
   const assignments = assignmentsRes.data ?? [];
   const applicants = applicantsRes.data ?? [];
   const envelopes = envelopesRes.data ?? [];
+  const publicProfiles = publicProfilesRes.data ?? [];
+
+  // Build map of user_id -> public profile info
+  const publicProfileByUser = new Map<string, { visibility: string; roles: string[]; slug: string }>();
+  for (const profile of publicProfiles) {
+    if (profile.user_id) {
+      publicProfileByUser.set(profile.user_id, {
+        visibility: profile.visibility ?? "hidden",
+        roles: profile.roles ?? [],
+        slug: profile.slug ?? "",
+      });
+    }
+  }
 
   const preferredPhotoByUser = new Map<string, { url: string; createdAt: number }>();
   const fallbackPhotoByUser = new Map<string, { url: string; createdAt: number }>();
@@ -182,10 +197,12 @@ export async function GET(request: NextRequest) {
       assignments: Array<{ id: string; title: string; status: string; client?: string | null; languagePair?: string | null }>;
       notes: Array<{ id: string; note: string; createdAt: string; createdBy?: string | null }>;
       uploads: Array<{ id: string; kind: string; filename: string; createdAt: string; mimeType?: string | null; size?: number | null; path?: string | null; signedUrl?: string; source?: "portal" | "admin" }>;
+      publicProfile?: { visibility: string; roles: string[]; slug: string } | null;
     }
   >();
   users.forEach((u) => {
     legacyPhotoByUser.set(u.id, u.photo_url ?? null);
+    const pubProfile = publicProfileByUser.get(u.id);
     employeeMap.set(u.id, {
       id: u.id,
       name: u.name,
@@ -206,6 +223,7 @@ export async function GET(request: NextRequest) {
       notes: [],
       uploads: [],
       assignments: [],
+      publicProfile: pubProfile ?? null,
     });
   });
 

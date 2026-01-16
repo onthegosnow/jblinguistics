@@ -370,6 +370,7 @@ export default function AssessmentsAdminPage() {
         source?: "portal" | "admin";
       }>;
       application?: ApplicantRecord;
+      publicProfile?: { visibility: string; roles: string[]; slug: string } | null;
     }>
   >([]);
   const [inquiries, setInquiries] = useState<InquiryAdmin[]>([]);
@@ -2155,10 +2156,31 @@ export default function AssessmentsAdminPage() {
                             )}
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 items-center">
                           <span className="inline-flex items-center rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-slate-100">
                             Status: {emp.status}
                           </span>
+                          {emp.publicProfile ? (
+                            emp.publicProfile.visibility === "visible" ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
+                                Live
+                                {emp.publicProfile.roles.includes("teacher") && (
+                                  <span className="rounded bg-emerald-500 px-1.5 py-0.5 text-[10px]">Teacher</span>
+                                )}
+                                {emp.publicProfile.roles.includes("translator") && (
+                                  <span className="rounded bg-emerald-500 px-1.5 py-0.5 text-[10px]">Translator</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-amber-600 px-3 py-1 text-xs font-semibold text-white">
+                                Pending approval
+                              </span>
+                            )
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-slate-600 px-3 py-1 text-xs font-semibold text-slate-300">
+                              No profile
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={() => setExpandedEmployees((prev) => ({ ...prev, [emp.id]: !prev[emp.id] }))}
