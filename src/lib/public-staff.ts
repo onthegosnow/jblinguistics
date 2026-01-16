@@ -112,7 +112,7 @@ const normalizeProfiles = (rows: any[]): PublicStaff[] =>
       roles: row.roles ?? [],
       languages: languagesDisplay || "",
       langs: langList.length ? langList : teachingLangs.length ? teachingLangs : translatingLangs,
-      image: row.photo_url || "",
+      image: row.photo_url || undefined,
       photo_url: row.photo_url || undefined,
       tagline: row.tagline || "",
       overview: Array.isArray(row.overview) ? row.overview : row.overview ? [row.overview] : [],
