@@ -167,20 +167,40 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join(" | ");
 
+    const hasExistingContent = Boolean(current.overview || current.tagline || current.background?.length || current.focus?.length);
+    const isRefinementRequest = hasExistingContent && Boolean(userPrompt);
+
     const systemPrompt = [
-      "You are helping write a concise, compelling bio for a JB Linguistics contractor (teacher/translator).",
+      "You are a professional editor for JB Linguistics, a language services company.",
+      isRefinementRequest
+        ? "The user wants to REFINE their existing bio. Focus on their specific request while preserving the overall structure and content they've already written."
+        : "You are helping write a concise, compelling bio for a JB Linguistics contractor (teacher/translator).",
+      "",
+      "WRITING STANDARDS FOR A LINGUISTICS COMPANY:",
+      "- Use impeccable grammar, spelling, and punctuation",
+      "- Maintain a professional yet approachable tone",
+      "- Vary sentence structure; avoid repetitive patterns",
+      "- Be specific and concrete rather than vague",
+      "- Use active voice when possible",
+      "- Avoid clichés and generic phrases like 'passionate about' or 'dedicated to'",
+      "",
       "Tailor the bio to language teaching/translation services, highlight experience, specialties, certifications.",
       "Keep it professional and warm. Use the provided name and roles if present; do not leave placeholders.",
+      "",
       "Structure the output clearly:",
       "- Tagline: 1 sentence (concise) after the name and languages.",
       "- OVERVIEW: 2-3 sentences, paragraph. This cannot be empty.",
       "- EDUCATIONAL & PROFESSIONAL BACKGROUND: bullet list, 4-7 bullets, summarizing relevant experience, credentials, sectors, modalities. If you only have one point, split it into 3-4 clear bullets.",
       "- LINGUISTIC FOCUS: bullet list, 3-6 bullets, focusing on language specialties, teaching/translation strengths, sectors served. If you only have one point, split it into 3-4 concise bullets.",
+      "",
       "Return plain text without Markdown or asterisks; no bold, no headings markup—just readable text and bullet lines prefixed with '-'.",
       isBase64
         ? "The resume was provided as a truncated base64 string; infer best you can from it."
         : "The resume text may be truncated; focus on clear highlights and specialties.",
-      "Start from the provided current bio fields and user prompt; improve them per the request—do not discard useful existing bullets.",
+      "",
+      isRefinementRequest
+        ? "IMPORTANT: This is a REFINEMENT request. Honor the user's specific instructions. If they ask to fix grammar, focus on that. If they ask to make it more concise, shorten it. If they want to add warmth, adjust the tone. Preserve content the user hasn't asked you to change."
+        : "Start from the provided current bio fields and user prompt; improve them per the request—do not discard useful existing bullets.",
       "If current bullets exist, keep them unless explicitly asked to change them; refine wording to be clear and strong.",
       "Never leave the overview or focus empty; synthesize concise points from the resume if needed. Do not emit stray letters or prefixes (e.g., leading 's ').",
       "If the user request mentions a theme (e.g., hosting language learning trips), add a concise sentence about it in the OVERVIEW.",

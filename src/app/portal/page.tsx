@@ -215,7 +215,24 @@ export default function PortalPage() {
     file: null,
     category: "support",
   });
-  const [portalTab, setPortalTab] = useState<"profile" | "board" | "assignments" | "hive">("profile");
+  const [portalTab, setPortalTab] = useState<"profile" | "board" | "assignments" | "hive" | "placement">("profile");
+
+  // Placement test assignment state
+  const [placementForm, setPlacementForm] = useState({
+    recipientName: "",
+    recipientEmail: "",
+    language: "english",
+    expirationHours: 48,
+    notes: "",
+  });
+  const [placementSubmitting, setPlacementSubmitting] = useState(false);
+  const [placementResult, setPlacementResult] = useState<{
+    success: boolean;
+    code?: string;
+    expiresAt?: string;
+    emailSent?: boolean;
+    error?: string;
+  } | null>(null);
   const [hiveApproved, setHiveApproved] = useState<any[]>([]);
   const [hivePending, setHivePending] = useState<any[]>([]);
   const [hiveRejected, setHiveRejected] = useState<any[]>([]);
@@ -630,11 +647,14 @@ export default function PortalPage() {
     [token]
   );
 
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
   const saveProfile = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!token) return;
     setProfileLoading(true);
     setProfileError(null);
+    setSaveMessage(null);
     const cleanedBackground = cleanMultiline(backgroundField);
     const cleanedFocus = cleanMultiline(focusField);
     if (cleanedBackground !== backgroundField) setBackgroundField(cleanedBackground);
@@ -661,6 +681,12 @@ export default function PortalPage() {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.message || "Unable to save profile.");
+      }
+      const result = await response.json();
+      if (result.autoSynced) {
+        setSaveMessage("Saved and published to your live profile!");
+      } else {
+        setSaveMessage("Saved! Submit for approval to publish changes.");
       }
       await loadProfile(token);
     } catch (err) {
@@ -1420,6 +1446,7 @@ export default function PortalPage() {
             { key: "profile", label: "Profile" },
             { key: "board", label: "Community Board" },
             { key: "assignments", label: "Assignments" },
+            { key: "placement", label: "Placement Tests" },
             { key: "hive", label: "Hive Mind" },
           ].map((tab) => (
             <button
@@ -1466,9 +1493,11 @@ export default function PortalPage() {
           {showProfileSection && (
             <>
               <div className="mt-4 space-y-3">
-                <h3 className="text-sm font-semibold text-white">Profile basics</h3>
+                <h3 className="text-sm font-semibold text-white">Your public profile</h3>
                 <p className="text-xs text-slate-400">
-                  Step 1: Update your contact info and languages, then hit Save profile. Step 2: submit for approval so admins can publish you to the public staff page.
+                  {publishStatus === "visible"
+                    ? "Your profile is live! Edit your info below and save — changes will update your public profile immediately."
+                    : "Fill in your details below, save, then submit for admin approval. Once approved, you can edit freely anytime."}
                 </p>
               </div>
               <form onSubmit={saveProfile} className="mt-2 grid md:grid-cols-2 gap-4 text-sm">
@@ -1583,34 +1612,75 @@ export default function PortalPage() {
                   />
                 </label>
               <div className="md:col-span-2 space-y-3">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="submit"
                     className="rounded-full bg-teal-500 text-slate-900 px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-60"
                     disabled={profileLoading}
                   >
-                    Save profile
+                    {profileLoading ? "Saving..." : "Save profile"}
                   </button>
-                  {profile?.email && <p className="text-xs text-slate-400">Account: {profile.email}</p>}
+                  {saveMessage && (
+                    <span className={`text-xs ${saveMessage.includes("live") ? "text-emerald-400" : "text-teal-300"}`}>
+                      {saveMessage}
+                    </span>
+                  )}
+                  {profileError && <span className="text-xs text-rose-400">{profileError}</span>}
                 </div>
+                {profile?.email && <p className="text-xs text-slate-400">Account: {profile.email}</p>}
               </div>
               </form>
 
-              <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-3 shadow-inner">
+              <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-4 shadow-inner">
                 <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-white">Generate bio with AI</h3>
+                  <h3 className="text-sm font-semibold text-white">AI Profile Assistant</h3>
                   <p className="text-xs text-slate-400">
-                    We’ll read your latest resume (override → application → recent PDF/Word upload) and draft a JB Linguistics bio. Add an optional prompt to guide tone or highlights, then click
-                    Save profile to keep it.
+                    {aiDraft || profileForm.bio
+                      ? "Refine your profile with AI. Use quick actions below or type a custom request."
+                      : "Generate a professional bio from your resume. We'll read your latest resume and draft a JB Linguistics bio."}
                   </p>
+                </div>
+
+                {(aiDraft || profileForm.bio) && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-slate-300">Quick refinements:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: "Fix grammar & polish", prompt: "Fix any grammar issues and polish the writing to sound more professional and polished for a linguistics company." },
+                        { label: "Make more concise", prompt: "Make the bio more concise and punchy while keeping the key points. Remove any redundancy." },
+                        { label: "Add warmth", prompt: "Add a warmer, more personable tone while keeping it professional. Make it feel approachable." },
+                        { label: "Emphasize credentials", prompt: "Emphasize certifications, degrees, and professional credentials more prominently." },
+                      ].map((action) => (
+                        <button
+                          key={action.label}
+                          type="button"
+                          onClick={() => {
+                            setAiPrompt(action.prompt);
+                            void generateAiBio();
+                          }}
+                          className="rounded-full border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 hover:border-slate-500 disabled:opacity-60 transition-colors"
+                          disabled={profileLoading}
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
                   <label className="space-y-1 text-slate-200">
-                    Optional prompt (tone, focus, specialties)
+                    <span className="text-xs font-medium text-slate-300">
+                      {aiDraft || profileForm.bio ? "Or type a custom request:" : "Optional prompt (tone, focus, specialties)"}
+                    </span>
                     <input
                       type="text"
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
-                      className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
-                      placeholder="e.g., Emphasize exam prep and business translation"
+                      className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white text-sm"
+                      placeholder={aiDraft || profileForm.bio
+                        ? "e.g., Make it sound more confident, fix the second bullet point, add my DELE certification..."
+                        : "e.g., Emphasize exam prep and business translation"}
                     />
                   </label>
                   <div className="flex items-center gap-3">
@@ -1620,20 +1690,21 @@ export default function PortalPage() {
                       className="rounded-full bg-teal-500 text-slate-900 px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-60"
                       disabled={profileLoading}
                     >
-                      Generate draft
+                      {aiDraft || profileForm.bio ? "Refine with AI" : "Generate draft"}
                     </button>
                     {aiStatus && <p className="text-xs text-slate-300">{aiStatus}</p>}
                   </div>
-                  {aiDraft ? (
-                    <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 space-y-2 text-xs text-slate-200">
-                      <p className="font-semibold text-slate-100">Draft applied to Bio / notes above</p>
-                      <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">
-                        {profileForm.bio || aiDraft}
-                      </p>
-                      <p className="text-[11px] text-amber-300">Review/edit in the Bio field above, then click Save profile.</p>
-                    </div>
-                  ) : null}
                 </div>
+
+                {aiDraft ? (
+                  <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 space-y-2 text-xs text-slate-200">
+                    <p className="font-semibold text-slate-100">Draft applied to fields above</p>
+                    <p className="text-slate-300 leading-relaxed whitespace-pre-wrap line-clamp-6">
+                      {profileForm.bio || aiDraft}
+                    </p>
+                    <p className="text-[11px] text-amber-300">Review/edit above, then click Save profile. You can keep refining with AI anytime.</p>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -1802,7 +1873,11 @@ export default function PortalPage() {
                 );
               })()}
 
-              <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-2 shadow-inner">
+              <div className={`mt-4 rounded-2xl border p-4 space-y-2 shadow-inner ${
+                publishStatus === "visible"
+                  ? "border-emerald-600/50 bg-emerald-950/30"
+                  : "border-slate-700 bg-slate-900"
+              }`}>
                 <div className="flex flex-wrap gap-2 text-sm text-slate-200">
                   <span className={`px-3 py-1 rounded-full ${profile?.teacher_role ? "bg-teal-500 text-slate-900" : "bg-slate-800 text-slate-300"}`}>
                     Teacher {profile?.teacher_role ? "✓" : "—"}
@@ -1810,26 +1885,44 @@ export default function PortalPage() {
                   <span className={`px-3 py-1 rounded-full ${profile?.translator_role ? "bg-teal-500 text-slate-900" : "bg-slate-800 text-slate-300"}`}>
                     Translator {profile?.translator_role ? "✓" : "—"}
                   </span>
-                  <span className="px-3 py-1 rounded-full bg-slate-700 text-slate-100">Status: {publishStatus}</span>
+                  <span className={`px-3 py-1 rounded-full ${
+                    publishStatus === "visible"
+                      ? "bg-emerald-500 text-slate-900"
+                      : publishStatus === "pending"
+                        ? "bg-amber-500 text-slate-900"
+                        : "bg-slate-700 text-slate-100"
+                  }`}>
+                    {publishStatus === "visible" ? "Live" : publishStatus === "pending" ? "Pending approval" : `Status: ${publishStatus}`}
+                  </span>
                 </div>
-                <p className="text-xs text-slate-300">
-                  After saving, submit for admin approval. Approved profiles are published to the public staff page. If you change anything, re-submit so admins can approve the update.
-                </p>
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={publishProfile}
-                    disabled={publishingProfile || (!profile?.teacher_role && !profile?.translator_role)}
-                    className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
-                      publishingProfile
-                        ? "bg-slate-700 text-slate-200 cursor-wait"
-                        : "bg-emerald-500 text-slate-900 hover:bg-emerald-400"
-                    } disabled:opacity-60`}
-                  >
-                    {publishingProfile ? "Submitting…" : "Submit bio for approval"}
-                  </button>
-                  {publishMessage ? <span className="text-xs text-emerald-300">{publishMessage}</span> : null}
-                </div>
+                {publishStatus === "visible" ? (
+                  <p className="text-xs text-emerald-300">
+                    Your profile is live! Any changes you save above will automatically update your public profile.
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-300">
+                    {publishStatus === "pending"
+                      ? "Your profile is waiting for admin approval. Once approved, your changes will sync automatically."
+                      : "After saving, submit for admin approval. Once approved, you can edit freely without re-approval."}
+                  </p>
+                )}
+                {publishStatus !== "visible" && (
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={publishProfile}
+                      disabled={publishingProfile || (!profile?.teacher_role && !profile?.translator_role)}
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
+                        publishingProfile
+                          ? "bg-slate-700 text-slate-200 cursor-wait"
+                          : "bg-emerald-500 text-slate-900 hover:bg-emerald-400"
+                      } disabled:opacity-60`}
+                    >
+                      {publishingProfile ? "Submitting…" : "Submit for approval"}
+                    </button>
+                    {publishMessage ? <span className="text-xs text-emerald-300">{publishMessage}</span> : null}
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-3 shadow-inner">
@@ -2710,6 +2803,165 @@ export default function PortalPage() {
               className="rounded-full bg-teal-500 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-60"
             >
               {hiveLoading ? "Uploading…" : "Upload to Hive"}
+            </button>
+          </form>
+        </div>
+      </section>
+      )}
+
+      {portalTab === "placement" && (
+      <section className="max-w-2xl mx-auto px-4 mt-8">
+        <div className="rounded-3xl bg-slate-800 border border-slate-700 p-6 shadow-lg">
+          <h2 className="text-xl font-semibold text-white mb-2">Assign Placement Test</h2>
+          <p className="text-sm text-slate-400 mb-6">
+            Send a placement test to a student. They will receive an email with a unique access code that expires in 48 hours by default.
+          </p>
+
+          {placementResult?.success && (
+            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-emerald-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-emerald-400 font-medium">Test Assigned Successfully!</p>
+                  <p className="text-sm text-slate-300 mt-1">
+                    Access Code: <span className="font-mono font-bold text-white">{placementResult.code}</span>
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Expires: {placementResult.expiresAt && new Date(placementResult.expiresAt).toLocaleString()}
+                  </p>
+                  {placementResult.emailSent ? (
+                    <p className="text-xs text-emerald-400 mt-1">✓ Email sent to recipient</p>
+                  ) : (
+                    <p className="text-xs text-amber-400 mt-1">⚠ Email could not be sent - share code manually</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {placementResult?.error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+              <p className="text-red-400 text-sm">{placementResult.error}</p>
+            </div>
+          )}
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setPlacementSubmitting(true);
+              setPlacementResult(null);
+              try {
+                const res = await fetch("/api/portal/placement/assign", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "x-portal-token": token },
+                  body: JSON.stringify(placementForm),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                  setPlacementResult({ success: false, error: data.message });
+                } else {
+                  setPlacementResult({
+                    success: true,
+                    code: data.code,
+                    expiresAt: data.expiresAt,
+                    emailSent: data.emailSent,
+                  });
+                  setPlacementForm((prev) => ({
+                    ...prev,
+                    recipientName: "",
+                    recipientEmail: "",
+                    notes: "",
+                  }));
+                }
+              } catch (err) {
+                setPlacementResult({
+                  success: false,
+                  error: err instanceof Error ? err.message : "Failed to assign test",
+                });
+              } finally {
+                setPlacementSubmitting(false);
+              }
+            }}
+            className="space-y-4"
+          >
+            <label className="block space-y-1 text-slate-200 text-sm">
+              Student Name
+              <input
+                type="text"
+                value={placementForm.recipientName}
+                onChange={(e) => setPlacementForm((prev) => ({ ...prev, recipientName: e.target.value }))}
+                className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                placeholder="John Smith"
+              />
+            </label>
+
+            <label className="block space-y-1 text-slate-200 text-sm">
+              Student Email *
+              <input
+                type="email"
+                value={placementForm.recipientEmail}
+                onChange={(e) => setPlacementForm((prev) => ({ ...prev, recipientEmail: e.target.value }))}
+                required
+                className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                placeholder="student@example.com"
+              />
+            </label>
+
+            <label className="block space-y-1 text-slate-200 text-sm">
+              Language *
+              <select
+                value={placementForm.language}
+                onChange={(e) => setPlacementForm((prev) => ({ ...prev, language: e.target.value }))}
+                className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+              >
+                <option value="english">English</option>
+                <option value="german">German</option>
+                <option value="french">French</option>
+                <option value="spanish">Spanish</option>
+                <option value="italian">Italian</option>
+                <option value="portuguese">Portuguese</option>
+                <option value="dutch">Dutch</option>
+                <option value="russian">Russian</option>
+                <option value="mandarin">Mandarin Chinese</option>
+                <option value="japanese">Japanese</option>
+                <option value="korean">Korean</option>
+                <option value="arabic">Arabic</option>
+              </select>
+            </label>
+
+            <label className="block space-y-1 text-slate-200 text-sm">
+              Code Expiration
+              <select
+                value={placementForm.expirationHours}
+                onChange={(e) => setPlacementForm((prev) => ({ ...prev, expirationHours: parseInt(e.target.value) }))}
+                className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+              >
+                <option value={24}>24 hours</option>
+                <option value={48}>48 hours (default)</option>
+                <option value={72}>72 hours</option>
+                <option value={168}>1 week</option>
+              </select>
+            </label>
+
+            <label className="block space-y-1 text-slate-200 text-sm">
+              Notes (optional)
+              <textarea
+                value={placementForm.notes}
+                onChange={(e) => setPlacementForm((prev) => ({ ...prev, notes: e.target.value }))}
+                rows={2}
+                className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                placeholder="Internal notes..."
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={placementSubmitting || !placementForm.recipientEmail}
+              className="w-full rounded-full bg-teal-500 text-white px-4 py-2.5 text-sm font-semibold hover:bg-teal-400 disabled:opacity-60"
+            >
+              {placementSubmitting ? "Sending…" : "Send Placement Test"}
             </button>
           </form>
         </div>

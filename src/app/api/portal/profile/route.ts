@@ -169,6 +169,8 @@ export async function POST(request: NextRequest) {
     languages?: string[];
   };
   const supabase = createSupabaseAdminClient();
+
+  // Update portal_users
   const { error } = await supabase
     .from("portal_users")
     .update({
@@ -184,5 +186,34 @@ export async function POST(request: NextRequest) {
     })
     .eq("id", user.id);
   if (error) return NextResponse.json({ message: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+
+  // Check if user has an already-published profile (visibility = "visible")
+  // If so, update public_staff_profiles directly so changes go live immediately
+  const { data: pubProfile } = await supabase
+    .from("public_staff_profiles")
+    .select("visibility, slug")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (pubProfile?.visibility === "visible") {
+    // User is already published - sync changes directly to public profile
+    const locationParts = [body.city, body.state, body.country].filter(Boolean);
+    const location = locationParts.join(", ");
+
+    await supabase
+      .from("public_staff_profiles")
+      .update({
+        name: body.name ?? undefined,
+        tagline: body.bio ? (body.bio.split(".")[0] || "") : undefined,
+        overview: body.bio ? [body.bio] : undefined,
+        languages_display: Array.isArray(body.languages) ? body.languages.join(", ") : undefined,
+        langs: body.languages ?? undefined,
+        location: location || undefined,
+        region: body.state || body.country || undefined,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id);
+  }
+
+  return NextResponse.json({ success: true, autoSynced: pubProfile?.visibility === "visible" });
 }

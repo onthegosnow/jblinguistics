@@ -10,6 +10,9 @@ import {
 } from "@/lib/teacher-assessment";
 import { translatorLanguages, type TranslatorExerciseLanguage } from "@/lib/translator-exercise";
 import TripsManager from "./trips-manager";
+import { StudentsManager } from "./students-manager";
+import OrganizationsManager from "./organizations-manager";
+import PlacementManager from "./placement-manager";
 
 const STORAGE_KEY = "jb_assessment_admin_token";
 const normalizeRoom = (value: string) => value?.trim().toLowerCase().replace(/\s+/g, "_");
@@ -173,6 +176,11 @@ type PortalUserAdmin = {
   languages?: string[];
   createdAt: string;
   active: boolean;
+  publicProfile?: {
+    visibility: string;
+    roles: string[];
+    slug: string;
+  } | null;
 };
 
 type PortalAssignmentAdmin = {
@@ -252,6 +260,9 @@ export default function AssessmentsAdminPage() {
     | "hive"
     | "board"
     | "trips"
+    | "students"
+    | "organizations"
+    | "placement"
   >("results");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,6 +280,7 @@ export default function AssessmentsAdminPage() {
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [loadingEmailLogs, setLoadingEmailLogs] = useState(false);
   const [showArchivedEmailLogs, setShowArchivedEmailLogs] = useState(false);
+  const [expandedEmailLogs, setExpandedEmailLogs] = useState<Record<string, boolean>>({});
   const [syncingPhotos, setSyncingPhotos] = useState(false);
   const [syncPhotoResult, setSyncPhotoResult] = useState<string | null>(null);
   const [sendingBulkEmail, setSendingBulkEmail] = useState(false);
@@ -2028,7 +2040,7 @@ export default function AssessmentsAdminPage() {
               <div className="mt-3 rounded-2xl border border-slate-700 bg-slate-900 p-4 space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm text-slate-200 font-semibold">Email all teachers</p>
+                    <p className="text-sm text-slate-200 font-semibold">Email all freelancers</p>
                     <p className="text-xs text-slate-400">
                       Use "(first name)" in the message to personalize each email. Sent emails are logged below.
                     </p>
@@ -2069,7 +2081,7 @@ export default function AssessmentsAdminPage() {
                       disabled={sendingBulkEmail}
                       className="inline-flex items-center rounded-full bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-teal-400 disabled:opacity-60"
                     >
-                      {sendingBulkEmail ? "Sending…" : "Send to all active teachers"}
+                      {sendingBulkEmail ? "Sending…" : "Send to all active freelancers"}
                     </button>
                   </div>
                   <div className="space-y-2">
@@ -2088,7 +2100,7 @@ export default function AssessmentsAdminPage() {
                     ) : emailLogs.length === 0 ? (
                       <p className="text-xs text-slate-400">No messages logged yet.</p>
                     ) : (
-                      <div className="space-y-2 max-h-64 overflow-auto">
+                      <div className="space-y-2 max-h-96 overflow-auto">
                         {emailLogs.map((log) => (
                           <div key={log.id} className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 space-y-1">
                             <div className="flex items-start justify-between gap-3">
@@ -2099,17 +2111,52 @@ export default function AssessmentsAdminPage() {
                                   {log.archived ? "· Archived" : ""}
                                 </p>
                               </div>
-                              {!log.archived && (
+                              <div className="flex gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => archiveEmailLog(log.id)}
+                                  onClick={() => setExpandedEmailLogs((prev) => ({ ...prev, [log.id]: !prev[log.id] }))}
                                   className="text-[11px] rounded-full border border-slate-600 px-2 py-1 text-slate-200 hover:bg-slate-700"
                                 >
-                                  Archive
+                                  {expandedEmailLogs[log.id] ? "Hide" : "Details"}
                                 </button>
-                              )}
+                                {!log.archived && (
+                                  <button
+                                    type="button"
+                                    onClick={() => archiveEmailLog(log.id)}
+                                    className="text-[11px] rounded-full border border-slate-600 px-2 py-1 text-slate-200 hover:bg-slate-700"
+                                  >
+                                    Archive
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                            <p className="text-xs text-slate-300 max-h-16 overflow-hidden text-ellipsis">{log.body}</p>
+                            {expandedEmailLogs[log.id] && (
+                              <div className="mt-2 space-y-2">
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider text-slate-500">Message</p>
+                                  <p className="text-xs text-slate-300 whitespace-pre-wrap">{log.body}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                                    Sent to ({log.sent_to?.length ?? 0} recipients)
+                                  </p>
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    {(log.sent_to ?? []).map((r, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="inline-flex items-center rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-200"
+                                        title={r.email}
+                                      >
+                                        {r.name || r.email || "Unknown"}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            {!expandedEmailLogs[log.id] && (
+                              <p className="text-xs text-slate-300 max-h-8 overflow-hidden text-ellipsis line-clamp-1">{log.body}</p>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -3012,13 +3059,39 @@ export default function AssessmentsAdminPage() {
                       .filter((u) => u.active !== false)
                       .map((user) => {
                         const createdAt = (user as any).created_at ?? (user as any).createdAt ?? null;
+                        const pub = user.publicProfile;
+                        const isLive = pub?.visibility === "visible";
+                        const isPending = pub && pub.visibility !== "visible";
+                        const primaryRole = pub?.roles?.includes("translator") && !pub?.roles?.includes("teacher") ? "translators" : "teachers";
+                        const profileUrl = isLive && pub?.slug ? `/${primaryRole}/${pub.slug}` : null;
                         return (
                           <div
                             key={user.id}
-                            className="rounded-2xl border border-slate-700 p-4 flex flex-col gap-1 md:flex-row md:items-center md:justify-between"
+                            className="rounded-2xl border border-slate-700 p-4 flex flex-col gap-2 md:flex-row md:items-start md:justify-between"
                           >
-                            <div>
-                              <p className="font-semibold text-white">{user.name}</p>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-white">{user.name}</p>
+                                {isLive ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                                    Live
+                                    {pub?.roles?.includes("teacher") && (
+                                      <span className="rounded bg-emerald-500/50 px-1 py-0.5">T</span>
+                                    )}
+                                    {pub?.roles?.includes("translator") && (
+                                      <span className="rounded bg-emerald-500/50 px-1 py-0.5">Tr</span>
+                                    )}
+                                  </span>
+                                ) : isPending ? (
+                                  <span className="inline-flex items-center rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                                    Pending
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center rounded-full bg-slate-600 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                                    No profile
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-xs text-slate-400">{user.email}</p>
                               <p className="text-xs text-slate-500">
                                 Roles: {user.roles.join(", ")} · Languages: {user.languages?.join(", ") || "—"}
@@ -3031,6 +3104,16 @@ export default function AssessmentsAdminPage() {
                               ) : null}
                             </div>
                             <div className="flex flex-wrap gap-2">
+                              {profileUrl && (
+                                <a
+                                  href={profileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center rounded-full bg-teal-600 px-3 py-1 text-xs font-semibold text-white hover:bg-teal-500"
+                                >
+                                  View profile
+                                </a>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleResetPortalUser(user.id)}
@@ -3488,6 +3571,12 @@ export default function AssessmentsAdminPage() {
         );
       case "trips":
         return <TripsManager token={token} />;
+      case "students":
+        return <StudentsManager token={token} />;
+      case "organizations":
+        return <OrganizationsManager token={token} />;
+      case "placement":
+        return <PlacementManager token={token} />;
       default:
         return null;
     }
@@ -3621,6 +3710,27 @@ export default function AssessmentsAdminPage() {
                 >
                   Learning Trips
                 </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "students" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("students")}
+                >
+                  Students
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "organizations" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("organizations")}
+                >
+                  Corporate Clients
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "placement" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("placement")}
+                >
+                  Placement Tests
+                </button>
               </div>
               <button
                 type="button"
@@ -3639,7 +3749,7 @@ export default function AssessmentsAdminPage() {
                 }}
                 className="rounded-2xl border border-slate-600 px-4 py-2 text-sm"
               >
-                {showBulkEmail ? "Hide email all teachers" : "Email all teachers"}
+                {showBulkEmail ? "Hide email all freelancers" : "Email all freelancers"}
               </button>
             )}
             {loading && <span className="text-xs text-slate-400">Syncing…</span>}

@@ -6,7 +6,7 @@ import { RESUME_BUCKET } from "@/lib/supabase-server";
 export async function GET(request: NextRequest) {
   requireAdmin(request.headers.get("x-admin-token") ?? undefined);
   const supabase = createSupabaseAdminClient();
-  const [{ data: profiles, error }, { data: portalUsers }, { data: portalEmployees }, { data: photoUploads }] = await Promise.all([
+  const [{ data: profiles, error }, { data: portalUsers }, { data: portalEmployees }, { data: photoUploads }, { data: employeeUploads }] = await Promise.all([
     supabase.from("public_staff_profiles").select("*").order("updated_at", { ascending: false }),
     supabase.from("portal_users").select("id,email,name,photo_url,bio,languages,address,city,state,country"),
     supabase.from("portal_employees").select(
@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
     ),
     supabase
       .from("portal_user_uploads")
+      .select("user_id, kind, path, created_at")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("portal_employee_uploads")
       .select("user_id, kind, path, created_at")
       .order("created_at", { ascending: false }),
   ]);
@@ -29,8 +33,12 @@ export async function GET(request: NextRequest) {
   (portalEmployees ?? []).forEach((e: any) => empByUser.set(e.user_id, e));
   const preferredPhotoByUser = new Map<string, any>();
   const fallbackImageByUser = new Map<string, any>();
-  const isImage = (path?: string) => (path || "").match(/\.(png|jpe?g|webp)$/i);
-  for (const u of photoUploads ?? []) {
+  const isImage = (path?: string) => (path || "").match(/\.(png|jpe?g|webp|gif)$/i);
+
+  // Combine uploads from both tables
+  const allUploads = [...(photoUploads ?? []), ...(employeeUploads ?? [])];
+
+  for (const u of allUploads) {
     if (!u.user_id) continue;
     const currentTime = u.created_at ? new Date(u.created_at).getTime() : 0;
     if (u.kind === "photo" && isImage(u.path)) {
@@ -49,9 +57,10 @@ export async function GET(request: NextRequest) {
   }
   const signedPhotoByUser = new Map<string, string>();
   const chooseUploads = (uid: string) => preferredPhotoByUser.get(uid) || fallbackImageByUser.get(uid);
-  for (const u of photoUploads ?? []) {
-    const uid = u.user_id;
-    if (!uid) continue;
+
+  // Generate signed URLs for all users with photos
+  const userIdsWithPhotos = new Set([...preferredPhotoByUser.keys(), ...fallbackImageByUser.keys()]);
+  for (const uid of userIdsWithPhotos) {
     const chosen = chooseUploads(uid);
     if (!chosen?.path) continue;
     if (signedPhotoByUser.has(uid)) continue;
@@ -164,7 +173,7 @@ export async function POST(request: NextRequest) {
 
       // If we have a userId, hydrate from portal tables to create the profile if missing
       if (body.userId) {
-        const [{ data: portalUser }, { data: empRow }] = await Promise.all([
+        const [{ data: portalUser }, { data: empRow }, { data: portalUploads }, { data: empUploads }] = await Promise.all([
           supabase
             .from("portal_users")
             .select("id,email,name,photo_url,languages,bio,city,state,country")
@@ -175,7 +184,45 @@ export async function POST(request: NextRequest) {
             .select("teacher_role,translator_role,teaching_languages,translating_languages,certifications")
             .eq("user_id", body.userId)
             .maybeSingle(),
+          // Get photo uploads from portal_user_uploads
+          supabase
+            .from("portal_user_uploads")
+            .select("path, created_at")
+            .eq("user_id", body.userId)
+            .eq("kind", "photo")
+            .order("created_at", { ascending: false })
+            .limit(1),
+          // Get photo uploads from portal_employee_uploads
+          supabase
+            .from("portal_employee_uploads")
+            .select("path, created_at")
+            .eq("user_id", body.userId)
+            .eq("kind", "photo")
+            .order("created_at", { ascending: false })
+            .limit(1),
         ]);
+
+        // Find the most recent photo from uploads (prefer uploads over portal_users.photo_url)
+        let photoPath: string | null = null;
+        const portalPhoto = portalUploads?.[0];
+        const empPhoto = empUploads?.[0];
+
+        if (portalPhoto && empPhoto) {
+          // Compare timestamps, use most recent
+          const portalTime = portalPhoto.created_at ? new Date(portalPhoto.created_at).getTime() : 0;
+          const empTime = empPhoto.created_at ? new Date(empPhoto.created_at).getTime() : 0;
+          photoPath = empTime > portalTime ? empPhoto.path : portalPhoto.path;
+        } else if (portalPhoto) {
+          photoPath = portalPhoto.path;
+        } else if (empPhoto) {
+          photoPath = empPhoto.path;
+        }
+
+        // Fallback to portal_users.photo_url only if no uploads found
+        if (!photoPath && portalUser?.photo_url) {
+          photoPath = portalUser.photo_url;
+        }
+
         const roles = [
           ...(empRow?.teacher_role ? ["teacher"] : []),
           ...(empRow?.translator_role ? ["translator"] : []),
@@ -185,7 +232,7 @@ export async function POST(request: NextRequest) {
           ...profilePayload,
           slug,
           name: portalUser?.name || portalUser?.email || slug,
-          photo_url: portalUser?.photo_url || null,
+          photo_url: photoPath,
           roles,
           teaching_languages: empRow?.teaching_languages ?? [],
           translating_languages: empRow?.translating_languages ?? [],

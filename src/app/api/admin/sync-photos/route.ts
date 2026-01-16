@@ -38,19 +38,30 @@ export async function POST(request: NextRequest) {
       .order("created_at", { ascending: false }),
   ]);
 
-  // Build map of user_id -> most recent photo path
-  const photoPathByUser = new Map<string, string>();
+  // Build map of user_id -> most recent photo path (compare timestamps across both tables)
+  const photoByUser = new Map<string, { path: string; createdAt: number }>();
 
-  // Process portal uploads
-  for (const upload of portalUploadsRes.data ?? []) {
-    if (!upload.path || photoPathByUser.has(upload.user_id)) continue;
-    photoPathByUser.set(upload.user_id, upload.path);
+  // Combine all uploads and find most recent photo for each user
+  const allUploads = [
+    ...(portalUploadsRes.data ?? []),
+    ...(employeeUploadsRes.data ?? []),
+  ];
+
+  for (const upload of allUploads) {
+    if (!upload.path || !upload.user_id) continue;
+    const uploadTime = upload.created_at ? new Date(upload.created_at).getTime() : 0;
+    const existing = photoByUser.get(upload.user_id);
+
+    // Keep the most recent photo
+    if (!existing || uploadTime > existing.createdAt) {
+      photoByUser.set(upload.user_id, { path: upload.path, createdAt: uploadTime });
+    }
   }
 
-  // Process employee uploads (may override if more recent, but we're already sorted desc)
-  for (const upload of employeeUploadsRes.data ?? []) {
-    if (!upload.path || photoPathByUser.has(upload.user_id)) continue;
-    photoPathByUser.set(upload.user_id, upload.path);
+  // Convert to simple path map
+  const photoPathByUser = new Map<string, string>();
+  for (const [userId, data] of photoByUser) {
+    photoPathByUser.set(userId, data.path);
   }
 
   const results: Array<{ name: string; status: string; photo_url?: string }> = [];

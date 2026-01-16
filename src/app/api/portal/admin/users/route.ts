@@ -6,12 +6,34 @@ import { createSupabaseAdminClient } from "@/lib/supabase-server";
 export async function GET(request: NextRequest) {
   requireAdmin(request.headers.get("x-admin-token") ?? undefined);
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("portal_users")
-    .select("id, name, email, roles, languages, active, created_at")
-    .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
-  return NextResponse.json({ users: data ?? [] });
+  const [usersRes, profilesRes] = await Promise.all([
+    supabase
+      .from("portal_users")
+      .select("id, name, email, roles, languages, active, created_at")
+      .order("created_at", { ascending: false }),
+    supabase.from("public_staff_profiles").select("user_id, visibility, roles, slug"),
+  ]);
+  if (usersRes.error) return NextResponse.json({ message: usersRes.error.message }, { status: 500 });
+
+  // Build map of user_id -> public profile info
+  const profileByUser = new Map<string, { visibility: string; roles: string[]; slug: string }>();
+  for (const profile of profilesRes.data ?? []) {
+    if (profile.user_id) {
+      profileByUser.set(profile.user_id, {
+        visibility: profile.visibility ?? "hidden",
+        roles: profile.roles ?? [],
+        slug: profile.slug ?? "",
+      });
+    }
+  }
+
+  // Merge profile info into users
+  const users = (usersRes.data ?? []).map((u) => ({
+    ...u,
+    publicProfile: profileByUser.get(u.id) ?? null,
+  }));
+
+  return NextResponse.json({ users });
 }
 
 export async function POST(request: NextRequest) {

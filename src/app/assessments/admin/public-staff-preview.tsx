@@ -165,39 +165,64 @@ export function PublicStaffPreview({ token }: { token: string }) {
     };
     const parseProfile = () => {
       try {
-        const stripTagline = (txt?: string | null) => {
-          if (!txt) return "";
-          const cleaned = txt.replace(/^\s*tagline:\s*/i, "").trim();
-          const parts = cleaned.split(/overview:/i);
-          return (parts[0] || cleaned).trim();
-        };
         const normalize = (txt: string) =>
           txt
             .replace(/\*\*/g, "")
             .replace(/^[*•-]\s*/, "")
             .trim();
-        const raw = Array.isArray(profile.overview) ? profile.overview.join("\n") : String(profile.overview || "");
-        const block = (label: string) => {
-          const regex = new RegExp(`${label}\\s*:?\\s*([\\s\\S]*?)(?=\\n\\s*[A-Z][A-Z ]+:?|$)`, "i");
-          const m = raw.match(regex);
-          return m ? normalize(m[1]) : "";
+
+        // Clean tagline - remove "Tagline:" prefix and any section headers
+        const cleanTagline = (txt?: string | null) => {
+          if (!txt) return "";
+          return txt
+            .replace(/^\s*tagline:\s*/i, "")
+            .replace(/overview:/i, "")
+            .split("\n")[0]
+            .trim();
         };
-        const splitParas = (txt: string) =>
-          txt
-            .split(/\n+/)
-            .map((p) => normalize(p))
-            .filter(Boolean);
-        const cleanList = (items: string[]) =>
-          Array.from(
-            new Set(
-              (items || [])
-                .map((i) => i.trim())
-                .filter((i) => i && !/^tagline\b/i.test(i) && !/background/i.test(i) && !/focus/i.test(i))
-            )
-          );
-        const overviewBlock = block("overview") || "";
-        const tagline = stripTagline(profile.tagline || (overviewBlock ? overviewBlock.split(".")[0]?.trim() : ""));
-        const overviewParas = cleanList(overviewBlock ? splitParas(overviewBlock) : splitParas(raw));
+
+        // Get the raw overview content
+        const raw = Array.isArray(profile.overview) ? profile.overview.join("\n") : String(profile.overview || "");
+
+        // Extract OVERVIEW section if it exists
+        const overviewMatch = raw.match(/overview\s*:?\s*([\s\S]*?)(?=\n\s*(?:EDUCATIONAL|LINGUISTIC|BACKGROUND|FOCUS|$))/i);
+        let overviewText = overviewMatch ? overviewMatch[1].trim() : "";
+
+        // If no explicit OVERVIEW section, use the first paragraph that's not a header
+        if (!overviewText) {
+          const lines = raw.split("\n").filter((l) => l.trim() && !l.match(/^(tagline|overview|educational|linguistic|background|focus)/i));
+          overviewText = lines.slice(0, 3).join(" ").trim();
+        }
+
+        // Clean up the overview - remove tagline prefix if it leaked in
+        overviewText = overviewText.replace(/^\s*tagline:\s*/i, "").trim();
+
+        // Don't repeat the tagline in the overview
+        let tagline = cleanTagline(profile.tagline);
+        if (overviewText.toLowerCase().startsWith(tagline.toLowerCase()) && tagline.length > 20) {
+          // If overview starts with tagline, extract just the additional content
+          const remainder = overviewText.slice(tagline.length).replace(/^[.,\s]+/, "").trim();
+          if (remainder) {
+            overviewText = remainder;
+          }
+        }
+
+        // If tagline looks like raw data (e.g., "Name | Lang | Lang"), try to generate a better one
+        if (tagline.match(/\|/) && !tagline.match(/[a-z]{10,}/i)) {
+          // This looks like metadata, not a tagline - try first sentence of overview instead
+          const firstSentence = overviewText.split(/[.!?]/)[0]?.trim();
+          if (firstSentence && firstSentence.length > 20 && firstSentence.length < 150) {
+            tagline = firstSentence;
+          } else {
+            tagline = ""; // Clear the bad tagline
+          }
+        }
+
+        const overviewParas = overviewText
+          .split(/\n+/)
+          .map((p) => normalize(p))
+          .filter((p) => p && p.length > 5 && !p.match(/^(tagline|overview):/i));
+
         return { tagline, overview: overviewParas };
       } catch (err) {
         return { tagline: profile.tagline || "", overview: Array.isArray(profile.overview) ? profile.overview : [] };
@@ -377,7 +402,7 @@ export function PublicStaffPreview({ token }: { token: string }) {
             {specialties.length ? <p className="text-xs text-slate-300">Specialties: {specialties.join(", ")}</p> : null}
           </div>
         )}
-        <div className="flex flex-wrap gap-2 pt-2">
+        <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-700/50">
           {!editing ? (
             <button
               type="button"
@@ -385,7 +410,7 @@ export function PublicStaffPreview({ token }: { token: string }) {
                 setDrafts((prev) => ({ ...prev, [key]: draft }));
                 setEditMode((m) => ({ ...m, [key]: true }));
               }}
-              className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+              className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
             >
               Edit
             </button>
@@ -393,7 +418,7 @@ export function PublicStaffPreview({ token }: { token: string }) {
           <button
             type="button"
             onClick={() => updateVisibility(profile, "approve")}
-            className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-60"
+            className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-60"
             disabled={actioning === `${profile.slug || profile.user_id || ""}:approve`}
           >
             {actioning === `${profile.slug || profile.user_id || ""}:approve` ? "Publishing…" : "Approve & publish"}
@@ -401,21 +426,11 @@ export function PublicStaffPreview({ token }: { token: string }) {
           <button
             type="button"
             onClick={() => updateVisibility(profile, "hide")}
-            className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+            className="rounded-full bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
             disabled={actioning === `${profile.slug || profile.user_id || ""}:hide`}
           >
             {actioning === `${profile.slug || profile.user_id || ""}:hide` ? "Hiding…" : "Hide"}
           </button>
-          {publicUrl ? (
-            <a
-              href={publicUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
-            >
-              View public
-            </a>
-          ) : null}
           <button
             type="button"
             onClick={() => {
@@ -425,15 +440,25 @@ export function PublicStaffPreview({ token }: { token: string }) {
               qs.set("token", token);
               window.open(`/api/admin/public-staff/preview?${qs.toString()}`, "_blank");
             }}
-            className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
             disabled={!profile.slug && !profile.user_id}
           >
             Preview
           </button>
+          {publicUrl && (
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-teal-600 px-3 py-1.5 text-xs font-semibold text-teal-300 hover:bg-teal-900/30"
+            >
+              View live
+            </a>
+          )}
           <button
             type="button"
             onClick={() => updateVisibility(profile, "delete")}
-            className="rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+            className="rounded-full bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
             disabled={actioning === `${profile.slug || profile.user_id || ""}:delete`}
           >
             {actioning === `${profile.slug || profile.user_id || ""}:delete` ? "Deleting…" : "Delete"}
@@ -444,45 +469,37 @@ export function PublicStaffPreview({ token }: { token: string }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">Published profiles</h3>
+        <div>
+          <h3 className="text-lg font-semibold text-white">Profile Management</h3>
+          <p className="text-xs text-slate-400 mt-1">
+            {pending.length} pending · {visible.length} live
+          </p>
+        </div>
         <button
           type="button"
           onClick={loadProfiles}
-          className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
+          disabled={loading}
+          className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700 disabled:opacity-50"
         >
-          Refresh
+          {loading ? "Loading…" : "Refresh"}
         </button>
       </div>
       {error && <p className="text-sm text-rose-300">{error}</p>}
-      {loading ? <p className="text-sm text-slate-300">Loading…</p> : null}
-      <div className="space-y-3">
-        {lastAction ? <p className="text-xs text-emerald-300">{lastAction}</p> : null}
-        <div className="space-y-2">
-          <p className="text-sm text-amber-300 font-semibold">Pending profiles</p>
-          {pending.length ? (
-            (() => {
-              const buckets = bucketProfiles(pending);
-              return (
-                <div className="space-y-3">
-                  {renderBucket("Teacher", buckets.teacherOnly)}
-                  {renderBucket("Translator", buckets.translatorOnly)}
-                  {renderBucket("Dual role", buckets.dual)}
-                  {renderBucket("Unspecified", buckets.other)}
-                </div>
-              );
-            })()
-          ) : (
-            <p className="text-xs text-slate-400">No pending profiles.</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <p className="text-sm text-slate-200 font-semibold">Visible profiles</p>
+      {lastAction ? <p className="text-xs text-emerald-300">{lastAction}</p> : null}
+
+      {/* Pending profiles - highlighted */}
+      {pending.length > 0 && (
+        <div className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+            <p className="text-sm text-amber-300 font-semibold">Pending approval ({pending.length})</p>
+          </div>
           {(() => {
-            const buckets = bucketProfiles(visible);
+            const buckets = bucketProfiles(pending);
             return (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {renderBucket("Teacher", buckets.teacherOnly)}
                 {renderBucket("Translator", buckets.translatorOnly)}
                 {renderBucket("Dual role", buckets.dual)}
@@ -491,6 +508,26 @@ export function PublicStaffPreview({ token }: { token: string }) {
             );
           })()}
         </div>
+      )}
+
+      {/* Visible profiles */}
+      <div className="space-y-3">
+        <p className="text-sm text-slate-200 font-semibold">Live profiles ({visible.length})</p>
+        {visible.length === 0 ? (
+          <p className="text-xs text-slate-400">No published profiles yet.</p>
+        ) : (
+          (() => {
+            const buckets = bucketProfiles(visible);
+            return (
+              <div className="space-y-4">
+                {renderBucket("Teacher", buckets.teacherOnly)}
+                {renderBucket("Translator", buckets.translatorOnly)}
+                {renderBucket("Dual role", buckets.dual)}
+                {renderBucket("Unspecified", buckets.other)}
+              </div>
+            );
+          })()
+        )}
       </div>
     </div>
   );

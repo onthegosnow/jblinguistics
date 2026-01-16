@@ -43,13 +43,30 @@ export async function POST(request: NextRequest) {
   if (!rawMessage) return NextResponse.json({ message: "Message required" }, { status: 400 });
 
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+
+  // Get all active users
+  const { data: users, error: usersError } = await supabase
     .from("portal_users")
-    .select("name, email")
-    .contains("roles", ["teacher"])
+    .select("id, name, email")
     .eq("active", true);
-  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
-  const recipients = (data ?? []).filter((r) => r.email);
+  if (usersError) return NextResponse.json({ message: usersError.message }, { status: 500 });
+
+  // Get all active employees (not inactive status)
+  const { data: activeEmployees, error: empError } = await supabase
+    .from("portal_employees")
+    .select("user_id")
+    .neq("status", "inactive");
+  if (empError) return NextResponse.json({ message: empError.message }, { status: 500 });
+
+  const activeEmployeeIds = new Set((activeEmployees ?? []).map(e => e.user_id));
+
+  // Include all active freelancers (users who are active and have an employee record that's not inactive)
+  const recipients = (users ?? []).filter((u) => {
+    if (!u.email) return false;
+    // Include if they have an active employee record
+    if (activeEmployeeIds.has(u.id)) return true;
+    return false;
+  });
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: SMTP_PORT,
