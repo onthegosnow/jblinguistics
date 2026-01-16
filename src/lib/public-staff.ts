@@ -105,6 +105,9 @@ const normalizeProfiles = (rows: any[]): PublicStaff[] =>
       ? [row.linguistics]
       : [];
 
+    // Only use photo_url if it's a full URL (not a storage path)
+    const photoUrl = row.photo_url && row.photo_url.startsWith('http') ? row.photo_url : undefined;
+
     return {
       slug: row.slug,
       name: row.name,
@@ -112,8 +115,8 @@ const normalizeProfiles = (rows: any[]): PublicStaff[] =>
       roles: row.roles ?? [],
       languages: languagesDisplay || "",
       langs: langList.length ? langList : teachingLangs.length ? teachingLangs : translatingLangs,
-      image: row.photo_url || undefined,
-      photo_url: row.photo_url || undefined,
+      image: photoUrl,
+      photo_url: photoUrl,
       tagline: row.tagline || "",
       overview: Array.isArray(row.overview) ? row.overview : row.overview ? [row.overview] : [],
       background,
