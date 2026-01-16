@@ -133,33 +133,134 @@ const normalizeProfiles = (rows: any[]): PublicStaff[] =>
     };
   }) as PublicStaff[];
 
+const isImage = (path?: string | null, mime?: string | null, filename?: string | null) => {
+  if ((mime ?? "").toLowerCase().startsWith("image/")) return true;
+  const name = path || filename || "";
+  return /\.(png|jpe?g|webp|gif)$/i.test(name);
+};
+
 async function fetchFromSupabase(): Promise<PublicStaff[]> {
-  if (!SUPABASE_URL || !SUPABASE_ANON) {
-    publicStaffStatus = { source: "unavailable", reason: "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY" };
+  // Use service role key for server-side operations (can generate signed URLs)
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const authKey = serviceKey || SUPABASE_ANON;
+
+  if (!SUPABASE_URL || !authKey) {
+    publicStaffStatus = { source: "unavailable", reason: "Missing Supabase credentials" };
     return [];
   }
+
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/public_staff_profiles?visibility=eq.visible&select=*`,
+    // Fetch profiles
+    const profilesRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/public_staff_profiles?visibility=eq.visible&select=*&order=updated_at.desc`,
       {
         headers: {
-          apikey: SUPABASE_ANON,
-          Authorization: `Bearer ${SUPABASE_ANON}`,
+          apikey: authKey,
+          Authorization: `Bearer ${authKey}`,
           Accept: "application/json",
         },
       }
     );
-    if (!res.ok) {
-      publicStaffStatus = { source: "unavailable", reason: `Supabase request failed (${res.status})` };
+    if (!profilesRes.ok) {
+      publicStaffStatus = { source: "unavailable", reason: `Supabase request failed (${profilesRes.status})` };
       return [];
     }
-    const data = (await res.json()) as any[];
-    if (!data.length) {
+    const profiles = (await profilesRes.json()) as any[];
+    if (!profiles.length) {
       publicStaffStatus = { source: "unavailable", reason: "No published profiles found." };
       return [];
     }
+
+    // If we have service key, fetch uploads and generate signed URLs
+    if (serviceKey) {
+      const userIds = profiles.map(p => p.user_id).filter(Boolean);
+
+      if (userIds.length > 0) {
+        // Fetch uploads for all users
+        const [userUploadsRes, portalUsersRes] = await Promise.all([
+          fetch(
+            `${SUPABASE_URL}/rest/v1/portal_user_uploads?user_id=in.(${userIds.map(id => `"${id}"`).join(',')})&select=user_id,path,kind,mime_type,filename,created_at&order=created_at.desc`,
+            {
+              headers: {
+                apikey: serviceKey,
+                Authorization: `Bearer ${serviceKey}`,
+                Accept: "application/json",
+              },
+            }
+          ),
+          fetch(
+            `${SUPABASE_URL}/rest/v1/portal_users?id=in.(${userIds.map(id => `"${id}"`).join(',')})&select=id,photo_url`,
+            {
+              headers: {
+                apikey: serviceKey,
+                Authorization: `Bearer ${serviceKey}`,
+                Accept: "application/json",
+              },
+            }
+          ),
+        ]);
+
+        const userUploads = userUploadsRes.ok ? await userUploadsRes.json() : [];
+        const portalUsers = portalUsersRes.ok ? await portalUsersRes.json() : [];
+
+        // Build maps
+        const userUploadsMap = new Map<string, any[]>();
+        for (const upload of userUploads) {
+          const existing = userUploadsMap.get(upload.user_id) ?? [];
+          existing.push(upload);
+          userUploadsMap.set(upload.user_id, existing);
+        }
+        const portalUsersMap = new Map<string, any>();
+        for (const user of portalUsers) {
+          portalUsersMap.set(user.id, user);
+        }
+
+        // Generate signed URLs for each profile
+        for (const profile of profiles) {
+          if (!profile.user_id) continue;
+
+          const uploads = userUploadsMap.get(profile.user_id) ?? [];
+          const imageUploads = uploads.filter(u => isImage(u.path, u.mime_type, u.filename));
+          const preferred = imageUploads.find(u => u.kind === "photo");
+          const chosen = preferred ?? imageUploads[0];
+
+          let storagePath = chosen?.path;
+
+          // Fallback to portal_users.photo_url if no upload found
+          if (!storagePath) {
+            const portalUser = portalUsersMap.get(profile.user_id);
+            if (portalUser?.photo_url?.startsWith("portal_user_uploads/")) {
+              storagePath = portalUser.photo_url;
+            }
+          }
+
+          if (storagePath) {
+            // Generate signed URL using storage API
+            const signRes = await fetch(
+              `${SUPABASE_URL}/storage/v1/object/sign/resumes/${storagePath}`,
+              {
+                method: "POST",
+                headers: {
+                  apikey: serviceKey,
+                  Authorization: `Bearer ${serviceKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 365 }), // 1 year
+              }
+            );
+            if (signRes.ok) {
+              const signData = await signRes.json();
+              if (signData.signedURL) {
+                profile.photo_url = `${SUPABASE_URL}/storage/v1${signData.signedURL}`;
+              }
+            }
+          }
+        }
+      }
+    }
+
     publicStaffStatus = { source: "supabase" };
-    return normalizeProfiles(data);
+    return normalizeProfiles(profiles);
   } catch (err) {
     publicStaffStatus = { source: "unavailable", reason: "Supabase request errored" };
     return [];
