@@ -230,6 +230,34 @@ export async function listStudents(): Promise<StudentRecord[]> {
   return data.map(mapStudentRow);
 }
 
+// List students assigned to a specific teacher
+export async function getStudentsForTeacher(teacherId: string): Promise<StudentRecord[]> {
+  const supabase = createSupabaseAdminClient();
+
+  // Get student IDs from active enrollments where this teacher is assigned
+  const { data: enrollments, error: enrollError } = await supabase
+    .from("student_enrollments")
+    .select("student_id")
+    .eq("teacher_id", teacherId)
+    .eq("status", "active");
+
+  if (enrollError || !enrollments || enrollments.length === 0) return [];
+
+  const studentIds = [...new Set(enrollments.map((e: any) => e.student_id))];
+
+  // Get student details
+  const { data: students, error: studentError } = await supabase
+    .from("students")
+    .select("*")
+    .in("id", studentIds)
+    .eq("active", true)
+    .order("name", { ascending: true });
+
+  if (studentError || !students) return [];
+
+  return students.map(mapStudentRow);
+}
+
 // Create student
 export async function createStudent(input: {
   email: string;

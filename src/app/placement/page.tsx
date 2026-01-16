@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function PlacementTestStartPage() {
+function PlacementTestStartPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -18,6 +19,14 @@ export default function PlacementTestStartPage() {
     language?: string;
     label?: string;
   } | null>(null);
+
+  // Auto-fill code from URL parameter
+  useEffect(() => {
+    const codeParam = searchParams.get("code");
+    if (codeParam && !formData.accessCode) {
+      setFormData((prev) => ({ ...prev, accessCode: codeParam.toUpperCase() }));
+    }
+  }, [searchParams, formData.accessCode]);
 
   async function verifyCode() {
     if (!formData.accessCode || formData.accessCode.length < 4) {
@@ -289,5 +298,19 @@ export default function PlacementTestStartPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function PlacementTestStartPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+          <div className="animate-pulse text-slate-400">Loading...</div>
+        </div>
+      }
+    >
+      <PlacementTestStartPageInner />
+    </Suspense>
   );
 }

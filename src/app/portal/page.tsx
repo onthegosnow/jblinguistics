@@ -219,6 +219,7 @@ export default function PortalPage() {
 
   // Placement test assignment state
   const [placementForm, setPlacementForm] = useState({
+    studentId: "",
     recipientName: "",
     recipientEmail: "",
     language: "english",
@@ -233,6 +234,8 @@ export default function PortalPage() {
     emailSent?: boolean;
     error?: string;
   } | null>(null);
+  const [teacherStudents, setTeacherStudents] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [teacherStudentsLoading, setTeacherStudentsLoading] = useState(false);
   const [hiveApproved, setHiveApproved] = useState<any[]>([]);
   const [hivePending, setHivePending] = useState<any[]>([]);
   const [hiveRejected, setHiveRejected] = useState<any[]>([]);
@@ -580,6 +583,25 @@ export default function PortalPage() {
     [token]
   );
 
+  const loadTeacherStudents = useCallback(
+    async (existingToken?: string) => {
+      const auth = existingToken ?? token;
+      if (!auth) return;
+      setTeacherStudentsLoading(true);
+      try {
+        const response = await fetch("/api/portal/students", { headers: { "x-portal-token": auth } });
+        if (!response.ok) return;
+        const data = await response.json();
+        setTeacherStudents(data.students ?? []);
+      } catch {
+        // Silent fail - students are optional
+      } finally {
+        setTeacherStudentsLoading(false);
+      }
+    },
+    [token]
+  );
+
   const loadBoard = useCallback(
     async (room?: string) => {
       if (!token) return;
@@ -865,8 +887,9 @@ export default function PortalPage() {
       void loadHive(token);
       void loadBoard(boardRoom);
       void loadProfile(token);
+      void loadTeacherStudents(token);
     }
-  }, [token, loadAssignments, loadHive, loadProfile, loadBoard, boardRoom]);
+  }, [token, loadAssignments, loadHive, loadProfile, loadBoard, boardRoom, loadTeacherStudents]);
 
   useEffect(() => {
     if (token) {
@@ -2870,6 +2893,7 @@ export default function PortalPage() {
                   });
                   setPlacementForm((prev) => ({
                     ...prev,
+                    studentId: "",
                     recipientName: "",
                     recipientEmail: "",
                     notes: "",
@@ -2886,28 +2910,79 @@ export default function PortalPage() {
             }}
             className="space-y-4"
           >
-            <label className="block space-y-1 text-slate-200 text-sm">
-              Student Name
-              <input
-                type="text"
-                value={placementForm.recipientName}
-                onChange={(e) => setPlacementForm((prev) => ({ ...prev, recipientName: e.target.value }))}
-                className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
-                placeholder="John Smith"
-              />
-            </label>
+            {teacherStudents.length > 0 && (
+              <label className="block space-y-1 text-slate-200 text-sm">
+                Select Student
+                <select
+                  value={placementForm.studentId}
+                  onChange={(e) => {
+                    const studentId = e.target.value;
+                    if (studentId) {
+                      const student = teacherStudents.find((s) => s.id === studentId);
+                      if (student) {
+                        setPlacementForm((prev) => ({
+                          ...prev,
+                          studentId,
+                          recipientName: student.name,
+                          recipientEmail: student.email,
+                        }));
+                      }
+                    } else {
+                      setPlacementForm((prev) => ({
+                        ...prev,
+                        studentId: "",
+                        recipientName: "",
+                        recipientEmail: "",
+                      }));
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                >
+                  <option value="">-- Select a student or enter manually --</option>
+                  {teacherStudents.map((student) => (
+                    <option key={student.id} value={student.id}>
+                      {student.name} ({student.email})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
-            <label className="block space-y-1 text-slate-200 text-sm">
-              Student Email *
-              <input
-                type="email"
-                value={placementForm.recipientEmail}
-                onChange={(e) => setPlacementForm((prev) => ({ ...prev, recipientEmail: e.target.value }))}
-                required
-                className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
-                placeholder="student@example.com"
-              />
-            </label>
+            {!placementForm.studentId && (
+              <>
+                <label className="block space-y-1 text-slate-200 text-sm">
+                  Student Name
+                  <input
+                    type="text"
+                    value={placementForm.recipientName}
+                    onChange={(e) => setPlacementForm((prev) => ({ ...prev, recipientName: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                    placeholder="John Smith"
+                  />
+                </label>
+
+                <label className="block space-y-1 text-slate-200 text-sm">
+                  Student Email *
+                  <input
+                    type="email"
+                    value={placementForm.recipientEmail}
+                    onChange={(e) => setPlacementForm((prev) => ({ ...prev, recipientEmail: e.target.value }))}
+                    required
+                    className="w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                    placeholder="student@example.com"
+                  />
+                </label>
+              </>
+            )}
+
+            {placementForm.studentId && (
+              <div className="p-3 bg-teal-500/10 border border-teal-500/30 rounded-xl">
+                <p className="text-sm text-teal-400">
+                  Assigning test to: <span className="font-semibold text-white">{placementForm.recipientName}</span>
+                </p>
+                <p className="text-xs text-slate-400">{placementForm.recipientEmail}</p>
+              </div>
+            )}
 
             <label className="block space-y-1 text-slate-200 text-sm">
               Language *

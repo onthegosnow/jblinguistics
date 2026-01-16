@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
     }
 
     const organizationId = verification.organizationId;
+    // Use studentId from code if available, otherwise use provided studentId
+    const effectiveStudentId = verification.studentId || studentId;
 
     // Increment usage
     await useTestCode(accessCode);
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
     // Create the test
     const test = await createPlacementTest({
       language: testLanguage,
-      studentId,
+      studentId: effectiveStudentId,
       guestName: name,
       guestEmail: email,
       accessCode,

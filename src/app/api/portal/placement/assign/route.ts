@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const {
+      studentId,
       recipientName,
       recipientEmail,
       language,
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
     // Generate the access code
     const testCode = await createTestCode({
       language: language.toLowerCase(),
+      studentId: studentId || undefined,
       maxUses: 1,
       expiresAt: expiresAt.toISOString(),
       label: `Assigned by ${user.name || user.email} to ${recipientName || recipientEmail}`,
@@ -174,6 +176,7 @@ export async function POST(request: NextRequest) {
       emailError,
       recipientEmail,
       language,
+      studentId: studentId || null,
     });
   } catch (err) {
     const status = typeof (err as any).statusCode === "number" ? (err as any).statusCode : 500;

@@ -44,6 +44,24 @@ type Certificate = {
   valid: boolean;
 };
 
+type PendingPlacementTest = {
+  code: string;
+  language: string;
+  expiresAt?: string;
+  label?: string;
+};
+
+type PlacementTestHistory = {
+  id: string;
+  language: string;
+  status: string;
+  startedAt?: string;
+  completedAt?: string;
+  percentageScore?: number;
+  recommendedLevel?: string;
+  finalLevel?: string;
+};
+
 const CEFR_LABELS: Record<string, string> = {
   A1: "Beginner",
   A2: "Elementary",
@@ -53,6 +71,25 @@ const CEFR_LABELS: Record<string, string> = {
   C2: "Proficiency",
 };
 
+const LANGUAGE_LABELS: Record<string, string> = {
+  english: "English",
+  german: "German",
+  french: "French",
+  spanish: "Spanish",
+  italian: "Italian",
+  portuguese: "Portuguese",
+  dutch: "Dutch",
+  russian: "Russian",
+  mandarin: "Mandarin Chinese",
+  japanese: "Japanese",
+  korean: "Korean",
+  arabic: "Arabic",
+  farsi: "Farsi",
+  polish: "Polish",
+  hindi: "Hindi",
+  swahili: "Swahili",
+};
+
 export default function StudentDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -60,6 +97,8 @@ export default function StudentDashboard() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [progress, setProgress] = useState<Progress[]>([]);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [pendingTests, setPendingTests] = useState<PendingPlacementTest[]>([]);
+  const [testHistory, setTestHistory] = useState<PlacementTestHistory[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -96,6 +135,8 @@ export default function StudentDashboard() {
       setEnrollments(data.enrollments || []);
       setProgress(data.progress || []);
       setCertificates(data.certificates || []);
+      setPendingTests(data.placementTests?.pending || []);
+      setTestHistory(data.placementTests?.history || []);
       setLoading(false);
     } catch (err) {
       setError("Failed to load profile.");
@@ -266,6 +307,137 @@ export default function StudentDashboard() {
             </div>
           )}
         </section>
+
+        {/* Placement Tests */}
+        {(pendingTests.length > 0 || testHistory.length > 0) && (
+          <section className="mb-8">
+            <h2 className="text-xl font-semibold text-white mb-4">Placement Tests</h2>
+
+            {/* Pending Tests */}
+            {pendingTests.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-slate-400 mb-3">Available Tests</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {pendingTests.map((test) => (
+                    <div
+                      key={test.code}
+                      className="bg-gradient-to-br from-teal-900/30 to-teal-800/20 border border-teal-700/50 rounded-xl p-6"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-white">
+                            {LANGUAGE_LABELS[test.language] || test.language} Placement Test
+                          </h4>
+                          {test.label && (
+                            <p className="text-sm text-slate-400">{test.label}</p>
+                          )}
+                        </div>
+                        <span className="px-3 py-1 bg-teal-500/20 text-teal-300 text-xs rounded-full">
+                          Ready
+                        </span>
+                      </div>
+                      {test.expiresAt && (
+                        <p className="text-xs text-amber-400 mt-3">
+                          Expires: {new Date(test.expiresAt).toLocaleString()}
+                        </p>
+                      )}
+                      <div className="mt-4">
+                        <a
+                          href={`/placement?code=${test.code}`}
+                          className="inline-block w-full text-center py-2 px-4 bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                          Start Test
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Test History */}
+            {testHistory.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-slate-400 mb-3">Completed Tests</h3>
+                <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-700">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                          Language
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                          Result
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                          Date
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700">
+                      {testHistory.map((test) => (
+                        <tr key={test.id}>
+                          <td className="px-6 py-4 text-white">
+                            {LANGUAGE_LABELS[test.language] || test.language}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`px-2 py-1 text-xs rounded ${
+                                test.status === "completed"
+                                  ? "bg-emerald-500/20 text-emerald-300"
+                                  : test.status === "in_progress"
+                                  ? "bg-amber-500/20 text-amber-300"
+                                  : "bg-slate-500/20 text-slate-300"
+                              }`}
+                            >
+                              {test.status === "completed"
+                                ? "Completed"
+                                : test.status === "in_progress"
+                                ? "In Progress"
+                                : test.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {test.status === "completed" && (
+                              <div>
+                                <span className="px-2 py-1 bg-teal-500/20 text-teal-300 text-sm rounded font-semibold">
+                                  {test.finalLevel || test.recommendedLevel || "-"}
+                                </span>
+                                {test.percentageScore !== undefined && (
+                                  <span className="ml-2 text-slate-400 text-sm">
+                                    ({Math.round(test.percentageScore)}%)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {test.status === "in_progress" && (
+                              <a
+                                href={`/placement/test/${test.id}`}
+                                className="text-teal-400 hover:text-teal-300 text-sm"
+                              >
+                                Continue &rarr;
+                              </a>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-slate-400">
+                            {test.completedAt
+                              ? new Date(test.completedAt).toLocaleDateString()
+                              : test.startedAt
+                              ? new Date(test.startedAt).toLocaleDateString()
+                              : "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Certificates */}
         <section className="mb-8">

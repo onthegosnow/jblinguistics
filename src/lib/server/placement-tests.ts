@@ -80,6 +80,7 @@ export type PlacementTestCode = {
   code: string;
   language: string;
   organizationId?: string;
+  studentId?: string;
   maxUses: number;
   uses: number;
   active: boolean;
@@ -697,6 +698,51 @@ export async function listPlacementTests(options?: {
   return (data || []).map(mapTestRow);
 }
 
+// Get pending placement test codes for a student (tests assigned but not started)
+export async function getStudentPendingTests(studentId: string): Promise<Array<{
+  code: string;
+  language: string;
+  expiresAt?: string;
+  label?: string;
+}>> {
+  const supabase = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("placement_test_codes")
+    .select("code, language, expires_at, label")
+    .eq("student_id", studentId)
+    .eq("active", true)
+    .gt("max_uses", 0)
+    .or(`expires_at.is.null,expires_at.gt.${now}`);
+
+  if (error || !data) return [];
+
+  // Filter out codes that have reached their usage limit
+  return data
+    .filter((row: any) => (row.uses || 0) < (row.max_uses || 1))
+    .map((row: any) => ({
+      code: row.code,
+      language: row.language,
+      expiresAt: row.expires_at ?? undefined,
+      label: row.label ?? undefined,
+    }));
+}
+
+// Get student's placement test history (completed tests)
+export async function getStudentPlacementHistory(studentId: string): Promise<PlacementTest[]> {
+  const supabase = createSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from("placement_tests")
+    .select("*")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+  return data.map(mapTestRow);
+}
+
 // ============================================
 // ACCESS CODE MANAGEMENT
 // ============================================
@@ -704,6 +750,7 @@ export async function listPlacementTests(options?: {
 export async function createTestCode(input: {
   language: string;
   organizationId?: string;
+  studentId?: string;
   maxUses?: number;
   expiresAt?: string;
   label?: string;
@@ -719,6 +766,7 @@ export async function createTestCode(input: {
       code,
       language: input.language.toLowerCase(),
       organization_id: input.organizationId || null,
+      student_id: input.studentId || null,
       max_uses: input.maxUses || 1,
       uses: 0,
       active: true,
@@ -739,6 +787,7 @@ export async function verifyTestCode(code: string): Promise<{
   valid: boolean;
   language?: string;
   organizationId?: string;
+  studentId?: string;
   label?: string;
   message?: string;
 }> {
@@ -770,6 +819,7 @@ export async function verifyTestCode(code: string): Promise<{
     valid: true,
     language: data.language,
     organizationId: data.organization_id,
+    studentId: data.student_id,
     label: data.label,
   };
 }
@@ -864,6 +914,7 @@ function mapTestCodeRow(row: any): PlacementTestCode {
     code: row.code,
     language: row.language,
     organizationId: row.organization_id ?? undefined,
+    studentId: row.student_id ?? undefined,
     maxUses: row.max_uses,
     uses: row.uses,
     active: row.active,

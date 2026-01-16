@@ -6,17 +6,23 @@ import {
   getStudentProgress,
   getStudentCertificates,
 } from "@/lib/server/student-auth";
+import {
+  getStudentPendingTests,
+  getStudentPlacementHistory,
+} from "@/lib/server/placement-tests";
 
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get("x-student-token") ?? undefined;
     const student = await requireStudentFromToken(token);
 
-    // Get enrollments, progress, and certificates
-    const [enrollments, progress, certificates] = await Promise.all([
+    // Get enrollments, progress, certificates, and placement tests
+    const [enrollments, progress, certificates, pendingTests, placementHistory] = await Promise.all([
       getStudentEnrollments(student.id),
       getStudentProgress(student.id),
       getStudentCertificates(student.id),
+      getStudentPendingTests(student.id),
+      getStudentPlacementHistory(student.id),
     ]);
 
     return NextResponse.json({
@@ -35,6 +41,19 @@ export async function GET(request: NextRequest) {
       enrollments,
       progress,
       certificates,
+      placementTests: {
+        pending: pendingTests,
+        history: placementHistory.map((t) => ({
+          id: t.id,
+          language: t.language,
+          status: t.status,
+          startedAt: t.startedAt,
+          completedAt: t.completedAt,
+          percentageScore: t.percentageScore,
+          recommendedLevel: t.recommendedLevel,
+          finalLevel: t.finalLevel,
+        })),
+      },
     });
   } catch (err) {
     const status =
