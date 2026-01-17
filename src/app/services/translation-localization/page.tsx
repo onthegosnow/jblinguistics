@@ -1,4 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { TranslationStructuredData } from "@/components/structured-data";
+
+export const metadata: Metadata = {
+  title: "Translation & Localization Services | JB Linguistics",
+  description: "Certified document and website translation for regulated industries. Sworn translations, localization, and terminology management in Dutch, English, French, German, Mandarin, Spanish, and Swedish.",
+  openGraph: {
+    title: "Translation & Localization Services | JB Linguistics",
+    description: "Certified document and website translation for regulated industries including aviation, banking, and government.",
+    url: "https://www.jblinguistics.com/services/translation-localization",
+  },
+};
 
 const servicePillars = [
   {
@@ -32,7 +44,9 @@ const industries = [
 
 export default function TranslationLocalizationPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-slate-100 text-slate-900">
+    <>
+      <TranslationStructuredData />
+      <main className="min-h-screen bg-gradient-to-b from-white to-slate-100 text-slate-900">
       <section className="max-w-5xl mx-auto px-4 py-12">
         <p className="text-xs uppercase tracking-[0.3em] text-teal-600 font-semibold">Services / Translation & Localization</p>
         <h1 className="mt-3 text-4xl font-extrabold text-sky-900">
@@ -137,5 +151,6 @@ export default function TranslationLocalizationPage() {
         </div>
       </section>
     </main>
+    </>
   );
 }

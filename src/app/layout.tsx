@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { TealNav } from "@/components/teal-nav";
 import ChatbotWidget from "@/components/chatbot";
 import Providers from "@/components/providers";
+import { OrganizationStructuredData } from "@/components/structured-data";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -65,6 +66,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/Brand/JB%20LOGO%20no%20TEXT.png" type="image/png" />
         <link rel="apple-touch-icon" href="/Brand/JB%20LOGO%20no%20TEXT.png" />
+        <OrganizationStructuredData />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>

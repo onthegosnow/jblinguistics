@@ -1,4 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Certified Document Translation | JB Linguistics",
+  description: "Sworn translations with dual review for vital records, corporate documents, immigration files, and regulatory filings. Court-ready translations with statements of accuracy.",
+  openGraph: {
+    title: "Certified Document Translation | JB Linguistics",
+    description: "Court-ready sworn translations for immigration, corporate governance, aviation, and banking documents.",
+    url: "https://www.jblinguistics.com/services/certified-document-translation",
+  },
+};
 
 const documentTypes = [
   "Vital records (birth, marriage, divorce, adoption, and notarized statements)",

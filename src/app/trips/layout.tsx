@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TripsStructuredData } from "@/components/structured-data";
 
 export const metadata: Metadata = {
   title: "Linguistic Learning Trips — JB Linguistics",
@@ -8,6 +9,7 @@ export const metadata: Metadata = {
     title: "Linguistic Learning Trips — JB Linguistics",
     description:
       "Combine tourism with daily English coaching. English-speaking destinations with 7, 10, 14, or 21-day sample itineraries.",
+    url: "https://www.jblinguistics.com/trips",
     type: "website",
   },
   twitter: {
@@ -24,8 +26,11 @@ export default function TripsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-gradient-to-b from-sky-50 to-white">
-      {children}
-    </div>
+    <>
+      <TripsStructuredData />
+      <div className="bg-gradient-to-b from-sky-50 to-white">
+        {children}
+      </div>
+    </>
   );
 }

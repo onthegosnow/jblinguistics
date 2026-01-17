@@ -1,4 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { InterpretationStructuredData } from "@/components/structured-data";
+
+export const metadata: Metadata = {
+  title: "Simultaneous Interpretation Services | JB Linguistics",
+  description: "Remote-first interpretation for UN briefings, airlines, banks, and regulated industries. Simultaneous, consecutive, and hybrid standby interpretation services.",
+  openGraph: {
+    title: "Simultaneous Interpretation Services | JB Linguistics",
+    description: "Professional interpretation for diplomatic visits, board sessions, investor days, and technical workshops.",
+    url: "https://www.jblinguistics.com/services/simultaneous-interpretation",
+  },
+};
 
 const formats = [
   {
@@ -23,7 +35,9 @@ const prepItems = [
 
 export default function SimultaneousInterpretationPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900">
+    <>
+      <InterpretationStructuredData />
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900">
       <section className="max-w-5xl mx-auto px-4 py-12">
         <p className="text-xs uppercase tracking-[0.3em] text-sky-600 font-semibold">Services / Simultaneous Interpretation</p>
         <h1 className="mt-3 text-4xl font-extrabold text-sky-900">
@@ -110,5 +124,6 @@ export default function SimultaneousInterpretationPage() {
         </div>
       </section>
     </main>
+    </>
   );
 }
