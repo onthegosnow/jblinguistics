@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePortalUserFromToken } from "@/lib/server/storage";
-import { buildHiveFilename, uploadHivePending } from "@/lib/server/hive-supabase";
+import { buildHiveFilename, uploadHivePending, uploadHiveLink } from "@/lib/server/hive-supabase";
+import { isValidVideoUrl } from "@/lib/server/link-checker";
 
 export async function POST(request: NextRequest) {
   const token = request.headers.get("x-portal-token") ?? undefined;
   const user = await requirePortalUserFromToken(token);
   const body = (await request.json().catch(() => ({}))) as {
+    resourceType?: "file" | "video" | "link";
     language?: string;
     level?: string;
     skill?: string;
@@ -14,17 +16,67 @@ export async function POST(request: NextRequest) {
     descriptor?: string;
     teacherName?: string;
     date?: string;
+    // For file uploads
     filename?: string;
     data?: string; // base64
     mime?: string;
     size?: number;
+    // For video/link uploads
+    url?: string;
+    displayName?: string;
+    description?: string;
   };
 
-  if (!body.data || !body.filename) {
-    return NextResponse.json({ message: "File data and filename are required." }, { status: 400 });
-  }
+  const resourceType = body.resourceType ?? "file";
 
   try {
+    // Handle video/link uploads
+    if (resourceType === "video" || resourceType === "link") {
+      if (!body.url || !body.displayName) {
+        return NextResponse.json({ message: "URL and display name are required." }, { status: 400 });
+      }
+
+      // Validate URL format
+      try {
+        new URL(body.url);
+      } catch {
+        return NextResponse.json({ message: "Invalid URL format." }, { status: 400 });
+      }
+
+      // For video type, validate it's a supported platform
+      if (resourceType === "video" && !isValidVideoUrl(body.url)) {
+        return NextResponse.json(
+          { message: "Unsupported video platform. Please use YouTube, Vimeo, Loom, or Wistia." },
+          { status: 400 }
+        );
+      }
+
+      const saved = await uploadHiveLink({
+        resourceType,
+        url: body.url,
+        displayName: body.displayName,
+        metadata: {
+          language: body.language ?? "English",
+          level: body.level ?? "A1",
+          skill: body.skill ?? "General",
+          topic: body.topic ?? "Topic",
+          fileType: resourceType === "video" ? "Video" : "Link",
+          teacherName: body.teacherName ?? user.name ?? user.email,
+          date: body.date ?? new Date().toISOString().slice(0, 10),
+          uploadedBy: user.id,
+          uploadedByEmail: user.email,
+          description: body.description,
+        },
+      });
+
+      return NextResponse.json({ file: saved });
+    }
+
+    // Handle file uploads (existing logic)
+    if (!body.data || !body.filename) {
+      return NextResponse.json({ message: "File data and filename are required." }, { status: 400 });
+    }
+
     const ext = body.filename.includes(".") ? body.filename.substring(body.filename.lastIndexOf(".") + 1) : "bin";
     const autoName = buildHiveFilename({
       level: body.level ?? "A1",
@@ -36,6 +88,7 @@ export async function POST(request: NextRequest) {
       date: body.date ?? new Date().toISOString().slice(0, 10),
       extension: ext,
     });
+
     const saved = await uploadHivePending({
       fileDataBase64: body.data,
       filename: autoName,
@@ -54,9 +107,10 @@ export async function POST(request: NextRequest) {
         mime: body.mime,
       },
     });
+
     return NextResponse.json({ file: saved });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to upload file.";
+    const message = error instanceof Error ? error.message : "Unable to upload.";
     return NextResponse.json({ message }, { status: 500 });
   }
 }

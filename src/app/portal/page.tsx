@@ -239,8 +239,11 @@ export default function PortalPage() {
   const [hiveApproved, setHiveApproved] = useState<any[]>([]);
   const [hivePending, setHivePending] = useState<any[]>([]);
   const [hiveRejected, setHiveRejected] = useState<any[]>([]);
+  const [hivePacks, setHivePacks] = useState<any[]>([]);
+  const [hiveSelectedPack, setHiveSelectedPack] = useState<any | null>(null);
   const [hiveLoading, setHiveLoading] = useState(false);
   const [hiveError, setHiveError] = useState<string | null>(null);
+  const [hiveUploadType, setHiveUploadType] = useState<"file" | "video" | "link">("file");
   const [hiveUpload, setHiveUpload] = useState<{
     language: string;
     level: string;
@@ -251,6 +254,9 @@ export default function PortalPage() {
     descriptor: string;
     date: string;
     file: File | null;
+    url: string;
+    displayName: string;
+    description: string;
   }>({
     language: "English",
     level: "A1",
@@ -261,6 +267,9 @@ export default function PortalPage() {
     descriptor: "",
     date: new Date().toISOString().slice(0, 10),
     file: null,
+    url: "",
+    displayName: "",
+    description: "",
   });
   const [hiveFilter, setHiveFilter] = useState({
     language: "All",
@@ -268,8 +277,10 @@ export default function PortalPage() {
     skill: "All",
     topic: "All",
     fileType: "All",
+    resourceType: "All",
   });
   const [hiveSearch, setHiveSearch] = useState("");
+  const [hiveSection, setHiveSection] = useState<"packs" | "browse" | "upload">("browse");
   const [boardRoom, setBoardRoom] = useState("announcements");
   const [boardMessages, setBoardMessages] = useState<
     Array<{ id: string; room: string; author_name: string | null; message: string; created_at: string }>
@@ -565,15 +576,22 @@ export default function PortalPage() {
       setHiveLoading(true);
       setHiveError(null);
       try {
-        const response = await fetch("/api/portal/hive/list", { headers: { "x-portal-token": auth } });
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
+        const [filesRes, packsRes] = await Promise.all([
+          fetch("/api/portal/hive/list", { headers: { "x-portal-token": auth } }),
+          fetch("/api/portal/hive/packs", { headers: { "x-portal-token": auth } }),
+        ]);
+        if (!filesRes.ok) {
+          const data = await filesRes.json().catch(() => ({}));
           throw new Error(data.message || "Unable to load Hive files.");
         }
-        const data = await response.json();
-        setHiveApproved(data.approved ?? []);
-        setHivePending(data.pending ?? []);
-        setHiveRejected(data.rejected ?? []);
+        const filesData = await filesRes.json();
+        setHiveApproved(filesData.approved ?? []);
+        setHivePending(filesData.pending ?? []);
+        setHiveRejected(filesData.rejected ?? []);
+        if (packsRes.ok) {
+          const packsData = await packsRes.json();
+          setHivePacks(packsData.packs ?? []);
+        }
       } catch (err) {
         setHiveError(err instanceof Error ? err.message : "Unable to load Hive files.");
       } finally {
@@ -921,11 +939,12 @@ export default function PortalPage() {
     const matchesSkill = hiveFilter.skill === "All" || !file.skill || file.skill === hiveFilter.skill;
     const matchesTopic = hiveFilter.topic === "All" || !file.topic || file.topic === hiveFilter.topic;
     const matchesTypeFilter = hiveFilter.fileType === "All" || !file.file_type || file.file_type === hiveFilter.fileType;
+    const matchesResourceType = hiveFilter.resourceType === "All" || (file.resource_type || "file") === hiveFilter.resourceType;
     const matchesSearch =
       !hiveSearch.trim() ||
       file.display_name?.toLowerCase().includes(hiveSearch.toLowerCase()) ||
       file.topic?.toLowerCase().includes(hiveSearch.toLowerCase());
-    return matchesLang && matchesLevel && matchesSkill && matchesTopic && matchesTypeFilter && matchesSearch;
+    return matchesLang && matchesLevel && matchesSkill && matchesTopic && matchesTypeFilter && matchesResourceType && matchesSearch;
   });
   const filteredPending = hivePending.filter((file) => {
     const matchesLang = hiveFilter.language === "All" || !file.language || file.language === hiveFilter.language;
@@ -1169,13 +1188,48 @@ export default function PortalPage() {
 
   const handleHiveUpload = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!token || !hiveUpload.file) {
-      setHiveError("Select a file to upload.");
-      return;
-    }
     setHiveLoading(true);
     setHiveError(null);
+
     try {
+      // Handle video/link uploads
+      if (hiveUploadType === "video" || hiveUploadType === "link") {
+        if (!hiveUpload.url || !hiveUpload.displayName) {
+          setHiveError("URL and title are required.");
+          setHiveLoading(false);
+          return;
+        }
+        const response = await fetch("/api/portal/hive/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-portal-token": token },
+          body: JSON.stringify({
+            resourceType: hiveUploadType,
+            url: hiveUpload.url,
+            displayName: hiveUpload.displayName,
+            description: hiveUpload.description || "",
+            level: hiveUpload.level || "A1",
+            language: hiveUpload.language || "English",
+            skill: hiveUpload.skill || "General",
+            topic: hiveUpload.topic || "Topic",
+            teacherName: hiveUpload.teacherName || user?.name || user?.email || "Unknown",
+            date: hiveUpload.date || new Date().toISOString().slice(0, 10),
+          }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.message || "Unable to submit link.");
+        }
+        setHiveUpload((prev) => ({ ...prev, url: "", displayName: "", description: "" }));
+        await loadHive();
+        return;
+      }
+
+      // Handle file uploads (original logic)
+      if (!token || !hiveUpload.file) {
+        setHiveError("Select a file to upload.");
+        setHiveLoading(false);
+        return;
+      }
       const file = hiveUpload.file;
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -1191,6 +1245,7 @@ export default function PortalPage() {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-portal-token": token },
         body: JSON.stringify({
+          resourceType: "file",
           level: hiveUpload.level || "A1",
           language: hiveUpload.language || "English",
           skill: hiveUpload.skill || "General",
@@ -1212,7 +1267,7 @@ export default function PortalPage() {
       setHiveUpload((prev) => ({ ...prev, file: null }));
       await loadHive();
     } catch (err) {
-      setHiveError(err instanceof Error ? err.message : "Unable to upload file.");
+      setHiveError(err instanceof Error ? err.message : "Unable to upload.");
     } finally {
       setHiveLoading(false);
     }
@@ -2494,13 +2549,13 @@ export default function PortalPage() {
 
       {portalTab === "hive" && (
       <section className="max-w-6xl mx-auto px-4 mt-8 space-y-6">
-        {/* Browse the Hive */}
-        <div className="rounded-3xl bg-slate-800 border border-slate-700 p-6 shadow-lg text-white space-y-4">
-          <div className="flex items-center justify-between gap-3">
+        {/* Header */}
+        <div className="rounded-3xl bg-slate-800 border border-slate-700 p-6 shadow-lg text-white">
+          <div className="flex items-center justify-between gap-3 mb-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-teal-300">JB Linguistics</p>
-              <h2 className="text-xl font-semibold text-white">Hive Mind (Teacher Resources)</h2>
-              <p className="text-sm text-slate-300">Search and download shared resources.</p>
+              <h2 className="text-xl font-semibold text-white">Hive Mind</h2>
+              <p className="text-sm text-slate-300">Teacher resources, classroom packs, and shared materials.</p>
             </div>
             <button
               type="button"
@@ -2511,324 +2566,563 @@ export default function PortalPage() {
             </button>
           </div>
 
-          <div className="grid md:grid-cols-5 gap-3 text-xs md:text-sm">
-            <select
-              value={hiveFilter.language}
-              onChange={(e) => setHiveFilter((p) => ({ ...p, language: e.target.value }))}
-              className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
-            >
-              <option>All</option>
-              {HIVE_LANGUAGES.map((lang) => (
-                <option key={lang}>{lang}</option>
-              ))}
-            </select>
-            <select
-              value={hiveFilter.level}
-              onChange={(e) => setHiveFilter((p) => ({ ...p, level: e.target.value }))}
-              className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
-            >
-              <option>All</option>
-              {HIVE_LEVELS.map((level) => (
-                <option key={level}>{level}</option>
-              ))}
-            </select>
-            <select
-              value={hiveFilter.skill}
-              onChange={(e) => {
-                const nextSkill = e.target.value;
-                setHiveFilter((p) => ({ ...p, skill: nextSkill, topic: "All" }));
-              }}
-              className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
-            >
-              <option>All</option>
-              {HIVE_SKILLS.map((skill) => (
-                <option key={skill}>{skill}</option>
-              ))}
-            </select>
-            <select
-              value={hiveFilter.topic}
-              onChange={(e) => setHiveFilter((p) => ({ ...p, topic: e.target.value }))}
-              className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
-            >
-              <option>All</option>
-              {topicOptionsForFilter.map((topic) => (
-                <option key={topic}>{topic}</option>
-              ))}
-            </select>
-            <select
-              value={hiveFilter.fileType}
-              onChange={(e) => setHiveFilter((p) => ({ ...p, fileType: e.target.value }))}
-              className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
-            >
-              <option>All</option>
-              {HIVE_FILE_TYPES.map((type) => (
-                <option key={type}>{type}</option>
-              ))}
-            </select>
+          {/* Section tabs */}
+          <div className="flex gap-2 border-b border-slate-700 pb-3">
+            {(["packs", "browse", "upload"] as const).map((section) => (
+              <button
+                key={section}
+                type="button"
+                onClick={() => setHiveSection(section)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  hiveSection === section
+                    ? "bg-teal-500 text-white"
+                    : "text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                {section === "packs" ? "Classroom Packs" : section === "browse" ? "Browse All" : "Your Uploads"}
+              </button>
+            ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="text"
-              value={hiveSearch}
-              onChange={(e) => setHiveSearch(e.target.value)}
-              placeholder="Search by name or topic"
-              className="flex-1 min-w-[240px] md:w-1/2 rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2 text-sm placeholder:text-slate-500"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                void applyHiveFilters();
-              }}
-              className="rounded-full border border-slate-600 px-3 py-2 text-xs text-slate-100 hover:bg-slate-700"
-            >
-              Apply search
-            </button>
-          </div>
+          {hiveError && <p className="text-sm text-rose-300 mt-3">{hiveError}</p>}
+          {hiveLoading && <p className="text-xs text-slate-400 mt-2">Syncing Hive…</p>}
+        </div>
 
-          {hiveError && <p className="text-sm text-rose-300 mt-2">{hiveError}</p>}
-          {hiveLoading && <p className="text-xs text-slate-400 mt-1">Syncing Hive…</p>}
+        {/* Classroom Packs Section */}
+        {hiveSection === "packs" && (
+          <div className="rounded-3xl bg-slate-800 border border-slate-700 p-6 shadow-lg text-white space-y-4">
+            <h3 className="text-lg font-semibold">Classroom Packs</h3>
+            <p className="text-sm text-slate-400">Pre-organized resource bundles for your lessons.</p>
 
-          <div className="rounded-2xl border border-slate-700 bg-slate-900 p-3 space-y-2 max-h-[60vh] overflow-auto">
-            {filteredApproved.length === 0 ? (
-              <p className="text-slate-400 text-sm">No resources match these filters.</p>
-            ) : (
-              filteredApproved.map((file) => (
-                <a
-                  key={file.id}
-                  href={file.signed_url || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 border border-slate-700 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
+            {hiveSelectedPack ? (
+              <div className="space-y-4">
+                <button
+                  type="button"
+                  onClick={() => setHiveSelectedPack(null)}
+                  className="text-sm text-teal-300 hover:text-teal-200 flex items-center gap-1"
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white truncate">{file.display_name}</p>
-                    <p className="text-[12px] text-slate-400 truncate">
-                      {file.language || "—"} · {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
-                    </p>
-                  </div>
-                  <span className="text-teal-300 text-xs">⬇</span>
-                </a>
-              ))
+                  ← Back to packs
+                </button>
+                <div className="border border-slate-700 rounded-2xl p-4 bg-slate-900">
+                  <h4 className="text-lg font-semibold text-white">{hiveSelectedPack.name}</h4>
+                  {hiveSelectedPack.description && (
+                    <p className="text-sm text-slate-400 mt-1">{hiveSelectedPack.description}</p>
+                  )}
+                  <p className="text-xs text-slate-500 mt-2">
+                    {hiveSelectedPack.language} · {hiveSelectedPack.level}
+                    {hiveSelectedPack.week_number && ` · Week ${hiveSelectedPack.week_number}`}
+                  </p>
+                </div>
+                <div className="space-y-2 max-h-[50vh] overflow-auto">
+                  {(hiveSelectedPack.items || []).length === 0 ? (
+                    <p className="text-slate-400 text-sm">No items in this pack yet.</p>
+                  ) : (
+                    hiveSelectedPack.items.map((item: any) => {
+                      const file = item.hive_file || item;
+                      const resourceType = file.resource_type || "file";
+                      const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                      const url = file.signed_url || file.url || "#";
+                      return (
+                        <a
+                          key={item.id}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 border border-slate-700 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
+                        >
+                          <span className="text-lg">{icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-white truncate">{file.display_name}</p>
+                            <p className="text-[12px] text-slate-400 truncate">
+                              {file.skill || "—"} · {file.topic || "—"}
+                            </p>
+                          </div>
+                          <span className="text-teal-300 text-xs">{resourceType === "file" ? "⬇" : "→"}</span>
+                        </a>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {hivePacks.length === 0 ? (
+                  <p className="text-slate-400 text-sm col-span-full">No classroom packs available yet.</p>
+                ) : (
+                  hivePacks.map((pack) => (
+                    <button
+                      key={pack.id}
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/portal/hive/packs?packId=${pack.id}`, {
+                            headers: { "x-portal-token": token },
+                          });
+                          if (res.ok) {
+                            const data = await res.json();
+                            setHiveSelectedPack({ ...data.pack, items: data.items });
+                          }
+                        } catch {
+                          setHiveError("Unable to load pack details.");
+                        }
+                      }}
+                      className="border border-slate-700 rounded-2xl p-4 bg-slate-900 text-left hover:bg-slate-800 transition-colors"
+                    >
+                      <h4 className="font-semibold text-white">{pack.name}</h4>
+                      {pack.description && (
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-2">{pack.description}</p>
+                      )}
+                      <p className="text-xs text-slate-500 mt-2">
+                        {pack.language} · {pack.level}
+                        {pack.week_number && ` · Week ${pack.week_number}`}
+                      </p>
+                    </button>
+                  ))
+                )}
+              </div>
             )}
           </div>
-        </div>
+        )}
 
-        {/* Upload & status for this teacher */}
-        <div className="rounded-3xl bg-slate-800 border border-slate-700 p-6 shadow-lg text-white space-y-4">
-          <div className="flex items-start justify-between">
+        {/* Browse Section */}
+        {hiveSection === "browse" && (
+          <div className="rounded-3xl bg-slate-800 border border-slate-700 p-6 shadow-lg text-white space-y-4">
+            <div className="grid md:grid-cols-6 gap-3 text-xs md:text-sm">
+              <select
+                value={hiveFilter.resourceType}
+                onChange={(e) => setHiveFilter((p) => ({ ...p, resourceType: e.target.value }))}
+                className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
+              >
+                <option value="All">All Types</option>
+                <option value="file">📄 Files</option>
+                <option value="video">🎬 Videos</option>
+                <option value="link">🔗 Links</option>
+              </select>
+              <select
+                value={hiveFilter.language}
+                onChange={(e) => setHiveFilter((p) => ({ ...p, language: e.target.value }))}
+                className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
+              >
+                <option>All</option>
+                {HIVE_LANGUAGES.map((lang) => (
+                  <option key={lang}>{lang}</option>
+                ))}
+              </select>
+              <select
+                value={hiveFilter.level}
+                onChange={(e) => setHiveFilter((p) => ({ ...p, level: e.target.value }))}
+                className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
+              >
+                <option>All</option>
+                {HIVE_LEVELS.map((level) => (
+                  <option key={level}>{level}</option>
+                ))}
+              </select>
+              <select
+                value={hiveFilter.skill}
+                onChange={(e) => {
+                  const nextSkill = e.target.value;
+                  setHiveFilter((p) => ({ ...p, skill: nextSkill, topic: "All" }));
+                }}
+                className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
+              >
+                <option>All</option>
+                {HIVE_SKILLS.map((skill) => (
+                  <option key={skill}>{skill}</option>
+                ))}
+              </select>
+              <select
+                value={hiveFilter.topic}
+                onChange={(e) => setHiveFilter((p) => ({ ...p, topic: e.target.value }))}
+                className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
+              >
+                <option>All</option>
+                {topicOptionsForFilter.map((topic) => (
+                  <option key={topic}>{topic}</option>
+                ))}
+              </select>
+              <select
+                value={hiveFilter.fileType}
+                onChange={(e) => setHiveFilter((p) => ({ ...p, fileType: e.target.value }))}
+                className="rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2"
+              >
+                <option>All</option>
+                {HIVE_FILE_TYPES.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={hiveSearch}
+                onChange={(e) => setHiveSearch(e.target.value)}
+                placeholder="Search by name or topic"
+                className="flex-1 min-w-[240px] md:w-1/2 rounded-xl border border-slate-700 bg-slate-900 text-white px-3 py-2 text-sm placeholder:text-slate-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  void applyHiveFilters();
+                }}
+                className="rounded-full border border-slate-600 px-3 py-2 text-xs text-slate-100 hover:bg-slate-700"
+              >
+                Apply search
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-700 bg-slate-900 p-3 space-y-2 max-h-[60vh] overflow-auto">
+              {filteredApproved.length === 0 ? (
+                <p className="text-slate-400 text-sm">No resources match these filters.</p>
+              ) : (
+                filteredApproved.map((file) => {
+                  const resourceType = file.resource_type || "file";
+                  const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                  const url = file.signed_url || file.url || "#";
+                  return (
+                    <div
+                      key={file.id}
+                      className="flex items-center gap-3 border border-slate-700 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
+                    >
+                      <span className="text-lg">{icon}</span>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 min-w-0"
+                      >
+                        <p className="font-semibold text-white truncate">{file.display_name}</p>
+                        <p className="text-[12px] text-slate-400 truncate">
+                          {file.language || "—"} · {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
+                        </p>
+                      </a>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-300 text-xs hover:text-teal-200"
+                      >
+                        {resourceType === "file" ? "⬇ Download" : "→ Open"}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const packName = window.prompt("Suggest this resource for a pack (enter pack name or leave blank for general suggestion):");
+                          if (packName === null) return;
+                          try {
+                            const res = await fetch("/api/portal/hive/packs", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", "x-portal-token": token },
+                              body: JSON.stringify({ action: "suggest", hiveFileId: file.id }),
+                            });
+                            if (res.ok) {
+                              alert("Suggestion submitted! An admin will review it.");
+                            } else {
+                              const data = await res.json().catch(() => ({}));
+                              throw new Error(data.message || "Unable to submit suggestion.");
+                            }
+                          } catch (err) {
+                            setHiveError(err instanceof Error ? err.message : "Unable to submit suggestion.");
+                          }
+                        }}
+                        className="text-xs text-slate-400 hover:text-teal-300"
+                        title="Suggest for a classroom pack"
+                      >
+                        + Pack
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Upload Section */}
+        {hiveSection === "upload" && (
+          <div className="rounded-3xl bg-slate-800 border border-slate-700 p-6 shadow-lg text-white space-y-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-teal-300">Your uploads</p>
-              <h2 className="text-lg font-semibold text-white">Submit to Hive</h2>
+              <h3 className="text-lg font-semibold text-white">Submit to Hive</h3>
               <p className="text-sm text-slate-300">Upload materials; admins will approve or reject with notes.</p>
             </div>
-          </div>
 
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-white">Pending review</h3>
-            <div className="rounded-2xl border border-slate-700 shadow-sm p-3 max-h-48 overflow-auto text-sm bg-slate-900">
-              {hivePending.length === 0 ? (
-                <p className="text-slate-400">No pending submissions.</p>
-              ) : (
-                hivePending.map((file) => (
-                  <div key={file.id} className="border border-slate-700 rounded-xl px-3 py-2 space-y-1">
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold text-white truncate flex-1">{file.display_name}</p>
-                      <button
-                        type="button"
-                        className="text-[11px] text-rose-300 underline"
-                        onClick={async () => {
-                          const confirmed = typeof window === "undefined" ? true : window.confirm("Delete this upload?");
-                          if (!confirmed) return;
-                          try {
-                            await fetch("/api/portal/hive/manage", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json", "x-portal-token": token },
-                              body: JSON.stringify({ action: "delete", id: file.id }),
-                            });
-                            await loadHive();
-                          } catch (err) {
-                            setHiveError(err instanceof Error ? err.message : "Unable to delete file.");
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                    <p className="text-xs text-slate-300 truncate">
-                      {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
-                    </p>
-                    <p className="text-[11px] text-slate-400">Status: Pending review</p>
-                  </div>
-                ))
+            {/* Pending & Rejected */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-white">Pending review</h4>
+                <div className="rounded-2xl border border-slate-700 shadow-sm p-3 max-h-48 overflow-auto text-sm bg-slate-900 space-y-2">
+                  {hivePending.length === 0 ? (
+                    <p className="text-slate-400">No pending submissions.</p>
+                  ) : (
+                    hivePending.map((file) => {
+                      const resourceType = file.resource_type || "file";
+                      const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                      return (
+                        <div key={file.id} className="border border-slate-700 rounded-xl px-3 py-2 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span>{icon}</span>
+                            <p className="font-semibold text-white truncate flex-1">{file.display_name}</p>
+                            <button
+                              type="button"
+                              className="text-[11px] text-rose-300 underline"
+                              onClick={async () => {
+                                const confirmed = typeof window === "undefined" ? true : window.confirm("Delete this upload?");
+                                if (!confirmed) return;
+                                try {
+                                  await fetch("/api/portal/hive/manage", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-portal-token": token },
+                                    body: JSON.stringify({ action: "delete", id: file.id }),
+                                  });
+                                  await loadHive();
+                                } catch (err) {
+                                  setHiveError(err instanceof Error ? err.message : "Unable to delete file.");
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-300 truncate">
+                            {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-white">Rejected</h4>
+                <div className="rounded-2xl border border-slate-700 shadow-sm p-3 max-h-48 overflow-auto text-sm bg-slate-900 space-y-2">
+                  {hiveRejected.length === 0 ? (
+                    <p className="text-slate-400">No rejected files.</p>
+                  ) : (
+                    hiveRejected.map((file) => {
+                      const resourceType = file.resource_type || "file";
+                      const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                      return (
+                        <div key={file.id} className="border border-slate-700 rounded-xl px-3 py-2 flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span>{icon}</span>
+                            <p className="font-semibold text-white truncate flex-1">{file.display_name}</p>
+                            <button
+                              type="button"
+                              className="text-[11px] text-rose-300 underline"
+                              onClick={async () => {
+                                const confirmed = typeof window === "undefined" ? true : window.confirm("Delete this rejected file?");
+                                if (!confirmed) return;
+                                try {
+                                  await fetch("/api/portal/hive/manage", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-portal-token": token },
+                                    body: JSON.stringify({ action: "delete", id: file.id }),
+                                  });
+                                  await loadHive();
+                                } catch (err) {
+                                  setHiveError(err instanceof Error ? err.message : "Unable to delete file.");
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-300 truncate">
+                            {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
+                          </p>
+                          {file.notes && <p className="text-[11px] text-amber-300">Note: {file.notes}</p>}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Upload form */}
+            <form onSubmit={handleHiveUpload} className="rounded-2xl border border-slate-700 shadow-sm p-4 space-y-4 bg-slate-900 text-white">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-white">Add Resource</h4>
+                <div className="flex gap-1 ml-auto">
+                  {(["file", "video", "link"] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setHiveUploadType(type)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        hiveUploadType === type
+                          ? "bg-teal-500 text-white"
+                          : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                      }`}
+                    >
+                      {type === "file" ? "📄 File" : type === "video" ? "🎬 Video" : "🔗 Link"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Video/Link URL fields */}
+              {(hiveUploadType === "video" || hiveUploadType === "link") && (
+                <div className="space-y-3">
+                  <label className="space-y-1 text-slate-200 text-sm block">
+                    {hiveUploadType === "video" ? "Video URL (YouTube, Vimeo, Loom, Wistia)" : "Resource URL"}
+                    <input
+                      type="url"
+                      value={hiveUpload.url}
+                      onChange={(e) => setHiveUpload((prev) => ({ ...prev, url: e.target.value }))}
+                      placeholder={hiveUploadType === "video" ? "https://youtube.com/watch?v=..." : "https://example.com/resource"}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                      required
+                    />
+                  </label>
+                  <label className="space-y-1 text-slate-200 text-sm block">
+                    Title
+                    <input
+                      type="text"
+                      value={hiveUpload.displayName}
+                      onChange={(e) => setHiveUpload((prev) => ({ ...prev, displayName: e.target.value }))}
+                      placeholder="Enter a descriptive title"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                      required
+                    />
+                  </label>
+                  <label className="space-y-1 text-slate-200 text-sm block">
+                    Description (optional)
+                    <textarea
+                      value={hiveUpload.description}
+                      onChange={(e) => setHiveUpload((prev) => ({ ...prev, description: e.target.value }))}
+                      placeholder="Brief description of this resource"
+                      rows={2}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                    />
+                  </label>
+                </div>
               )}
-            </div>
-          </div>
 
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-white">Rejected (see note, then delete and re-upload)</h3>
-            <div className="rounded-2xl border border-slate-700 shadow-sm p-3 max-h-48 overflow-auto text-sm bg-slate-900 space-y-2">
-              {hiveRejected.length === 0 ? (
-                <p className="text-slate-400">No rejected files.</p>
-              ) : (
-                hiveRejected.map((file) => (
-                  <div key={file.id} className="border border-slate-700 rounded-xl px-3 py-2 flex flex-col gap-1">
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold text-white truncate">{file.display_name}</p>
-                      <button
-                        type="button"
-                        className="text-[11px] text-rose-300 underline"
-                        onClick={async () => {
-                          const confirmed = typeof window === "undefined" ? true : window.confirm("Delete this rejected file?");
-                          if (!confirmed) return;
-                          try {
-                            await fetch("/api/portal/hive/manage", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json", "x-portal-token": token },
-                              body: JSON.stringify({ action: "delete", id: file.id }),
-                            });
-                            await loadHive();
-                          } catch (err) {
-                            setHiveError(err instanceof Error ? err.message : "Unable to delete file.");
-                          }
-                        }}
+              {/* Metadata fields */}
+              <div className="grid md:grid-cols-3 gap-3 text-sm">
+                <label className="space-y-1 text-slate-200">
+                  Language
+                  <select
+                    value={hiveUpload.language}
+                    onChange={(e) => setHiveUpload((prev) => ({ ...prev, language: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                  >
+                    {HIVE_LANGUAGES.map((lang) => (
+                      <option key={lang} value={lang}>{lang}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 text-slate-200">
+                  Level (A1–C2)
+                  <select
+                    value={hiveUpload.level}
+                    onChange={(e) => setHiveUpload((prev) => ({ ...prev, level: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                  >
+                    {HIVE_LEVELS.map((level) => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 text-slate-200">
+                  Skill
+                  <select
+                    value={hiveUpload.skill}
+                    onChange={(e) => {
+                      const newSkill = e.target.value;
+                      const firstTopic = (HIVE_TOPICS[newSkill] ?? [])[0] ?? "";
+                      setHiveUpload((prev) => ({ ...prev, skill: newSkill, topic: firstTopic }));
+                    }}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                  >
+                    {HIVE_SKILLS.map((skill) => (
+                      <option key={skill} value={skill}>{skill}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 text-slate-200">
+                  Topic
+                  <select
+                    value={hiveUpload.topic}
+                    onChange={(e) => setHiveUpload((prev) => ({ ...prev, topic: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                  >
+                    {(HIVE_TOPICS[hiveUpload.skill] ?? []).map((topic) => (
+                      <option key={topic} value={topic}>{topic}</option>
+                    ))}
+                  </select>
+                </label>
+                {hiveUploadType === "file" && (
+                  <>
+                    <label className="space-y-1 text-slate-200">
+                      File type
+                      <select
+                        value={hiveUpload.fileType}
+                        onChange={(e) => setHiveUpload((prev) => ({ ...prev, fileType: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
                       >
-                        Delete
-                      </button>
-                    </div>
-                    <p className="text-xs text-slate-300 truncate">
-                      {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
-                    </p>
-                    {file.notes && <p className="text-[11px] text-amber-300">Note: {file.notes}</p>}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+                        {HIVE_FILE_TYPES.map((type) => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-slate-200">
+                      Teacher name
+                      <input
+                        type="text"
+                        value={hiveUpload.teacherName}
+                        onChange={(e) => setHiveUpload((prev) => ({ ...prev, teacherName: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                      />
+                    </label>
+                    <label className="space-y-1 text-slate-200">
+                      Descriptor (optional)
+                      <input
+                        type="text"
+                        value={hiveUpload.descriptor}
+                        onChange={(e) => setHiveUpload((prev) => ({ ...prev, descriptor: e.target.value }))}
+                        placeholder="e.g., Bingo, AnswerSheet"
+                        className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                      />
+                    </label>
+                    <label className="space-y-1 text-slate-200">
+                      Date
+                      <input
+                        type="date"
+                        value={hiveUpload.date}
+                        onChange={(e) => setHiveUpload((prev) => ({ ...prev, date: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                      />
+                    </label>
+                  </>
+                )}
+              </div>
 
-          <form onSubmit={handleHiveUpload} className="rounded-2xl border border-slate-700 shadow-sm p-4 space-y-3 bg-slate-900 text-white">
-            <h3 className="text-sm font-semibold text-white">Upload to Hive</h3>
-            <div className="grid md:grid-cols-3 gap-3 text-sm">
-              <label className="space-y-1 text-slate-200">
-                Language
-                <select
-                  value={hiveUpload.language}
-                  onChange={(e) => setHiveUpload((prev) => ({ ...prev, language: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-                >
-                  {HIVE_LANGUAGES.map((lang) => (
-                    <option key={lang} value={lang}>
-                      {lang}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1 text-slate-200">
-                Level (A1–C2)
-                <select
-                  value={hiveUpload.level}
-                  onChange={(e) => setHiveUpload((prev) => ({ ...prev, level: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-                >
-                  {HIVE_LEVELS.map((level) => (
-                    <option key={level} value={level}>
-                      {level}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1 text-slate-200">
-                Skill
-                <select
-                  value={hiveUpload.skill}
-                  onChange={(e) => {
-                    const newSkill = e.target.value;
-                    const firstTopic = (HIVE_TOPICS[newSkill] ?? [])[0] ?? "";
-                    setHiveUpload((prev) => ({ ...prev, skill: newSkill, topic: firstTopic }));
-                  }}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-                >
-                  {HIVE_SKILLS.map((skill) => (
-                    <option key={skill} value={skill}>
-                      {skill}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1 text-slate-200">
-                Topic
-                <select
-                  value={hiveUpload.topic}
-                  onChange={(e) => setHiveUpload((prev) => ({ ...prev, topic: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-                >
-                  {(HIVE_TOPICS[hiveUpload.skill] ?? []).map((topic) => (
-                    <option key={topic} value={topic}>
-                      {topic}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1 text-slate-200">
-                File type
-                <select
-                  value={hiveUpload.fileType}
-                  onChange={(e) => setHiveUpload((prev) => ({ ...prev, fileType: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-                >
-                  {HIVE_FILE_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1 text-slate-200">
-                Teacher name
-                <input
-                  type="text"
-                  value={hiveUpload.teacherName}
-                  onChange={(e) => setHiveUpload((prev) => ({ ...prev, teacherName: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-                />
-              </label>
-              <label className="space-y-1 text-slate-200">
-                Descriptor (optional)
-                <input
-                  type="text"
-                  value={hiveUpload.descriptor}
-                  onChange={(e) => setHiveUpload((prev) => ({ ...prev, descriptor: e.target.value }))}
-                  placeholder="e.g., Bingo, AnswerSheet"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-                />
-              </label>
-              <label className="space-y-1 text-slate-200">
-                Date
-                <input
-                  type="date"
-                  value={hiveUpload.date}
-                  onChange={(e) => setHiveUpload((prev) => ({ ...prev, date: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-                />
-              </label>
-            </div>
-            <label className="space-y-1 text-slate-200 text-sm block">
-              File
-              <input
-                type="file"
-                onChange={(e) => setHiveUpload((prev) => ({ ...prev, file: e.target.files?.[0] ?? null }))}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={hiveLoading || !hiveUpload.file}
-              className="rounded-full bg-teal-500 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-60"
-            >
-              {hiveLoading ? "Uploading…" : "Upload to Hive"}
-            </button>
-          </form>
-        </div>
+              {/* File input for file uploads */}
+              {hiveUploadType === "file" && (
+                <label className="space-y-1 text-slate-200 text-sm block">
+                  File
+                  <input
+                    type="file"
+                    onChange={(e) => setHiveUpload((prev) => ({ ...prev, file: e.target.files?.[0] ?? null }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                  />
+                </label>
+              )}
+
+              <button
+                type="submit"
+                disabled={hiveLoading || (hiveUploadType === "file" ? !hiveUpload.file : !hiveUpload.url || !hiveUpload.displayName)}
+                className="rounded-full bg-teal-500 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-60"
+              >
+                {hiveLoading ? "Submitting…" : hiveUploadType === "file" ? "Upload File" : "Submit Link"}
+              </button>
+            </form>
+          </div>
+        )}
       </section>
       )}
 

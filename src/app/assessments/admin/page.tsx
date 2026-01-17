@@ -274,6 +274,13 @@ export default function AssessmentsAdminPage() {
   const [hiveApproved, setHiveApproved] = useState<any[]>([]);
   const [hivePending, setHivePending] = useState<any[]>([]);
   const [hiveRejected, setHiveRejected] = useState<any[]>([]);
+  const [hiveDeadLinkCount, setHiveDeadLinkCount] = useState(0);
+  const [hivePacks, setHivePacks] = useState<any[]>([]);
+  const [hivePackSuggestions, setHivePackSuggestions] = useState<any[]>([]);
+  const [hiveSubTab, setHiveSubTab] = useState<"pending" | "approved" | "packs" | "suggestions">("pending");
+  const [hiveSelectedPack, setHiveSelectedPack] = useState<any | null>(null);
+  const [hiveCheckingLinks, setHiveCheckingLinks] = useState(false);
+  const [hivePackForm, setHivePackForm] = useState({ name: "", description: "", language: "English", level: "A1", weekNumber: "" });
   const [assignments, setAssignments] = useState<PortalAssignmentAdmin[]>([]);
   const [bulkEmail, setBulkEmail] = useState({ subject: "", message: "" });
   const [bulkEmailAttachments, setBulkEmailAttachments] = useState<File[]>([]);
@@ -534,6 +541,15 @@ export default function AssessmentsAdminPage() {
       setHiveApproved(hiveData.approved ?? []);
       setHivePending(hiveData.pending ?? []);
       setHiveRejected(hiveData.rejected ?? []);
+      setHiveDeadLinkCount(hiveData.deadLinkCount ?? 0);
+      // Load packs and suggestions in background
+      Promise.all([
+        fetch("/api/portal/admin/hive/packs", { headers: { "x-admin-token": token } }).then(r => r.ok ? r.json() : { packs: [] }),
+        fetch("/api/portal/admin/hive/packs?suggestions=true", { headers: { "x-admin-token": token } }).then(r => r.ok ? r.json() : { suggestions: [] }),
+      ]).then(([packsData, suggestionsData]) => {
+        setHivePacks(packsData.packs ?? []);
+        setHivePackSuggestions(suggestionsData.suggestions ?? []);
+      }).catch(() => {});
       setBoardMessages(boardData.messages ?? []);
       setCrmContacts(
         (crmData.contacts ?? []).map((c: any) => ({
@@ -3417,187 +3433,637 @@ export default function AssessmentsAdminPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-semibold">Hive Mind</h3>
-                <p className="text-sm text-slate-400">Review pending uploads and approved resources.</p>
+                <p className="text-sm text-slate-400">Manage teacher resources, packs, and link health.</p>
               </div>
-              <button
-                type="button"
-                onClick={refreshData}
-                className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
-              >
-                Refresh
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setHiveCheckingLinks(true);
+                    try {
+                      const res = await fetch("/api/portal/admin/hive", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "x-admin-token": token },
+                        body: JSON.stringify({ action: "check-all-links" }),
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        alert(`Link check complete: ${data.results.valid} valid, ${data.results.dead} dead, ${data.results.errors} errors`);
+                        await refreshData();
+                      }
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Link check failed.");
+                    } finally {
+                      setHiveCheckingLinks(false);
+                    }
+                  }}
+                  disabled={hiveCheckingLinks}
+                  className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700 disabled:opacity-60"
+                >
+                  {hiveCheckingLinks ? "Checking…" : "Check All Links"}
+                </button>
+                <button
+                  type="button"
+                  onClick={refreshData}
+                  className="rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-200 hover:bg-slate-700"
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
-            <div className="space-y-4">
+
+            {/* Dead link warning banner */}
+            {hiveDeadLinkCount > 0 && (
+              <div className="rounded-xl bg-amber-500/20 border border-amber-500/40 p-3 flex items-center gap-3">
+                <span className="text-amber-400 text-xl">⚠</span>
+                <div>
+                  <p className="text-amber-200 font-semibold text-sm">{hiveDeadLinkCount} dead link{hiveDeadLinkCount !== 1 ? "s" : ""} detected</p>
+                  <p className="text-amber-300/70 text-xs">Check the Approved tab and filter by link status to review.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-tabs */}
+            <div className="flex gap-2 border-b border-slate-700 pb-3">
+              {(["pending", "approved", "packs", "suggestions"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => { setHiveSubTab(tab); setHiveSelectedPack(null); }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    hiveSubTab === tab ? "bg-teal-500 text-slate-900" : "text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  {tab === "pending" ? `Pending (${hivePending.length})` :
+                   tab === "approved" ? `Approved (${hiveApproved.length})` :
+                   tab === "packs" ? `Packs (${hivePacks.length})` :
+                   `Suggestions (${hivePackSuggestions.length})`}
+                </button>
+              ))}
+            </div>
+
+            {/* Pending tab */}
+            {hiveSubTab === "pending" && (
               <div className="rounded-2xl border border-slate-700 p-4">
-                <h4 className="text-sm font-semibold text-white">Pending review</h4>
-                <div className="mt-2 space-y-2 max-h-96 overflow-auto text-sm text-slate-100">
+                <div className="space-y-2 max-h-[60vh] overflow-auto text-sm text-slate-100">
                   {hivePending.length === 0 ? (
                     <p className="text-slate-400 text-sm">No pending uploads.</p>
                   ) : (
-                    hivePending.map((file) => (
-                      <div key={file.id} className="border border-slate-700 rounded-xl p-3 flex flex-col gap-1">
-                        <p className="font-semibold text-white">{file.display_name}</p>
-                        <p className="text-xs text-slate-400">
-                          {file.language || "—"} · {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
-                        </p>
-                        {file.signed_url ? (
-                          <a
-                            href={file.signed_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[11px] text-teal-300 underline"
-                          >
-                            Open file
-                          </a>
-                        ) : null}
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setWorking(file.id);
-                              try {
-                                const res = await fetch("/api/portal/admin/hive", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json", "x-admin-token": token },
-                                  body: JSON.stringify({ action: "approve", id: file.id }),
-                                });
-                                if (!res.ok) {
-                                  const data = await res.json().catch(() => ({}));
-                                  throw new Error(data.message || "Unable to approve");
+                    hivePending.map((file) => {
+                      const resourceType = file.resource_type || "file";
+                      const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                      const url = file.signed_url || file.url || "#";
+                      return (
+                        <div key={file.id} className="border border-slate-700 rounded-xl p-3 flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{icon}</span>
+                            <p className="font-semibold text-white flex-1">{file.display_name}</p>
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            {file.language || "—"} · {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
+                          </p>
+                          {url !== "#" && (
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-teal-300 underline">
+                              {resourceType === "file" ? "Download file" : "Open link"}
+                            </a>
+                          )}
+                          <div className="flex flex-wrap gap-2 text-xs mt-1">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                setWorking(file.id);
+                                try {
+                                  const res = await fetch("/api/portal/admin/hive", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "approve", id: file.id }),
+                                  });
+                                  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Unable to approve");
+                                  await refreshData();
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : "Unable to approve.");
+                                } finally {
+                                  setWorking(null);
                                 }
-                                await refreshData();
-                              } catch (err) {
-                                setError(err instanceof Error ? err.message : "Unable to approve.");
-                              } finally {
-                                setWorking(null);
-                              }
-                            }}
-                            className="rounded-full bg-teal-500 px-3 py-1 font-semibold text-slate-900 hover:bg-teal-400 disabled:opacity-60"
-                            disabled={working === file.id}
-                          >
-                            {working === file.id ? "Working…" : "Approve"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const note = typeof window === "undefined" ? "" : window.prompt("Add a note about this rejection (optional):") ?? "";
-                              setWorking(file.id);
-                              try {
-                                const res = await fetch("/api/portal/admin/hive", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json", "x-admin-token": token },
-                                  body: JSON.stringify({ action: "reject", id: file.id, note }),
-                                });
-                                if (!res.ok) {
-                                  const data = await res.json().catch(() => ({}));
-                                  throw new Error(data.message || "Unable to reject");
+                              }}
+                              className="rounded-full bg-teal-500 px-3 py-1 font-semibold text-slate-900 hover:bg-teal-400 disabled:opacity-60"
+                              disabled={working === file.id}
+                            >
+                              {working === file.id ? "Working…" : "Approve"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const note = window.prompt("Add a note about this rejection (optional):") ?? "";
+                                setWorking(file.id);
+                                try {
+                                  const res = await fetch("/api/portal/admin/hive", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "reject", id: file.id, note }),
+                                  });
+                                  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Unable to reject");
+                                  await refreshData();
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : "Unable to reject.");
+                                } finally {
+                                  setWorking(null);
                                 }
-                                await refreshData();
-                              } catch (err) {
-                                setError(err instanceof Error ? err.message : "Unable to reject.");
-                              } finally {
-                                setWorking(null);
-                              }
-                            }}
-                            className="rounded-full border border-amber-400 px-3 py-1 font-semibold text-amber-200 hover:bg-amber-500/20 disabled:opacity-60"
-                            disabled={working === file.id}
-                          >
-                            Reject
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setWorking(file.id);
-                              try {
-                                const res = await fetch("/api/portal/admin/hive", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json", "x-admin-token": token },
-                                  body: JSON.stringify({ action: "delete", id: file.id }),
-                                });
-                                if (!res.ok) {
-                                  const data = await res.json().catch(() => ({}));
-                                  throw new Error(data.message || "Unable to delete");
+                              }}
+                              className="rounded-full border border-amber-400 px-3 py-1 font-semibold text-amber-200 hover:bg-amber-500/20 disabled:opacity-60"
+                              disabled={working === file.id}
+                            >
+                              Reject
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!window.confirm("Delete this upload?")) return;
+                                setWorking(file.id);
+                                try {
+                                  const res = await fetch("/api/portal/admin/hive", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "delete", id: file.id }),
+                                  });
+                                  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Unable to delete");
+                                  await refreshData();
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : "Unable to delete.");
+                                } finally {
+                                  setWorking(null);
                                 }
-                                await refreshData();
-                              } catch (err) {
-                                setError(err instanceof Error ? err.message : "Unable to delete.");
-                              } finally {
-                                setWorking(null);
-                              }
-                            }}
-                            className="rounded-full border border-slate-600 px-3 py-1 font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-60"
-                            disabled={working === file.id}
-                          >
-                            Delete
-                          </button>
+                              }}
+                              className="rounded-full border border-slate-600 px-3 py-1 font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-60"
+                              disabled={working === file.id}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
+            )}
+
+            {/* Approved tab */}
+            {hiveSubTab === "approved" && (
               <div className="rounded-2xl border border-slate-700 p-4">
-                <h4 className="text-sm font-semibold text-white">Approved</h4>
-                <div className="mt-2 space-y-2 max-h-96 overflow-auto text-sm text-slate-100">
+                <div className="space-y-2 max-h-[60vh] overflow-auto text-sm text-slate-100">
                   {hiveApproved.length === 0 ? (
                     <p className="text-slate-400 text-sm">No approved files yet.</p>
                   ) : (
-                    hiveApproved.map((file) => (
-                      <div
-                        key={file.id}
-                        className="border border-slate-700 rounded-xl p-3 flex flex-col gap-2 hover:bg-slate-700/40 transition"
-                      >
-                        <p className="font-semibold text-white">{file.display_name}</p>
-                        <p className="text-xs text-slate-400">
-                          {file.language || "—"} · {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
-                        </p>
-                        <p className="text-[11px] text-slate-500">
-                          Uploaded {file.uploaded_at ? new Date(file.uploaded_at).toLocaleDateString() : "—"}
-                        </p>
-                        <div className="flex gap-2">
-                          {file.signed_url ? (
-                            <a
-                              href={file.signed_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[11px] text-teal-300 underline"
-                            >
-                              Open file
-                            </a>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setWorking(file.id);
-                              try {
-                                const res = await fetch("/api/portal/admin/hive", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json", "x-admin-token": token },
-                                  body: JSON.stringify({ action: "delete", id: file.id }),
-                                });
-                                if (!res.ok) {
-                                  const data = await res.json().catch(() => ({}));
-                                  throw new Error(data.message || "Unable to delete");
+                    hiveApproved.map((file) => {
+                      const resourceType = file.resource_type || "file";
+                      const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                      const url = file.signed_url || file.url || "#";
+                      const linkStatus = file.link_status || "unchecked";
+                      const statusIcon = linkStatus === "valid" ? "✓" : linkStatus === "dead" ? "✗" : linkStatus === "error" ? "?" : "—";
+                      const statusColor = linkStatus === "valid" ? "text-emerald-400" : linkStatus === "dead" ? "text-rose-400" : "text-slate-500";
+                      return (
+                        <div
+                          key={file.id}
+                          className={`border rounded-xl p-3 flex flex-col gap-2 hover:bg-slate-700/40 transition ${
+                            linkStatus === "dead" ? "border-rose-500/50 bg-rose-500/10" : "border-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{icon}</span>
+                            <p className="font-semibold text-white flex-1">{file.display_name}</p>
+                            {(resourceType === "video" || resourceType === "link") && (
+                              <span className={`text-xs font-mono ${statusColor}`} title={`Link status: ${linkStatus}`}>
+                                {statusIcon}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            {file.language || "—"} · {file.level || "—"} · {file.skill || "—"} · {file.topic || "—"}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            Uploaded {file.uploaded_at ? new Date(file.uploaded_at).toLocaleDateString() : "—"}
+                            {file.link_checked_at && ` · Link checked ${new Date(file.link_checked_at).toLocaleDateString()}`}
+                          </p>
+                          <div className="flex flex-wrap gap-2 items-center">
+                            {url !== "#" && (
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-teal-300 underline">
+                                {resourceType === "file" ? "Download" : "Open link"}
+                              </a>
+                            )}
+                            {(resourceType === "video" || resourceType === "link") && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  setWorking(file.id);
+                                  try {
+                                    const res = await fetch("/api/portal/admin/hive", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                      body: JSON.stringify({ action: "check-link", id: file.id }),
+                                    });
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      alert(`Link status: ${data.status}`);
+                                      await refreshData();
+                                    }
+                                  } catch (err) {
+                                    setError(err instanceof Error ? err.message : "Check failed.");
+                                  } finally {
+                                    setWorking(null);
+                                  }
+                                }}
+                                className="text-[11px] text-slate-400 underline disabled:opacity-60"
+                                disabled={working === file.id}
+                              >
+                                Check link
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!window.confirm("Delete this resource?")) return;
+                                setWorking(file.id);
+                                try {
+                                  const res = await fetch("/api/portal/admin/hive", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "delete", id: file.id }),
+                                  });
+                                  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Unable to delete");
+                                  await refreshData();
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : "Unable to delete.");
+                                } finally {
+                                  setWorking(null);
                                 }
-                                await refreshData();
-                              } catch (err) {
-                                setError(err instanceof Error ? err.message : "Unable to delete.");
-                              } finally {
-                                setWorking(null);
-                              }
-                            }}
-                            className="text-[11px] text-rose-300 underline disabled:opacity-60"
-                            disabled={working === file.id}
-                          >
-                            Delete
-                          </button>
+                              }}
+                              className="text-[11px] text-rose-300 underline disabled:opacity-60"
+                              disabled={working === file.id}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Packs tab */}
+            {hiveSubTab === "packs" && (
+              <div className="space-y-4">
+                {hiveSelectedPack ? (
+                  <div className="rounded-2xl border border-slate-700 p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setHiveSelectedPack(null)}
+                        className="text-sm text-teal-300 hover:text-teal-200"
+                      >
+                        ← Back to packs
+                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch("/api/portal/admin/hive/packs", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                body: JSON.stringify({
+                                  action: hiveSelectedPack.published ? "unpublish" : "publish",
+                                  id: hiveSelectedPack.id,
+                                }),
+                              });
+                              if (res.ok) {
+                                await refreshData();
+                                setHiveSelectedPack((p: any) => p ? { ...p, published: !p.published } : null);
+                              }
+                            } catch {}
+                          }}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            hiveSelectedPack.published
+                              ? "border border-amber-400 text-amber-200 hover:bg-amber-500/20"
+                              : "bg-teal-500 text-slate-900 hover:bg-teal-400"
+                          }`}
+                        >
+                          {hiveSelectedPack.published ? "Unpublish" : "Publish"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm("Delete this pack?")) return;
+                            try {
+                              const res = await fetch("/api/portal/admin/hive/packs", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                body: JSON.stringify({ action: "delete", id: hiveSelectedPack.id }),
+                              });
+                              if (res.ok) {
+                                setHiveSelectedPack(null);
+                                await refreshData();
+                              }
+                            } catch {}
+                          }}
+                          className="rounded-full border border-rose-400 px-3 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-500/20"
+                        >
+                          Delete Pack
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-white">{hiveSelectedPack.name}</h4>
+                      {hiveSelectedPack.description && <p className="text-sm text-slate-400 mt-1">{hiveSelectedPack.description}</p>}
+                      <p className="text-xs text-slate-500 mt-1">
+                        {hiveSelectedPack.language} · {hiveSelectedPack.level}
+                        {hiveSelectedPack.week_number && ` · Week ${hiveSelectedPack.week_number}`}
+                        {" · "}{hiveSelectedPack.published ? <span className="text-emerald-400">Published</span> : <span className="text-amber-400">Draft</span>}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-semibold text-white">Items in pack</h5>
+                      {(hiveSelectedPack.items || []).length === 0 ? (
+                        <p className="text-slate-400 text-sm">No items yet. Add resources from the approved list below.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-48 overflow-auto">
+                          {hiveSelectedPack.items.map((item: any) => {
+                            const file = item.hive_file || item;
+                            const resourceType = file.resource_type || "file";
+                            const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                            return (
+                              <div key={item.id} className="flex items-center gap-2 border border-slate-700 rounded-lg p-2 text-sm">
+                                <span>{icon}</span>
+                                <span className="flex-1 truncate">{file.display_name}</span>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      await fetch("/api/portal/admin/hive/packs", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                        body: JSON.stringify({
+                                          action: "remove-item",
+                                          packId: hiveSelectedPack.id,
+                                          hiveFileId: file.id,
+                                        }),
+                                      });
+                                      // Refresh pack
+                                      const res = await fetch(`/api/portal/admin/hive/packs?packId=${hiveSelectedPack.id}`, {
+                                        headers: { "x-admin-token": token },
+                                      });
+                                      if (res.ok) {
+                                        const data = await res.json();
+                                        setHiveSelectedPack({ ...data.pack, items: data.items });
+                                      }
+                                    } catch {}
+                                  }}
+                                  className="text-xs text-rose-300 hover:text-rose-200"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-semibold text-white">Add approved resources</h5>
+                      <div className="space-y-1 max-h-48 overflow-auto">
+                        {hiveApproved
+                          .filter((f) => !(hiveSelectedPack.items || []).some((i: any) => (i.hive_file?.id || i.id) === f.id))
+                          .map((file) => {
+                            const resourceType = file.resource_type || "file";
+                            const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                            return (
+                              <div key={file.id} className="flex items-center gap-2 text-sm">
+                                <span>{icon}</span>
+                                <span className="flex-1 truncate text-slate-300">{file.display_name}</span>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      await fetch("/api/portal/admin/hive/packs", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                        body: JSON.stringify({
+                                          action: "add-item",
+                                          packId: hiveSelectedPack.id,
+                                          hiveFileId: file.id,
+                                        }),
+                                      });
+                                      // Refresh pack
+                                      const res = await fetch(`/api/portal/admin/hive/packs?packId=${hiveSelectedPack.id}`, {
+                                        headers: { "x-admin-token": token },
+                                      });
+                                      if (res.ok) {
+                                        const data = await res.json();
+                                        setHiveSelectedPack({ ...data.pack, items: data.items });
+                                      }
+                                    } catch {}
+                                  }}
+                                  className="text-xs text-teal-300 hover:text-teal-200"
+                                >
+                                  + Add
+                                </button>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Create pack form */}
+                    <div className="rounded-2xl border border-slate-700 p-4 space-y-3">
+                      <h4 className="text-sm font-semibold text-white">Create New Pack</h4>
+                      <div className="grid md:grid-cols-5 gap-3 text-sm">
+                        <input
+                          type="text"
+                          value={hivePackForm.name}
+                          onChange={(e) => setHivePackForm((p) => ({ ...p, name: e.target.value }))}
+                          placeholder="Pack name"
+                          className="rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                        />
+                        <input
+                          type="text"
+                          value={hivePackForm.description}
+                          onChange={(e) => setHivePackForm((p) => ({ ...p, description: e.target.value }))}
+                          placeholder="Description"
+                          className="rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                        />
+                        <select
+                          value={hivePackForm.language}
+                          onChange={(e) => setHivePackForm((p) => ({ ...p, language: e.target.value }))}
+                          className="rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                        >
+                          <option>English</option>
+                          <option>Spanish</option>
+                          <option>German</option>
+                          <option>French</option>
+                          <option>Italian</option>
+                          <option>Portuguese</option>
+                        </select>
+                        <select
+                          value={hivePackForm.level}
+                          onChange={(e) => setHivePackForm((p) => ({ ...p, level: e.target.value }))}
+                          className="rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                        >
+                          {["A1", "A2", "B1", "B2", "C1", "C2"].map((l) => <option key={l}>{l}</option>)}
+                        </select>
+                        <input
+                          type="number"
+                          value={hivePackForm.weekNumber}
+                          onChange={(e) => setHivePackForm((p) => ({ ...p, weekNumber: e.target.value }))}
+                          placeholder="Week #"
+                          className="rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!hivePackForm.name.trim()) return;
+                          try {
+                            const res = await fetch("/api/portal/admin/hive/packs", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", "x-admin-token": token },
+                              body: JSON.stringify({
+                                action: "create",
+                                name: hivePackForm.name,
+                                description: hivePackForm.description,
+                                language: hivePackForm.language,
+                                level: hivePackForm.level,
+                                weekNumber: hivePackForm.weekNumber ? parseInt(hivePackForm.weekNumber) : undefined,
+                              }),
+                            });
+                            if (res.ok) {
+                              setHivePackForm({ name: "", description: "", language: "English", level: "A1", weekNumber: "" });
+                              await refreshData();
+                            }
+                          } catch {}
+                        }}
+                        disabled={!hivePackForm.name.trim()}
+                        className="rounded-full bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-teal-400 disabled:opacity-60"
+                      >
+                        Create Pack
+                      </button>
+                    </div>
+
+                    {/* Pack list */}
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {hivePacks.length === 0 ? (
+                        <p className="text-slate-400 text-sm col-span-full">No packs created yet.</p>
+                      ) : (
+                        hivePacks.map((pack) => (
+                          <button
+                            key={pack.id}
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/portal/admin/hive/packs?packId=${pack.id}`, {
+                                  headers: { "x-admin-token": token },
+                                });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  setHiveSelectedPack({ ...data.pack, items: data.items });
+                                }
+                              } catch {}
+                            }}
+                            className="border border-slate-700 rounded-2xl p-4 bg-slate-900 text-left hover:bg-slate-700/50 transition"
+                          >
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-white flex-1">{pack.name}</h4>
+                              {pack.published ? (
+                                <span className="text-[10px] bg-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full">Published</span>
+                              ) : (
+                                <span className="text-[10px] bg-slate-600 text-slate-300 px-2 py-0.5 rounded-full">Draft</span>
+                              )}
+                            </div>
+                            {pack.description && <p className="text-xs text-slate-400 mt-1 line-clamp-2">{pack.description}</p>}
+                            <p className="text-xs text-slate-500 mt-2">
+                              {pack.language} · {pack.level}
+                              {pack.week_number && ` · Week ${pack.week_number}`}
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Suggestions tab */}
+            {hiveSubTab === "suggestions" && (
+              <div className="rounded-2xl border border-slate-700 p-4">
+                <div className="space-y-2 max-h-[60vh] overflow-auto">
+                  {hivePackSuggestions.length === 0 ? (
+                    <p className="text-slate-400 text-sm">No pending suggestions.</p>
+                  ) : (
+                    hivePackSuggestions.map((suggestion) => {
+                      const file = suggestion.hive_file || {};
+                      const resourceType = file.resource_type || "file";
+                      const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                      return (
+                        <div key={suggestion.id} className="border border-slate-700 rounded-xl p-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{icon}</span>
+                            <div className="flex-1">
+                              <p className="font-semibold text-white">{file.display_name || "Unknown"}</p>
+                              <p className="text-xs text-slate-400">Suggested by {suggestion.suggested_by_name || "Unknown"}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const packId = window.prompt("Enter pack ID to add this resource to:");
+                                if (!packId) return;
+                                try {
+                                  await fetch("/api/portal/admin/hive/packs", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "add-item", packId, hiveFileId: file.id }),
+                                  });
+                                  await fetch("/api/portal/admin/hive/packs", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "accept-suggestion", suggestionId: suggestion.id }),
+                                  });
+                                  await refreshData();
+                                } catch {}
+                              }}
+                              className="rounded-full bg-teal-500 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-teal-400"
+                            >
+                              Accept & Add
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await fetch("/api/portal/admin/hive/packs", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", "x-admin-token": token },
+                                    body: JSON.stringify({ action: "reject-suggestion", suggestionId: suggestion.id }),
+                                  });
+                                  await refreshData();
+                                } catch {}
+                              }}
+                              className="rounded-full border border-slate-600 px-3 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-700"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         );
       case "trips":
