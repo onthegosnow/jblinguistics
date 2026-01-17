@@ -276,6 +276,7 @@ export default function AssessmentsAdminPage() {
   const [hiveRejected, setHiveRejected] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<PortalAssignmentAdmin[]>([]);
   const [bulkEmail, setBulkEmail] = useState({ subject: "", message: "" });
+  const [bulkEmailAttachments, setBulkEmailAttachments] = useState<File[]>([]);
   const [showBulkEmail, setShowBulkEmail] = useState(false);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [loadingEmailLogs, setLoadingEmailLogs] = useState(false);
@@ -1186,16 +1187,23 @@ export default function AssessmentsAdminPage() {
     setSendingBulkEmail(true);
     setError(null);
     try {
+      const formData = new FormData();
+      formData.append("subject", bulkEmail.subject);
+      formData.append("message", bulkEmail.message);
+      for (const file of bulkEmailAttachments) {
+        formData.append("attachments", file);
+      }
       const res = await fetch("/api/portal/admin/employees/email", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-token": token },
-        body: JSON.stringify({ subject: bulkEmail.subject, message: bulkEmail.message }),
+        headers: { "x-admin-token": token },
+        body: formData,
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Unable to send email.");
       }
       setBulkEmail({ subject: "", message: "" });
+      setBulkEmailAttachments([]);
       await loadEmailLogs();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send email.");
@@ -2075,6 +2083,29 @@ export default function AssessmentsAdminPage() {
                       onChange={(e) => setBulkEmail((prev) => ({ ...prev, message: e.target.value }))}
                       className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                     />
+                    <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Attachments (optional)</label>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={(e) => setBulkEmailAttachments(e.target.files ? Array.from(e.target.files) : [])}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white file:mr-3 file:rounded-full file:border-0 file:bg-slate-700 file:px-3 file:py-1 file:text-xs file:text-slate-200"
+                    />
+                    {bulkEmailAttachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {bulkEmailAttachments.map((file, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1 rounded-full bg-slate-700 px-2 py-1 text-xs text-slate-200">
+                            {file.name}
+                            <button
+                              type="button"
+                              onClick={() => setBulkEmailAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                              className="ml-1 text-slate-400 hover:text-red-400"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={handleSendBulkEmail}

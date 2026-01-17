@@ -26,21 +26,39 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   requireAdmin(request.headers.get("x-admin-token") ?? undefined);
 
-  // archive action
-  const body = (await request.json().catch(() => ({}))) as { action?: string; id?: string; subject?: string; message?: string };
-  if (body.action === "archive" && body.id) {
-    const supabase = createSupabaseAdminClient();
-    const { error } = await supabase.from("portal_email_logs").update({ archived: true }).eq("id", body.id);
-    if (error) return NextResponse.json({ message: error.message }, { status: 500 });
-    return NextResponse.json({ success: true });
+  const contentType = request.headers.get("content-type") || "";
+
+  // Handle JSON requests (archive action)
+  if (contentType.includes("application/json")) {
+    const body = (await request.json().catch(() => ({}))) as { action?: string; id?: string };
+    if (body.action === "archive" && body.id) {
+      const supabase = createSupabaseAdminClient();
+      const { error } = await supabase.from("portal_email_logs").update({ archived: true }).eq("id", body.id);
+      if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+      return NextResponse.json({ success: true });
+    }
+    return NextResponse.json({ message: "Invalid action" }, { status: 400 });
   }
+
+  // Handle FormData requests (send email with optional attachments)
+  const formData = await request.formData();
+  const subject = ((formData.get("subject") as string) || "JB Linguistics update").trim();
+  const rawMessage = ((formData.get("message") as string) || "").trim();
+  const attachmentFiles = formData.getAll("attachments") as File[];
 
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     return NextResponse.json({ message: "SMTP not configured" }, { status: 400 });
   }
-  const subject = (body.subject || "JB Linguistics update").trim();
-  const rawMessage = (body.message || "").trim();
   if (!rawMessage) return NextResponse.json({ message: "Message required" }, { status: 400 });
+
+  // Process attachments
+  const attachments: Array<{ filename: string; content: Buffer }> = [];
+  for (const file of attachmentFiles) {
+    if (file && file.size > 0) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      attachments.push({ filename: file.name, content: buffer });
+    }
+  }
 
   const supabase = createSupabaseAdminClient();
 
@@ -79,7 +97,7 @@ export async function POST(request: NextRequest) {
     const personalized = rawMessage.replace(/\(first name\)/gi, firstName);
     const text = `Hi ${firstName},\n\n${personalized}\n\n– JB Linguistics`;
     await transporter
-      .sendMail({ from: SMTP_FROM, to: r.email, subject, text })
+      .sendMail({ from: SMTP_FROM, to: r.email, subject, text, attachments })
       .catch(() => undefined);
   }
 
