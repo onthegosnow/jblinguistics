@@ -271,6 +271,48 @@ export async function rejectHiveFile(params: { id: string; note?: string }) {
   if (error) throw new Error(error.message);
 }
 
+export async function updateHiveFile(params: {
+  id: string;
+  updates: {
+    displayName?: string;
+    language?: string;
+    level?: string;
+    skill?: string;
+    topic?: string;
+    fileType?: string;
+    weekNumber?: number | null;
+    url?: string;
+    description?: string;
+  };
+}) {
+  const supabase = createSupabaseAdminClient();
+
+  const updateData: Record<string, unknown> = {};
+  if (params.updates.displayName !== undefined) updateData.display_name = params.updates.displayName;
+  if (params.updates.language !== undefined) updateData.language = params.updates.language;
+  if (params.updates.level !== undefined) updateData.level = params.updates.level;
+  if (params.updates.skill !== undefined) updateData.skill = params.updates.skill;
+  if (params.updates.topic !== undefined) updateData.topic = params.updates.topic;
+  if (params.updates.fileType !== undefined) updateData.file_type = params.updates.fileType;
+  if (params.updates.weekNumber !== undefined) updateData.week_number = params.updates.weekNumber;
+  if (params.updates.url !== undefined) updateData.url = params.updates.url;
+  if (params.updates.description !== undefined) updateData.notes = params.updates.description;
+
+  if (Object.keys(updateData).length === 0) {
+    throw new Error("No updates provided");
+  }
+
+  const { data, error } = await supabase
+    .from("hive_files")
+    .update(updateData)
+    .eq("id", params.id)
+    .select()
+    .maybeSingle();
+
+  if (error || !data) throw new Error(error?.message ?? "Unable to update file");
+  return data as HiveFile;
+}
+
 // ============ Video/Link Upload Functions ============
 
 export async function uploadHiveLink(params: {

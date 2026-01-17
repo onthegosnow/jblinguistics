@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/server/storage";
-import { approveHiveFile, deleteHiveFile, listHiveFiles, rejectHiveFile } from "@/lib/server/hive-supabase";
+import { approveHiveFile, deleteHiveFile, listHiveFiles, rejectHiveFile, updateHiveFile } from "@/lib/server/hive-supabase";
 import { checkAllHiveLinks, checkSingleLink, getDeadLinkCount } from "@/lib/server/link-checker";
 
 export async function GET(request: NextRequest) {
@@ -18,9 +18,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   requireAdmin(request.headers.get("x-admin-token") ?? undefined);
   const body = (await request.json().catch(() => ({}))) as {
-    action?: "approve" | "delete" | "reject" | "check-link" | "check-all-links";
+    action?: "approve" | "delete" | "reject" | "check-link" | "check-all-links" | "update";
     id?: string;
     note?: string;
+    // For update action
+    displayName?: string;
+    language?: string;
+    level?: string;
+    skill?: string;
+    topic?: string;
+    fileType?: string;
+    weekNumber?: number | null;
+    url?: string;
+    description?: string;
   };
 
   if (!body.action) {
@@ -53,6 +63,22 @@ export async function POST(request: NextRequest) {
       await deleteHiveFile({ id: body.id });
     } else if (body.action === "reject") {
       await rejectHiveFile({ id: body.id, note: body.note });
+    } else if (body.action === "update") {
+      const updated = await updateHiveFile({
+        id: body.id,
+        updates: {
+          displayName: body.displayName,
+          language: body.language,
+          level: body.level,
+          skill: body.skill,
+          topic: body.topic,
+          fileType: body.fileType,
+          weekNumber: body.weekNumber,
+          url: body.url,
+          description: body.description,
+        },
+      });
+      return NextResponse.json({ success: true, file: updated });
     }
 
     return NextResponse.json({ success: true });

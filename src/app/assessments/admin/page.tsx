@@ -281,6 +281,7 @@ export default function AssessmentsAdminPage() {
   const [hiveSelectedPack, setHiveSelectedPack] = useState<any | null>(null);
   const [hiveCheckingLinks, setHiveCheckingLinks] = useState(false);
   const [hivePackForm, setHivePackForm] = useState({ name: "", description: "", language: "English", level: "A1", weekNumber: "" });
+  const [hiveEditFile, setHiveEditFile] = useState<any | null>(null);
   const [assignments, setAssignments] = useState<PortalAssignmentAdmin[]>([]);
   const [bulkEmail, setBulkEmail] = useState({ subject: "", message: "" });
   const [bulkEmailAttachments, setBulkEmailAttachments] = useState<File[]>([]);
@@ -3577,6 +3578,13 @@ export default function AssessmentsAdminPage() {
                             </button>
                             <button
                               type="button"
+                              onClick={() => setHiveEditFile(file)}
+                              className="rounded-full border border-slate-600 px-3 py-1 font-semibold text-slate-200 hover:bg-slate-700"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
                               onClick={async () => {
                                 if (!window.confirm("Delete this upload?")) return;
                                 setWorking(file.id);
@@ -3679,6 +3687,13 @@ export default function AssessmentsAdminPage() {
                                 Check link
                               </button>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => setHiveEditFile(file)}
+                              className="text-[11px] text-amber-300 underline"
+                            >
+                              Edit
+                            </button>
                             <button
                               type="button"
                               onClick={async () => {
@@ -4061,6 +4076,194 @@ export default function AssessmentsAdminPage() {
                       );
                     })
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Edit File Modal */}
+            {hiveEditFile && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-auto">
+                  <h3 className="text-lg font-bold text-white mb-4">Edit Resource</h3>
+                  <div className="space-y-3">
+                    <label className="block text-sm text-slate-200">
+                      Display Name
+                      <input
+                        type="text"
+                        value={hiveEditFile.display_name || ""}
+                        onChange={(e) => setHiveEditFile({ ...hiveEditFile, display_name: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
+                      />
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block text-sm text-slate-200">
+                        Language
+                        <select
+                          value={hiveEditFile.language || "English"}
+                          onChange={(e) => setHiveEditFile({ ...hiveEditFile, language: e.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
+                        >
+                          <option value="English">English</option>
+                          <option value="Spanish">Spanish</option>
+                          <option value="French">French</option>
+                          <option value="German">German</option>
+                          <option value="Portuguese">Portuguese</option>
+                          <option value="Italian">Italian</option>
+                          <option value="Chinese">Chinese</option>
+                          <option value="Japanese">Japanese</option>
+                          <option value="Korean">Korean</option>
+                          <option value="Arabic">Arabic</option>
+                          <option value="Russian">Russian</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </label>
+                      <label className="block text-sm text-slate-200">
+                        Level
+                        <select
+                          value={hiveEditFile.level || "A1"}
+                          onChange={(e) => setHiveEditFile({ ...hiveEditFile, level: e.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
+                        >
+                          <option value="A1">A1</option>
+                          <option value="A2">A2</option>
+                          <option value="B1">B1</option>
+                          <option value="B2">B2</option>
+                          <option value="C1">C1</option>
+                          <option value="C2">C2</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block text-sm text-slate-200">
+                        Skill
+                        <select
+                          value={hiveEditFile.skill || "General"}
+                          onChange={(e) => setHiveEditFile({ ...hiveEditFile, skill: e.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
+                        >
+                          <option value="General">General</option>
+                          <option value="Speaking">Speaking</option>
+                          <option value="Listening">Listening</option>
+                          <option value="Reading">Reading</option>
+                          <option value="Writing">Writing</option>
+                          <option value="Grammar">Grammar</option>
+                          <option value="Vocabulary">Vocabulary</option>
+                          <option value="Pronunciation">Pronunciation</option>
+                        </select>
+                      </label>
+                      <label className="block text-sm text-slate-200">
+                        Topic
+                        <input
+                          type="text"
+                          value={hiveEditFile.topic || ""}
+                          onChange={(e) => setHiveEditFile({ ...hiveEditFile, topic: e.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
+                          placeholder="e.g., Travel, Business, Food"
+                        />
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block text-sm text-slate-200">
+                        File Type
+                        <select
+                          value={hiveEditFile.file_type || "File"}
+                          onChange={(e) => setHiveEditFile({ ...hiveEditFile, file_type: e.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
+                        >
+                          <option value="File">File</option>
+                          <option value="Worksheet">Worksheet</option>
+                          <option value="Lesson Plan">Lesson Plan</option>
+                          <option value="Presentation">Presentation</option>
+                          <option value="Audio">Audio</option>
+                          <option value="Video">Video</option>
+                          <option value="Link">Link</option>
+                          <option value="Assessment">Assessment</option>
+                          <option value="Game">Game</option>
+                          <option value="Flashcards">Flashcards</option>
+                        </select>
+                      </label>
+                      <label className="block text-sm text-slate-200">
+                        Week
+                        <select
+                          value={hiveEditFile.week_number ?? ""}
+                          onChange={(e) => setHiveEditFile({ ...hiveEditFile, week_number: e.target.value ? parseInt(e.target.value) : null })}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
+                        >
+                          <option value="">No week</option>
+                          {Array.from({ length: 20 }, (_, i) => i + 1).map((w) => (
+                            <option key={w} value={w}>Week {w}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    {(hiveEditFile.resource_type === "video" || hiveEditFile.resource_type === "link") && (
+                      <label className="block text-sm text-slate-200">
+                        URL
+                        <input
+                          type="url"
+                          value={hiveEditFile.url || ""}
+                          onChange={(e) => setHiveEditFile({ ...hiveEditFile, url: e.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
+                          placeholder="https://..."
+                        />
+                      </label>
+                    )}
+                    <label className="block text-sm text-slate-200">
+                      Notes / Description
+                      <textarea
+                        value={hiveEditFile.notes || ""}
+                        onChange={(e) => setHiveEditFile({ ...hiveEditFile, notes: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
+                        rows={3}
+                        placeholder="Optional description or notes"
+                      />
+                    </label>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setHiveEditFile(null)}
+                      className="px-4 py-2 text-sm text-slate-300 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={working === hiveEditFile.id}
+                      onClick={async () => {
+                        setWorking(hiveEditFile.id);
+                        try {
+                          const res = await fetch("/api/portal/admin/hive", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", "x-admin-token": token },
+                            body: JSON.stringify({
+                              action: "update",
+                              id: hiveEditFile.id,
+                              displayName: hiveEditFile.display_name,
+                              language: hiveEditFile.language,
+                              level: hiveEditFile.level,
+                              skill: hiveEditFile.skill,
+                              topic: hiveEditFile.topic,
+                              fileType: hiveEditFile.file_type,
+                              weekNumber: hiveEditFile.week_number,
+                              url: hiveEditFile.url,
+                              description: hiveEditFile.notes,
+                            }),
+                          });
+                          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Unable to update");
+                          setHiveEditFile(null);
+                          await refreshData();
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : "Unable to update.");
+                        } finally {
+                          setWorking(null);
+                        }
+                      }}
+                      className="px-4 py-2 text-sm font-semibold bg-teal-500 text-slate-900 rounded-lg hover:bg-teal-400 disabled:opacity-60"
+                    >
+                      {working === hiveEditFile.id ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
