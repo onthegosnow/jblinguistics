@@ -257,6 +257,7 @@ export default function PortalPage() {
     url: string;
     displayName: string;
     description: string;
+    weekNumber: string;
   }>({
     language: "English",
     level: "A1",
@@ -270,6 +271,7 @@ export default function PortalPage() {
     url: "",
     displayName: "",
     description: "",
+    weekNumber: "",
   });
   const [hiveFilter, setHiveFilter] = useState({
     language: "All",
@@ -1213,6 +1215,7 @@ export default function PortalPage() {
             topic: hiveUpload.topic || "Topic",
             teacherName: hiveUpload.teacherName || user?.name || user?.email || "Unknown",
             date: hiveUpload.date || new Date().toISOString().slice(0, 10),
+            weekNumber: hiveUpload.weekNumber ? parseInt(hiveUpload.weekNumber) : undefined,
           }),
         });
         if (!response.ok) {
@@ -1254,6 +1257,7 @@ export default function PortalPage() {
           teacherName: hiveUpload.teacherName || user?.name || user?.email || "Unknown",
           descriptor: hiveUpload.descriptor || "",
           date: hiveUpload.date || new Date().toISOString().slice(0, 10),
+          weekNumber: hiveUpload.weekNumber ? parseInt(hiveUpload.weekNumber) : undefined,
           filename: file.name,
           mime: file.type || "application/octet-stream",
           size: file.size,
@@ -3052,6 +3056,19 @@ export default function PortalPage() {
                   >
                     {(HIVE_TOPICS[hiveUpload.skill] ?? []).map((topic) => (
                       <option key={topic} value={topic}>{topic}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 text-slate-200">
+                  Week (optional)
+                  <select
+                    value={hiveUpload.weekNumber}
+                    onChange={(e) => setHiveUpload((prev) => ({ ...prev, weekNumber: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
+                  >
+                    <option value="">No week</option>
+                    {Array.from({ length: 20 }, (_, i) => i + 1).map((w) => (
+                      <option key={w} value={w}>Week {w}</option>
                     ))}
                   </select>
                 </label>

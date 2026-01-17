@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
     descriptor?: string;
     teacherName?: string;
     date?: string;
+    weekNumber?: number;
     // For file uploads
     filename?: string;
     data?: string; // base64
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
           uploadedBy: user.id,
           uploadedByEmail: user.email,
           description: body.description,
+          weekNumber: body.weekNumber,
         },
       });
 
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
         uploadedByEmail: user.email,
         size: body.size,
         mime: body.mime,
+        weekNumber: body.weekNumber,
       },
     });
 

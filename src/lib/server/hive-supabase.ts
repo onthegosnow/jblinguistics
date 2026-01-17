@@ -23,6 +23,7 @@ export type HiveFile = {
   approved_at: string | null;
   status: "pending" | "approved" | "deleted" | "rejected" | null;
   notes: string | null;
+  week_number: number | null;
   // New fields for links
   resource_type: ResourceType;
   url: string | null;
@@ -115,6 +116,7 @@ export async function uploadHivePending(params: {
     uploadedByEmail: string;
     size?: number;
     mime?: string;
+    weekNumber?: number;
   };
 }) {
   const supabase = createSupabaseAdminClient();
@@ -153,6 +155,7 @@ export async function uploadHivePending(params: {
       status: "pending",
       notes: params.metadata.descriptor || null,
       resource_type: "file",
+      week_number: params.metadata.weekNumber ?? null,
     })
     .select()
     .maybeSingle();
@@ -285,6 +288,7 @@ export async function uploadHiveLink(params: {
     uploadedBy: string;
     uploadedByEmail: string;
     description?: string;
+    weekNumber?: number;
   };
 }) {
   const supabase = createSupabaseAdminClient();
@@ -318,6 +322,7 @@ export async function uploadHiveLink(params: {
       resource_type: params.resourceType,
       url: params.url,
       link_status: "unchecked",
+      week_number: params.metadata.weekNumber ?? null,
     })
     .select()
     .maybeSingle();
