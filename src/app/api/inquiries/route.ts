@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { saveInquiryToSupabase, type InquiryPayload } from "@/lib/server/inquiries-supabase";
+import { syncInquiryToHubSpot, isHubSpotConfigured } from "@/lib/server/hubspot";
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = Number(process.env.SMTP_PORT ?? "587");
@@ -61,6 +62,13 @@ export async function POST(request: Request) {
 
     await saveInquiryToSupabase(payload);
     await sendInquiryEmail(payload);
+
+    // Sync to HubSpot if configured (non-blocking)
+    if (isHubSpotConfigured()) {
+      syncInquiryToHubSpot(payload).catch((err) => {
+        console.error("HubSpot sync failed (non-blocking):", err);
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

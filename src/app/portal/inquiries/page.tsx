@@ -122,6 +122,35 @@ export default function PortalInquiriesPage() {
     }
   };
 
+  const syncToHubSpot = async (inq: Inquiry) => {
+    if (!adminToken.trim()) return;
+    setWorking(inq.id);
+    setPromoMessage(null);
+    try {
+      const res = await fetch(`/api/portal/admin/inquiries/${inq.id}`, {
+        method: "POST",
+        headers: { "x-admin-token": adminToken.trim() },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to sync to HubSpot.");
+      }
+      const data = await res.json();
+      setPromoMessage(`Synced ${inq.name} to HubSpot (Contact ID: ${data.contactId})`);
+      // Update metadata to show synced status
+      const updated = {
+        ...(inq.metadata ?? {}),
+        hubspot_synced: "true",
+        hubspot_contact_id: data.contactId,
+      };
+      setInquiries((prev) => prev.map((item) => (item.id === inq.id ? { ...item, metadata: updated } : item)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to sync to HubSpot.");
+    } finally {
+      setWorking(null);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-200 pb-16">
       <div className="max-w-6xl mx-auto px-4 pt-10 space-y-6">
@@ -189,11 +218,22 @@ export default function PortalInquiriesPage() {
                       {inq.metadata?.marketingStatus ? <div>Status: {inq.metadata.marketingStatus}</div> : null}
                       {inq.metadata?.preferredStaff ? <div>Staff: {inq.metadata.preferredStaff}</div> : null}
                       {inq.metadata?.referral ? <div>Referral: {inq.metadata.referral}</div> : null}
+                      {inq.metadata?.hubspot_synced === "true" ? (
+                        <div className="text-emerald-600 font-medium">HubSpot synced</div>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2 text-xs text-slate-600">
                       {inq.createdAt ? new Date(inq.createdAt).toLocaleString() : "—"}
                     </td>
                     <td className="px-3 py-2 text-xs text-slate-600 space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => syncToHubSpot(inq)}
+                        disabled={working === inq.id || inq.metadata?.hubspot_synced === "true"}
+                        className="inline-flex items-center rounded-full bg-orange-500 px-3 py-1 text-[11px] font-semibold text-white hover:bg-orange-400 disabled:opacity-60"
+                      >
+                        {working === inq.id ? "Syncing…" : inq.metadata?.hubspot_synced === "true" ? "Synced" : "HubSpot"}
+                      </button>
                       <button
                         type="button"
                         onClick={() => markProspect(inq)}

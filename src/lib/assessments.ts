@@ -783,3 +783,68 @@ export const assessmentQuestions: AssessmentQuestion[] = [
 if (assessmentQuestions.length < 200) {
   console.warn("Assessment bank should contain at least 200 questions; currently:", assessmentQuestions.length);
 }
+
+// Extended question banks - loaded dynamically
+const questionBankCache: Record<string, AssessmentQuestion[]> = {};
+
+/**
+ * Load questions from the extended question bank for a specific language.
+ * Falls back to the built-in assessmentQuestions if no extended bank exists.
+ */
+export async function loadQuestionBank(language: string): Promise<AssessmentQuestion[]> {
+  const key = language.toLowerCase();
+
+  if (questionBankCache[key]) {
+    return questionBankCache[key];
+  }
+
+  try {
+    // Dynamic import based on language
+    let questions: AssessmentQuestion[] = [];
+
+    switch (key) {
+      case "english":
+      case "en":
+        const englishModule = await import("./assessment-questions/english-questions");
+        questions = englishModule.default || englishModule.englishQuestions || [];
+        break;
+      case "german":
+      case "de":
+        const germanModule = await import("./assessment-questions/german-questions");
+        questions = germanModule.default || germanModule.germanQuestions || [];
+        break;
+      default:
+        // Fall back to built-in questions for other languages
+        console.log(`No extended question bank for '${language}', using built-in questions`);
+        return assessmentQuestions;
+    }
+
+    if (questions.length > 0) {
+      questionBankCache[key] = questions;
+      console.log(`Loaded ${questions.length} questions for ${language}`);
+      return questions;
+    }
+  } catch (err) {
+    console.warn(`Failed to load question bank for ${language}:`, err);
+  }
+
+  // Fall back to built-in questions
+  return assessmentQuestions;
+}
+
+/**
+ * Get a randomized set of questions for a placement test.
+ * Uses the extended question bank if available.
+ */
+export async function getPlacementTestQuestions(
+  language: string,
+  count: number = 200
+): Promise<AssessmentQuestion[]> {
+  const all = await loadQuestionBank(language);
+
+  // Shuffle
+  const shuffled = [...all].sort(() => Math.random() - 0.5);
+
+  // Take requested count
+  return shuffled.slice(0, count);
+}

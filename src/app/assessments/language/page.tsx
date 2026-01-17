@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { assessmentQuestions, assessmentLevels, type AssessmentQuestion, type AssessmentLevel } from "@/lib/assessments";
+import { assessmentQuestions, assessmentLevels, loadQuestionBank, type AssessmentQuestion, type AssessmentLevel } from "@/lib/assessments";
 import { languages } from "@/lib/copy";
 
 const SHARED_PASSWORD = process.env.NEXT_PUBLIC_ASSESSMENT_PASSWORD ?? "jb-linguistics-2026";
@@ -177,7 +177,9 @@ export default function LanguageAssessmentPage() {
     }
   };
 
-  const startTest = () => {
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+
+  const startTest = async () => {
     if (!candidateName.trim()) {
       setError("Please enter the candidate name before starting the test.");
       return;
@@ -187,17 +189,40 @@ export default function LanguageAssessmentPage() {
       return;
     }
     setError(null);
-    const shuffled = shuffle(assessmentQuestions);
-    const selected = shuffled.slice(0, QUESTION_TARGET);
-    const initialAnswers = selected.reduce((acc, question) => {
-      acc[question.id] = null;
-      return acc;
-    }, {} as AnswerMap);
-    setQuestions(selected);
-    setAnswers(initialAnswers);
-    setCurrentIndex(0);
-    setSummary(null);
-    setStage("testing");
+    setLoadingQuestions(true);
+
+    try {
+      // Load questions for the selected test language
+      // Map UI language codes to question bank language names
+      const langMap: Record<string, string> = {
+        en: "english",
+        de: "german",
+        nl: "dutch",
+        fr: "french",
+        sv: "swedish",
+        es: "spanish",
+        zh: "chinese",
+      };
+      const questionBankLang = langMap[testLanguage] || testLanguage;
+      const questionBank = await loadQuestionBank(questionBankLang);
+
+      const shuffled = shuffle(questionBank);
+      const selected = shuffled.slice(0, QUESTION_TARGET);
+      const initialAnswers = selected.reduce((acc, question) => {
+        acc[question.id] = null;
+        return acc;
+      }, {} as AnswerMap);
+      setQuestions(selected);
+      setAnswers(initialAnswers);
+      setCurrentIndex(0);
+      setSummary(null);
+      setStage("testing");
+    } catch (err) {
+      console.error("Failed to load questions:", err);
+      setError("Failed to load test questions. Please try again.");
+    } finally {
+      setLoadingQuestions(false);
+    }
   };
 
   const handleAnswerSelect = (questionId: string, optionIndex: number) => {
@@ -432,10 +457,10 @@ export default function LanguageAssessmentPage() {
                 <button
                   type="button"
                   onClick={startTest}
-                  className="inline-flex items-center rounded-2xl bg-teal-600 text-white px-5 py-2 text-sm font-semibold hover:bg-teal-500 transition"
-                  disabled={stage === "testing"}
+                  className="inline-flex items-center rounded-2xl bg-teal-600 text-white px-5 py-2 text-sm font-semibold hover:bg-teal-500 transition disabled:opacity-60"
+                  disabled={stage === "testing" || loadingQuestions}
                 >
-                  {stage === "testing" ? "Test in progress" : `Start randomized ${(QUESTION_TARGET).toString()}-item test`}
+                  {loadingQuestions ? "Loading questions…" : stage === "testing" ? "Test in progress" : `Start randomized ${(QUESTION_TARGET).toString()}-item test`}
                 </button>
                 {stage === "testing" && (
                   <p className="text-xs text-slate-500">Progress saved locally until you submit.</p>
