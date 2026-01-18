@@ -10,7 +10,6 @@ import {
   generateICalEvent,
   generateGoogleCalendarUrl,
   getClass,
-  getClassEnrollments,
 } from "@/lib/server/classes";
 import { createMeetingForSession, isTeamsConfigured } from "@/lib/server/microsoft-graph";
 import { createSupabaseAdminClient } from "@/lib/supabase-server";
@@ -96,34 +95,29 @@ export async function POST(request: NextRequest) {
       // Auto-generate Teams meeting if requested
       if (body.generateTeamsMeeting && !meetingUrl) {
         const cls = await getClass(body.classId);
-        if (cls?.teacher_id) {
-          // Get teacher email
-          const supabase = createSupabaseAdminClient();
-          const { data: teacher } = await supabase
-            .from("portal_users")
-            .select("email")
-            .eq("id", cls.teacher_id)
-            .maybeSingle();
+        if (cls) {
+          // Get teacher name for meeting title
+          let teacherName: string | undefined;
+          if (cls.teacher_id) {
+            const supabase = createSupabaseAdminClient();
+            const { data: teacher } = await supabase
+              .from("portal_users")
+              .select("name")
+              .eq("id", cls.teacher_id)
+              .maybeSingle();
+            teacherName = teacher?.name ?? undefined;
+          }
 
-          if (teacher?.email) {
-            // Get student emails for attendees
-            const enrollments = await getClassEnrollments(body.classId);
-            const studentEmails = enrollments
-              .filter((e) => e.student?.email)
-              .map((e) => e.student!.email);
+          const meeting = await createMeetingForSession({
+            className: cls.name,
+            startTime: new Date(body.startTime),
+            endTime: new Date(body.endTime),
+            teacherName,
+          });
 
-            const meeting = await createMeetingForSession({
-              className: cls.name,
-              teacherEmail: teacher.email,
-              startTime: new Date(body.startTime),
-              endTime: new Date(body.endTime),
-              studentEmails,
-            });
-
-            if (meeting) {
-              meetingUrl = meeting.meetingUrl;
-              meetingProvider = "teams";
-            }
+          if (meeting) {
+            meetingUrl = meeting.meetingUrl;
+            meetingProvider = "teams";
           }
         }
       }
@@ -252,36 +246,30 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Session already has a meeting link.", meetingUrl: session.meeting_url }, { status: 400 });
       }
 
-      // Get class and teacher info
+      // Get class info
       const cls = await getClass(session.class_id);
-      if (!cls?.teacher_id) {
-        return NextResponse.json({ message: "Class has no assigned teacher." }, { status: 400 });
+      if (!cls) {
+        return NextResponse.json({ message: "Class not found." }, { status: 404 });
       }
 
-      const supabase = createSupabaseAdminClient();
-      const { data: teacher } = await supabase
-        .from("portal_users")
-        .select("email")
-        .eq("id", cls.teacher_id)
-        .maybeSingle();
-
-      if (!teacher?.email) {
-        return NextResponse.json({ message: "Teacher email not found." }, { status: 400 });
+      // Get teacher name for meeting title
+      let teacherName: string | undefined;
+      if (cls.teacher_id) {
+        const supabase = createSupabaseAdminClient();
+        const { data: teacher } = await supabase
+          .from("portal_users")
+          .select("name")
+          .eq("id", cls.teacher_id)
+          .maybeSingle();
+        teacherName = teacher?.name ?? undefined;
       }
 
-      // Get student emails
-      const enrollments = await getClassEnrollments(session.class_id);
-      const studentEmails = enrollments
-        .filter((e) => e.student?.email)
-        .map((e) => e.student!.email);
-
-      // Create meeting
+      // Create meeting using single organizer account
       const meeting = await createMeetingForSession({
         className: cls.name,
-        teacherEmail: teacher.email,
         startTime: new Date(session.start_time),
         endTime: new Date(session.end_time),
-        studentEmails,
+        teacherName,
       });
 
       if (!meeting) {

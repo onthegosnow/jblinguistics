@@ -3,6 +3,8 @@
 const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID;
 const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET;
 const MICROSOFT_TENANT_ID = process.env.MICROSOFT_TENANT_ID;
+// Single organizer account for all meetings (avoids per-user licensing)
+const MICROSOFT_ORGANIZER_EMAIL = process.env.MICROSOFT_ORGANIZER_EMAIL ?? "jonathan@jblinguisticsllc.onmicrosoft.com";
 
 // Cache for access token
 let cachedToken: { token: string; expiresAt: number } | null = null;
@@ -164,13 +166,13 @@ export function isTeamsConfigured(): boolean {
 
 /**
  * Generate a Teams meeting link for a class session
+ * Uses the single organizer account to avoid per-user licensing
  */
 export async function createMeetingForSession(params: {
   className: string;
-  teacherEmail: string;
   startTime: Date;
   endTime: Date;
-  studentEmails?: string[];
+  teacherName?: string; // For display in meeting title only
 }): Promise<{ meetingUrl: string; meetingId: string } | null> {
   if (!isTeamsConfigured()) {
     console.log("Teams not configured, skipping meeting creation");
@@ -178,12 +180,16 @@ export async function createMeetingForSession(params: {
   }
 
   try {
+    const subject = params.teacherName
+      ? `${params.className} - ${params.teacherName}`
+      : `${params.className} - Class Session`;
+
     const meeting = await createTeamsMeeting({
-      organizerEmail: params.teacherEmail,
-      subject: `${params.className} - Class Session`,
+      organizerEmail: MICROSOFT_ORGANIZER_EMAIL,
+      subject,
       startDateTime: params.startTime,
       endDateTime: params.endTime,
-      attendeeEmails: params.studentEmails,
+      // No attendee emails - anyone with the link can join
     });
 
     return {
