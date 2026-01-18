@@ -286,6 +286,7 @@ export default function AssessmentsAdminPage() {
   const [hiveEditFile, setHiveEditFile] = useState<any | null>(null);
   const [assignments, setAssignments] = useState<PortalAssignmentAdmin[]>([]);
   const [editingAssignment, setEditingAssignment] = useState<PortalAssignmentAdmin | null>(null);
+  const [resendingAssignmentId, setResendingAssignmentId] = useState<string | null>(null);
   const [bulkEmail, setBulkEmail] = useState({ subject: "", message: "" });
   const [bulkEmailAttachments, setBulkEmailAttachments] = useState<File[]>([]);
   const [showBulkEmail, setShowBulkEmail] = useState(false);
@@ -1377,6 +1378,27 @@ export default function AssessmentsAdminPage() {
       participants: "",
       assignedTo: [],
     });
+  };
+
+  const handleResendAssignmentNotification = async (assignmentId: string) => {
+    setResendingAssignmentId(assignmentId);
+    setError(null);
+    try {
+      const response = await fetch("/api/portal/admin/assignments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ action: "resend", id: assignmentId }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to resend notification");
+      }
+      alert(`Notification sent to: ${data.sentTo?.join(", ") || "assignees"}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resend notification");
+    } finally {
+      setResendingAssignmentId(null);
+    }
   };
 
   const renderTabContent = () => {
@@ -3126,13 +3148,23 @@ export default function AssessmentsAdminPage() {
                             </p>
                           )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => startEditingAssignment(assignment)}
-                          className="text-xs text-teal-400 hover:text-teal-300"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex flex-col gap-1">
+                          <button
+                            type="button"
+                            onClick={() => startEditingAssignment(assignment)}
+                            className="text-xs text-teal-400 hover:text-teal-300"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleResendAssignmentNotification(assignment.id)}
+                            disabled={resendingAssignmentId === assignment.id}
+                            className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
+                          >
+                            {resendingAssignmentId === assignment.id ? "Sending..." : "Resend"}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))

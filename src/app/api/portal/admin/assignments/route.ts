@@ -194,3 +194,45 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ message }, { status: 500 });
   }
 }
+
+// Resend notification for an assignment
+export async function PATCH(request: NextRequest) {
+  requireAdmin(request.headers.get("x-admin-token") ?? undefined);
+  const body = (await request.json().catch(() => ({}))) as { id?: string; action?: string };
+
+  if (body.action !== "resend" || !body.id) {
+    return NextResponse.json({ message: "Invalid action or missing assignment ID." }, { status: 400 });
+  }
+
+  try {
+    const [assignments, users] = await Promise.all([listPortalAssignments(), listPortalUsers()]);
+    const assignment = assignments.find((a) => a.id === body.id);
+
+    if (!assignment) {
+      return NextResponse.json({ message: "Assignment not found." }, { status: 404 });
+    }
+
+    const assignees = assignment.assignedTo
+      .map((id) => users.find((u) => u.id === id))
+      .filter((u): u is NonNullable<typeof u> => !!u && !!u.email)
+      .map((u) => ({ email: u.email, name: u.name }));
+
+    if (assignees.length === 0) {
+      return NextResponse.json({ message: "No valid assignees found." }, { status: 400 });
+    }
+
+    await sendAssignmentNotification(assignees, {
+      title: assignment.title,
+      hoursAssigned: assignment.hoursAssigned,
+      client: assignment.client,
+      startDate: assignment.startDate,
+      dueDate: assignment.dueDate,
+      description: assignment.description,
+    });
+
+    return NextResponse.json({ success: true, sentTo: assignees.map((a) => a.email) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to resend notification";
+    return NextResponse.json({ message }, { status: 500 });
+  }
+}
