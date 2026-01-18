@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "jb_portal_token";
 
@@ -249,6 +249,8 @@ export default function PortalPage() {
   const [hiveSelectedPack, setHiveSelectedPack] = useState<any | null>(null);
   const [hiveLoading, setHiveLoading] = useState(false);
   const [hiveError, setHiveError] = useState<string | null>(null);
+  const [hiveReplacingId, setHiveReplacingId] = useState<string | null>(null);
+  const hiveReplaceInputRef = useRef<HTMLInputElement>(null);
   const [hiveUploadType, setHiveUploadType] = useState<"file" | "video" | "link">("file");
   const [hiveUpload, setHiveUpload] = useState<{
     language: string;
@@ -1228,6 +1230,56 @@ export default function PortalPage() {
       setResetDraft({ newPassword: "", confirm: "" });
     } catch (err) {
       setResetMessage(err instanceof Error ? err.message : "Unable to reset password.");
+    }
+  };
+
+  const handleHiveReplace = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !hiveReplacingId) return;
+
+    setHiveLoading(true);
+    setHiveError(null);
+
+    try {
+      // Read file as base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const response = await fetch("/api/portal/hive/manage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-portal-token": token },
+          body: JSON.stringify({
+            action: "replace",
+            id: hiveReplacingId,
+            filename: file.name,
+            data: base64,
+            mime: file.type,
+            size: file.size,
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.message || "Unable to replace file.");
+        }
+
+        setHiveReplacingId(null);
+        await loadHive();
+        setHiveLoading(false);
+      };
+      reader.onerror = () => {
+        setHiveError("Unable to read file.");
+        setHiveLoading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setHiveError(err instanceof Error ? err.message : "Unable to replace file.");
+      setHiveLoading(false);
+    }
+
+    // Reset the input
+    if (hiveReplaceInputRef.current) {
+      hiveReplaceInputRef.current.value = "";
     }
   };
 
@@ -2944,6 +2996,13 @@ export default function PortalPage() {
 
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold text-white">Rejected</h4>
+                {/* Hidden file input for replacements */}
+                <input
+                  type="file"
+                  ref={hiveReplaceInputRef}
+                  onChange={handleHiveReplace}
+                  className="hidden"
+                />
                 <div className="rounded-2xl border border-slate-700 shadow-sm p-3 max-h-48 overflow-auto text-sm bg-slate-900 space-y-2">
                   {hiveRejected.length === 0 ? (
                     <p className="text-slate-400">No rejected files.</p>
@@ -2951,11 +3010,25 @@ export default function PortalPage() {
                     hiveRejected.map((file) => {
                       const resourceType = file.resource_type || "file";
                       const icon = resourceType === "video" ? "🎬" : resourceType === "link" ? "🔗" : "📄";
+                      const isFile = resourceType === "file";
                       return (
                         <div key={file.id} className="border border-slate-700 rounded-xl px-3 py-2 flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <span>{icon}</span>
                             <p className="font-semibold text-white truncate flex-1">{file.display_name}</p>
+                            {isFile && (
+                              <button
+                                type="button"
+                                className="text-[11px] text-teal-300 underline disabled:opacity-50"
+                                disabled={hiveLoading}
+                                onClick={() => {
+                                  setHiveReplacingId(file.id);
+                                  hiveReplaceInputRef.current?.click();
+                                }}
+                              >
+                                {hiveReplacingId === file.id ? "Uploading..." : "Replace"}
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="text-[11px] text-rose-300 underline"

@@ -311,6 +311,72 @@ export async function updateHiveFile(params: {
   return data as HiveFile;
 }
 
+// Replace a rejected file with a new file and resubmit for approval
+export async function replaceHiveFile(params: {
+  id: string;
+  fileDataBase64: string;
+  filename: string;
+  mime?: string;
+  size?: number;
+}) {
+  const supabase = createSupabaseAdminClient();
+
+  // Get the existing file record
+  const { data: existing, error: fetchError } = await supabase
+    .from("hive_files")
+    .select("*")
+    .eq("id", params.id)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    throw new Error("File not found");
+  }
+
+  if (existing.status !== "rejected") {
+    throw new Error("Only rejected files can be replaced");
+  }
+
+  // Only allow replacing actual files, not links/videos
+  if (existing.resource_type !== "file") {
+    throw new Error("Cannot replace link or video resources - please update the URL instead");
+  }
+
+  // Delete old file from storage
+  if (existing.path) {
+    await supabase.storage.from(HIVE_BUCKET).remove([existing.path]);
+  }
+
+  // Upload new file to pending folder
+  const buffer = Buffer.from(params.fileDataBase64, "base64");
+  const pendingPath = `pending/${Date.now()}-${params.filename}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(HIVE_BUCKET)
+    .upload(pendingPath, buffer, { contentType: params.mime ?? "application/octet-stream" });
+
+  if (uploadError) throw new Error(uploadError.message);
+
+  // Update the database record - reset to pending status and clear rejection notes
+  const { data: updated, error: updateError } = await supabase
+    .from("hive_files")
+    .update({
+      path: pendingPath,
+      file_path: pendingPath,
+      display_name: params.filename,
+      status: "pending",
+      notes: null, // Clear rejection notes
+      mime_type: params.mime,
+      size: params.size,
+      uploaded_at: new Date().toISOString(),
+    })
+    .eq("id", params.id)
+    .select()
+    .maybeSingle();
+
+  if (updateError || !updated) throw new Error(updateError?.message ?? "Unable to update file record");
+  return updated as HiveFile;
+}
+
 // ============ Video/Link Upload Functions ============
 
 export async function uploadHiveLink(params: {
