@@ -298,10 +298,12 @@ export async function bulkImportQuestions(
 export async function getQuestionStats(language: string): Promise<QuestionStats[]> {
   const supabase = createSupabaseAdminClient();
 
+  // Use a higher limit since Supabase defaults to 1000 rows
   const { data, error } = await supabase
     .from("placement_questions")
     .select("cefr_level, active, times_shown, times_correct")
-    .eq("language", language);
+    .eq("language", language)
+    .limit(10000);
 
   if (error || !data) return [];
 
@@ -349,7 +351,7 @@ export async function createPlacementTest(input: {
 }): Promise<PlacementTest> {
   const supabase = createSupabaseAdminClient();
   const now = new Date().toISOString();
-  const questionCount = input.questionCount || 200;
+  const questionCount = input.questionCount || 100; // Default to 100 questions
 
   // Create the test record
   const { data: test, error: testError } = await supabase
@@ -373,42 +375,57 @@ export async function createPlacementTest(input: {
 
   if (testError) throw new Error(testError.message);
 
-  // Generate random questions for the test
-  // Get ~33 questions per level (200/6 = 33.33)
-  const questionsPerLevel = Math.floor(questionCount / 6);
-  const remainder = questionCount % 6;
-  const levels: CEFRLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+  // Generate random questions for the test using weighted distribution
+  // Distribution: 30% A1, 30% A2, 20% B1, 10% B2, 5% C1, 5% C2
+  // This prioritizes lower levels for placement tests to establish a floor
+  const levelDistribution: { level: CEFRLevel; percentage: number }[] = [
+    { level: "A1", percentage: 30 },
+    { level: "A2", percentage: 30 },
+    { level: "B1", percentage: 20 },
+    { level: "B2", percentage: 10 },
+    { level: "C1", percentage: 5 },
+    { level: "C2", percentage: 5 },
+  ];
+
   const selectedQuestions: { questionId: string; order: number }[] = [];
   let currentOrder = 1;
+  let remaining = questionCount;
 
-  for (const level of levels) {
-    const { data: levelQuestions } = await supabase
-      .from("placement_questions")
-      .select("id")
-      .eq("language", input.language.toLowerCase())
-      .eq("cefr_level", level)
-      .eq("active", true)
-      .order("random()")
-      .limit(questionsPerLevel);
+  for (const { level, percentage } of levelDistribution) {
+    const countForLevel = Math.round((questionCount * percentage) / 100);
+    const actualCount = Math.min(countForLevel, remaining);
 
-    if (levelQuestions) {
-      levelQuestions.forEach((q: any) => {
-        selectedQuestions.push({ questionId: q.id, order: currentOrder++ });
-      });
+    if (actualCount > 0) {
+      const { data: levelQuestions } = await supabase
+        .from("placement_questions")
+        .select("id")
+        .eq("language", input.language.toLowerCase())
+        .eq("cefr_level", level)
+        .eq("active", true)
+        .order("random()")
+        .limit(actualCount);
+
+      if (levelQuestions) {
+        levelQuestions.forEach((q: any) => {
+          selectedQuestions.push({ questionId: q.id, order: currentOrder++ });
+        });
+        remaining -= levelQuestions.length;
+      }
     }
   }
 
-  // Add remainder questions from random levels
-  if (remainder > 0) {
+  // Fill any remaining with random questions from any level
+  if (remaining > 0) {
     const existingIds = selectedQuestions.map((q) => q.questionId);
+    const notInClause = existingIds.length > 0 ? `(${existingIds.join(",")})` : "()";
     const { data: extraQuestions } = await supabase
       .from("placement_questions")
       .select("id")
       .eq("language", input.language.toLowerCase())
       .eq("active", true)
-      .not("id", "in", `(${existingIds.join(",")})`)
+      .not("id", "in", notInClause)
       .order("random()")
-      .limit(remainder);
+      .limit(remaining);
 
     if (extraQuestions) {
       extraQuestions.forEach((q: any) => {
