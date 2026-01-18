@@ -61,7 +61,7 @@ type AdminInquiry = {
 };
 
 const HIVE_LANGUAGES = ["English", "Spanish", "German", "French", "Italian", "Dutch", "Portuguese", "Chinese", "Japanese", "Korean"];
-const HIVE_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const HIVE_LEVELS = ["A1", "A1+", "A2", "A2+", "B1", "B1+", "B2", "B2+", "C1", "C1+", "C2", "C2+"];
 const HIVE_SKILLS = ["Grammar", "Vocabulary", "Reading", "Listening", "Speaking", "Writing", "Projects"];
 const HIVE_TOPICS: Record<string, string[]> = {
   Grammar: [
@@ -215,7 +215,7 @@ export default function PortalPage() {
     file: null,
     category: "support",
   });
-  const [portalTab, setPortalTab] = useState<"profile" | "board" | "assignments" | "hive" | "placement">("profile");
+  const [portalTab, setPortalTab] = useState<"profile" | "board" | "assignments" | "hive" | "placement" | "classes">("profile");
 
   // Placement test assignment state
   const [placementForm, setPlacementForm] = useState({
@@ -236,6 +236,12 @@ export default function PortalPage() {
   } | null>(null);
   const [teacherStudents, setTeacherStudents] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [teacherStudentsLoading, setTeacherStudentsLoading] = useState(false);
+  // Classes state
+  const [teacherClasses, setTeacherClasses] = useState<any[]>([]);
+  const [teacherClassesLoading, setTeacherClassesLoading] = useState(false);
+  const [selectedTeacherClass, setSelectedTeacherClass] = useState<any | null>(null);
+  const [teacherClassSessions, setTeacherClassSessions] = useState<any[]>([]);
+  const [teacherClassEnrollments, setTeacherClassEnrollments] = useState<any[]>([]);
   const [hiveApproved, setHiveApproved] = useState<any[]>([]);
   const [hivePending, setHivePending] = useState<any[]>([]);
   const [hiveRejected, setHiveRejected] = useState<any[]>([]);
@@ -688,6 +694,43 @@ export default function PortalPage() {
     },
     [token]
   );
+
+  // Load teacher classes
+  const loadTeacherClasses = useCallback(async () => {
+    if (!token) return;
+    setTeacherClassesLoading(true);
+    try {
+      const res = await fetch("/api/portal/classes", {
+        headers: { "x-portal-token": token },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTeacherClasses(data.classes || []);
+      }
+    } catch {
+      // Ignore errors
+    } finally {
+      setTeacherClassesLoading(false);
+    }
+  }, [token]);
+
+  // Load class details
+  const loadTeacherClassDetails = useCallback(async (classId: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/portal/classes?id=${classId}`, {
+        headers: { "x-portal-token": token },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedTeacherClass(data.class);
+        setTeacherClassEnrollments(data.enrollments || []);
+        setTeacherClassSessions(data.sessions || []);
+      }
+    } catch {
+      // Ignore errors
+    }
+  }, [token]);
 
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
@@ -1528,6 +1571,7 @@ export default function PortalPage() {
             { key: "profile", label: "Profile" },
             { key: "board", label: "Community Board" },
             { key: "assignments", label: "Assignments" },
+            { key: "classes", label: "My Classes" },
             { key: "placement", label: "Placement Tests" },
             { key: "hive", label: "Hive Mind" },
           ].map((tab) => (
@@ -3059,19 +3103,6 @@ export default function PortalPage() {
                     ))}
                   </select>
                 </label>
-                <label className="space-y-1 text-slate-200">
-                  Week (optional)
-                  <select
-                    value={hiveUpload.weekNumber}
-                    onChange={(e) => setHiveUpload((prev) => ({ ...prev, weekNumber: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-800 text-white px-3 py-2"
-                  >
-                    <option value="">No week</option>
-                    {Array.from({ length: 20 }, (_, i) => i + 1).map((w) => (
-                      <option key={w} value={w}>Week {w}</option>
-                    ))}
-                  </select>
-                </label>
                 {hiveUploadType === "file" && (
                   <>
                     <label className="space-y-1 text-slate-200">
@@ -3140,6 +3171,159 @@ export default function PortalPage() {
             </form>
           </div>
         )}
+      </section>
+      )}
+
+      {portalTab === "classes" && (
+      <section className="max-w-6xl mx-auto px-4 mt-8 space-y-6">
+        <div className="rounded-3xl bg-slate-800 border border-slate-700 p-6 shadow-lg">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-teal-300">My Classes</p>
+              <h2 className="text-xl font-semibold text-white">Class Schedule & Management</h2>
+            </div>
+            <button
+              type="button"
+              onClick={loadTeacherClasses}
+              className="rounded-full border border-slate-600 px-4 py-2 text-sm text-slate-100 hover:bg-slate-700"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {teacherClassesLoading ? (
+            <p className="text-slate-400">Loading classes...</p>
+          ) : teacherClasses.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-slate-400">No classes assigned yet.</p>
+              <p className="text-sm text-slate-500 mt-2">
+                Contact your administrator to be assigned to a class.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Classes List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Your Classes</h3>
+                {teacherClasses.map((cls: any) => (
+                  <div
+                    key={cls.id}
+                    onClick={() => loadTeacherClassDetails(cls.id)}
+                    className={`rounded-lg border p-4 cursor-pointer transition-colors ${
+                      selectedTeacherClass?.id === cls.id
+                        ? "border-teal-500 bg-slate-700/50"
+                        : "border-slate-700 hover:border-slate-600"
+                    }`}
+                  >
+                    <h4 className="font-medium text-white">{cls.name}</h4>
+                    <p className="text-sm text-slate-400">
+                      {cls.language} - {cls.level}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {cls.student_count ?? 0}/{cls.max_students} students
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Class Detail */}
+              <div className="space-y-4">
+                {selectedTeacherClass ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">
+                        {selectedTeacherClass.name}
+                      </h3>
+                      <button
+                        onClick={() => {
+                          setSelectedTeacherClass(null);
+                          setTeacherClassEnrollments([]);
+                          setTeacherClassSessions([]);
+                        }}
+                        className="text-xs text-slate-400 hover:text-slate-200"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                    {/* Enrolled Students */}
+                    <div className="rounded-lg border border-slate-700 p-4 bg-slate-800/50">
+                      <h4 className="font-medium text-white mb-3">
+                        Students ({teacherClassEnrollments.length})
+                      </h4>
+                      {teacherClassEnrollments.length === 0 ? (
+                        <p className="text-sm text-slate-500">No students enrolled yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {teacherClassEnrollments.map((enrollment: any) => (
+                            <div
+                              key={enrollment.id}
+                              className="flex items-center justify-between text-sm py-1"
+                            >
+                              <span className="text-slate-200">{enrollment.student?.name || "Unknown"}</span>
+                              <span className="text-slate-500 text-xs">{enrollment.student?.email}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Upcoming Sessions */}
+                    <div className="rounded-lg border border-slate-700 p-4 bg-slate-800/50">
+                      <h4 className="font-medium text-white mb-3">Sessions</h4>
+                      {teacherClassSessions.length === 0 ? (
+                        <p className="text-sm text-slate-500">No sessions scheduled.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {teacherClassSessions.map((session: any) => (
+                            <div
+                              key={session.id}
+                              className={`p-3 rounded-lg ${
+                                session.cancelled ? "bg-slate-800/50 opacity-50" : "bg-slate-700/50"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <p className={`text-sm text-white ${session.cancelled ? "line-through" : ""}`}>
+                                  {session.title || "Class Session"}
+                                </p>
+                                {session.cancelled && (
+                                  <span className="text-xs text-rose-400">Cancelled</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-400 mt-1">
+                                {new Date(session.start_time).toLocaleString("en-US", {
+                                  weekday: "short",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                              {session.meeting_url && !session.cancelled && (
+                                <a
+                                  href={session.meeting_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-block mt-2 text-xs text-teal-400 hover:underline"
+                                >
+                                  Join Meeting
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-48 rounded-lg border border-slate-700 border-dashed">
+                    <p className="text-slate-500">Select a class to view details</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </section>
       )}
 

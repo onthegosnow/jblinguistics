@@ -155,7 +155,6 @@ export async function uploadHivePending(params: {
       status: "pending",
       notes: params.metadata.descriptor || null,
       resource_type: "file",
-      week_number: params.metadata.weekNumber ?? null,
     })
     .select()
     .maybeSingle();
@@ -294,7 +293,6 @@ export async function updateHiveFile(params: {
   if (params.updates.skill !== undefined) updateData.skill = params.updates.skill;
   if (params.updates.topic !== undefined) updateData.topic = params.updates.topic;
   if (params.updates.fileType !== undefined) updateData.file_type = params.updates.fileType;
-  if (params.updates.weekNumber !== undefined) updateData.week_number = params.updates.weekNumber;
   if (params.updates.url !== undefined) updateData.url = params.updates.url;
   if (params.updates.description !== undefined) updateData.notes = params.updates.description;
 
@@ -364,7 +362,6 @@ export async function uploadHiveLink(params: {
       resource_type: params.resourceType,
       url: params.url,
       link_status: "unchecked",
-      week_number: params.metadata.weekNumber ?? null,
     })
     .select()
     .maybeSingle();
@@ -392,7 +389,6 @@ export async function createPack(params: {
       description: params.description || null,
       language: params.language || null,
       level: params.level || null,
-      week_number: params.weekNumber || null,
       created_by: params.createdBy || null,
       published: false,
     })
@@ -419,7 +415,6 @@ export async function updatePack(params: {
   if (params.description !== undefined) updates.description = params.description;
   if (params.language !== undefined) updates.language = params.language;
   if (params.level !== undefined) updates.level = params.level;
-  if (params.weekNumber !== undefined) updates.week_number = params.weekNumber;
   if (params.published !== undefined) updates.published = params.published;
 
   const { data, error } = await supabase
@@ -446,8 +441,7 @@ export async function listPacks(options: { publishedOnly?: boolean } = {}) {
     .from("hive_packs")
     .select("*, hive_pack_items(count)")
     .order("language", { ascending: true })
-    .order("level", { ascending: true })
-    .order("week_number", { ascending: true });
+    .order("level", { ascending: true });
 
   if (options.publishedOnly) {
     query = query.eq("published", true);

@@ -13,6 +13,7 @@ import TripsManager from "./trips-manager";
 import { StudentsManager } from "./students-manager";
 import OrganizationsManager from "./organizations-manager";
 import PlacementManager from "./placement-manager";
+import ClassesManager from "./classes-manager";
 
 const STORAGE_KEY = "jb_assessment_admin_token";
 const normalizeRoom = (value: string) => value?.trim().toLowerCase().replace(/\s+/g, "_");
@@ -263,6 +264,7 @@ export default function AssessmentsAdminPage() {
     | "students"
     | "organizations"
     | "placement"
+    | "classes"
   >("results");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -3927,7 +3929,7 @@ export default function AssessmentsAdminPage() {
                           onChange={(e) => setHivePackForm((p) => ({ ...p, level: e.target.value }))}
                           className="rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-white"
                         >
-                          {["A1", "A2", "B1", "B2", "C1", "C2"].map((l) => <option key={l}>{l}</option>)}
+                          {["A1", "A1+", "A2", "A2+", "B1", "B1+", "B2", "B2+", "C1", "C1+", "C2", "C2+"].map((l) => <option key={l}>{l}</option>)}
                         </select>
                         <input
                           type="number"
@@ -4125,11 +4127,17 @@ export default function AssessmentsAdminPage() {
                           className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
                         >
                           <option value="A1">A1</option>
+                          <option value="A1+">A1+</option>
                           <option value="A2">A2</option>
+                          <option value="A2+">A2+</option>
                           <option value="B1">B1</option>
+                          <option value="B1+">B1+</option>
                           <option value="B2">B2</option>
+                          <option value="B2+">B2+</option>
                           <option value="C1">C1</option>
+                          <option value="C1+">C1+</option>
                           <option value="C2">C2</option>
+                          <option value="C2+">C2+</option>
                         </select>
                       </label>
                     </div>
@@ -4180,19 +4188,6 @@ export default function AssessmentsAdminPage() {
                           <option value="Assessment">Assessment</option>
                           <option value="Game">Game</option>
                           <option value="Flashcards">Flashcards</option>
-                        </select>
-                      </label>
-                      <label className="block text-sm text-slate-200">
-                        Week
-                        <select
-                          value={hiveEditFile.week_number ?? ""}
-                          onChange={(e) => setHiveEditFile({ ...hiveEditFile, week_number: e.target.value ? parseInt(e.target.value) : null })}
-                          className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-700 text-white px-3 py-2 text-sm"
-                        >
-                          <option value="">No week</option>
-                          {Array.from({ length: 20 }, (_, i) => i + 1).map((w) => (
-                            <option key={w} value={w}>Week {w}</option>
-                          ))}
                         </select>
                       </label>
                     </div>
@@ -4277,6 +4272,8 @@ export default function AssessmentsAdminPage() {
         return <OrganizationsManager token={token} />;
       case "placement":
         return <PlacementManager token={token} />;
+      case "classes":
+        return <ClassesManager adminToken={token} />;
       default:
         return null;
     }
@@ -4430,6 +4427,13 @@ export default function AssessmentsAdminPage() {
                   onClick={() => setActiveTab("placement")}
                 >
                   Placement Tests
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-2xl ${activeTab === "classes" ? "bg-teal-500 text-slate-900" : "text-slate-300"}`}
+                  onClick={() => setActiveTab("classes")}
+                >
+                  Classes
                 </button>
               </div>
               <button

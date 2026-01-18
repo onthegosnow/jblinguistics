@@ -99,6 +99,8 @@ export default function StudentDashboard() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [pendingTests, setPendingTests] = useState<PendingPlacementTest[]>([]);
   const [testHistory, setTestHistory] = useState<PlacementTestHistory[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [classSessions, setClassSessions] = useState<any[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -155,6 +157,38 @@ export default function StudentDashboard() {
     localStorage.removeItem(STORAGE_KEY);
     router.push("/student/login");
   }
+
+  async function fetchClasses() {
+    const token = localStorage.getItem(STORAGE_KEY);
+    if (!token) return;
+
+    try {
+      const res = await fetch("/api/student/classes", {
+        headers: { "x-student-token": token },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClasses(data.classes || []);
+      }
+
+      // Get upcoming sessions
+      const sessRes = await fetch("/api/student/classes?view=sessions", {
+        headers: { "x-student-token": token },
+      });
+      if (sessRes.ok) {
+        const sessData = await sessRes.json();
+        setClassSessions(sessData.sessions || []);
+      }
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  useEffect(() => {
+    if (student) {
+      fetchClasses();
+    }
+  }, [student]);
 
   if (loading) {
     return (
@@ -307,6 +341,85 @@ export default function StudentDashboard() {
             </div>
           )}
         </section>
+
+        {/* Upcoming Classes */}
+        {(classes.length > 0 || classSessions.length > 0) && (
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-4">My Classes</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Class List */}
+            <div className="space-y-3">
+              {classes.length === 0 ? (
+                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 text-slate-400">
+                  No classes assigned yet.
+                </div>
+              ) : (
+                classes.map((cls: any) => (
+                  <div
+                    key={cls.id}
+                    className="bg-slate-800/50 border border-slate-700 rounded-xl p-4"
+                  >
+                    <h3 className="text-lg font-semibold text-white">{cls.name}</h3>
+                    <p className="text-sm text-slate-400">
+                      {cls.language} - {cls.level}
+                    </p>
+                    {cls.teacher?.name && (
+                      <p className="text-xs text-slate-500 mt-1">Teacher: {cls.teacher.name}</p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Upcoming Sessions */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Upcoming Sessions</h3>
+              {classSessions.filter((s: any) => !s.cancelled && new Date(s.start_time) > new Date()).length === 0 ? (
+                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 text-slate-400">
+                  No upcoming sessions scheduled.
+                </div>
+              ) : (
+                classSessions
+                  .filter((s: any) => !s.cancelled && new Date(s.start_time) > new Date())
+                  .slice(0, 5)
+                  .map((session: any) => (
+                    <div
+                      key={session.id}
+                      className="bg-slate-800/50 border border-slate-700 rounded-xl p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-white font-medium">
+                            {session.class?.name || session.title || "Class Session"}
+                          </p>
+                          <p className="text-sm text-slate-400">
+                            {new Date(session.start_time).toLocaleString("en-US", {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                        {session.meeting_url && (
+                          <a
+                            href={session.meeting_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 bg-teal-500 text-slate-900 text-sm font-medium rounded-lg hover:bg-teal-400 transition-colors"
+                          >
+                            Join
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        </section>
+        )}
 
         {/* Placement Tests */}
         {(pendingTests.length > 0 || testHistory.length > 0) && (
