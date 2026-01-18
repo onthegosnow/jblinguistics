@@ -20,7 +20,7 @@ const ACCESS_FILE =
   process.env.ASSESSMENT_ACCESS_FILE ?? path.join(STORAGE_ROOT, "assessment-access-codes.json");
 const APPLICATIONS_FILE =
   process.env.CAREER_APPLICATIONS_FILE ?? path.join(STORAGE_ROOT, "career-applications.json");
-const ADMIN_SECRET = process.env.ASSESSMENT_ADMIN_SECRET ?? "jb-assessment-admin";
+const ADMIN_SECRET = process.env.ASSESSMENT_ADMIN_SECRET ?? "jb-admin-foj94553";
 
 export type AssessmentSubmissionRecord = {
   id: string;
