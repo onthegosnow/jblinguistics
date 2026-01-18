@@ -285,6 +285,7 @@ export default function AssessmentsAdminPage() {
   const [hivePackForm, setHivePackForm] = useState({ name: "", description: "", language: "English", level: "A1", weekNumber: "" });
   const [hiveEditFile, setHiveEditFile] = useState<any | null>(null);
   const [assignments, setAssignments] = useState<PortalAssignmentAdmin[]>([]);
+  const [editingAssignment, setEditingAssignment] = useState<PortalAssignmentAdmin | null>(null);
   const [bulkEmail, setBulkEmail] = useState({ subject: "", message: "" });
   const [bulkEmailAttachments, setBulkEmailAttachments] = useState<File[]>([]);
   const [showBulkEmail, setShowBulkEmail] = useState(false);
@@ -302,7 +303,7 @@ export default function AssessmentsAdminPage() {
     description: "",
     client: "",
     languagePair: "",
-    hoursAssigned: 10,
+    hoursAssigned: 1.5,
     startDate: "",
     dueDate: "",
     participants: "",
@@ -1284,7 +1285,7 @@ export default function AssessmentsAdminPage() {
         description: "",
         client: "",
         languagePair: "",
-        hoursAssigned: 10,
+        hoursAssigned: 1.5,
         startDate: "",
         dueDate: "",
         participants: "",
@@ -1297,6 +1298,85 @@ export default function AssessmentsAdminPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUpdateAssignment = async () => {
+    if (!editingAssignment) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/portal/admin/assignments", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({
+          id: editingAssignment.id,
+          title: assignmentForm.title,
+          assignmentType: assignmentForm.assignmentType,
+          description: assignmentForm.description,
+          client: assignmentForm.client,
+          languagePair: assignmentForm.languagePair,
+          hoursAssigned: assignmentForm.hoursAssigned,
+          startDate: assignmentForm.startDate,
+          dueDate: assignmentForm.dueDate,
+          assignedTo: assignmentForm.assignedTo,
+          participants: assignmentForm.participants.split(/[,\n]/).map((p) => p.trim()).filter(Boolean),
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to update assignment.");
+      }
+      setEditingAssignment(null);
+      setAssignmentForm({
+        title: "",
+        assignmentType: "class",
+        description: "",
+        client: "",
+        languagePair: "",
+        hoursAssigned: 1.5,
+        startDate: "",
+        dueDate: "",
+        participants: "",
+        assignedTo: [],
+      });
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update assignment.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEditingAssignment = (assignment: PortalAssignmentAdmin) => {
+    setEditingAssignment(assignment);
+    setAssignmentForm({
+      title: assignment.title,
+      assignmentType: assignment.assignmentType,
+      description: assignment.description ?? "",
+      client: assignment.client ?? "",
+      languagePair: assignment.languagePair ?? "",
+      hoursAssigned: assignment.hoursAssigned,
+      startDate: assignment.startDate ?? "",
+      dueDate: assignment.dueDate ?? "",
+      participants: assignment.participants?.join(", ") ?? "",
+      assignedTo: assignment.assignees.map((a) => a.id),
+    });
+  };
+
+  const cancelEditingAssignment = () => {
+    setEditingAssignment(null);
+    setAssignmentForm({
+      title: "",
+      assignmentType: "class",
+      description: "",
+      client: "",
+      languagePair: "",
+      hoursAssigned: 1.5,
+      startDate: "",
+      dueDate: "",
+      participants: "",
+      assignedTo: [],
+    });
   };
 
   const renderTabContent = () => {
@@ -2872,7 +2952,18 @@ export default function AssessmentsAdminPage() {
         return (
           <div className="rounded-3xl bg-slate-800 p-6 space-y-6">
             <div>
-              <h2 className="text-xl font-semibold">Create assignment</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">{editingAssignment ? "Edit assignment" : "Create assignment"}</h2>
+                {editingAssignment && (
+                  <button
+                    type="button"
+                    onClick={cancelEditingAssignment}
+                    className="text-sm text-slate-400 hover:text-slate-200"
+                  >
+                    Cancel edit
+                  </button>
+                )}
+              </div>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <label className="text-xs text-slate-300 uppercase tracking-wide">
                   Title
@@ -2917,7 +3008,8 @@ export default function AssessmentsAdminPage() {
                   Hours assigned
                   <input
                     type="number"
-                    min={1}
+                    min={1.5}
+                    step={1.5}
                     value={assignmentForm.hoursAssigned}
                     onChange={(e) => setAssignmentForm((prev) => ({ ...prev, hoursAssigned: Number(e.target.value) }))}
                     className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
@@ -2933,7 +3025,7 @@ export default function AssessmentsAdminPage() {
                   />
                 </label>
                 <label className="text-xs text-slate-300 uppercase tracking-wide">
-                  Due date
+                  End date
                   <input
                     type="date"
                     value={assignmentForm.dueDate}
@@ -2962,7 +3054,7 @@ export default function AssessmentsAdminPage() {
               </div>
               <div className="mt-4">
                 <p className="text-xs uppercase tracking-wide text-slate-400">Assign to</p>
-                <div className="mt-2 flex flex-wrap gap-3">
+                <div className="mt-2 flex flex-col gap-2">
                   {portalUsers.map((user) => (
                     <label key={user.id} className="inline-flex items-center gap-2 text-sm text-slate-200">
                       <input
@@ -2977,26 +3069,29 @@ export default function AssessmentsAdminPage() {
                           })
                         }
                       />
-                      {user.name}
+                      <span>{user.name}</span>
+                      <span className="text-xs text-slate-400">({user.email})</span>
                     </label>
                   ))}
                 </div>
               </div>
-              <label className="mt-4 block text-xs uppercase tracking-wide text-slate-400">
-                Attach brief / files
-                <input
-                  type="file"
-                  multiple
-                  onChange={(e) => setAssignmentFiles(e.target.files)}
-                  className="mt-1 block text-sm"
-                />
-              </label>
+              {!editingAssignment && (
+                <label className="mt-4 block text-xs uppercase tracking-wide text-slate-400">
+                  Attach brief / files
+                  <input
+                    type="file"
+                    multiple
+                    onChange={(e) => setAssignmentFiles(e.target.files)}
+                    className="mt-1 block text-sm"
+                  />
+                </label>
+              )}
               <button
                 type="button"
-                onClick={handleCreateAssignment}
+                onClick={editingAssignment ? handleUpdateAssignment : handleCreateAssignment}
                 className="mt-4 inline-flex items-center rounded-2xl bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-900"
               >
-                Publish assignment
+                {editingAssignment ? "Save changes" : "Publish assignment"}
               </button>
             </div>
             <div>
@@ -3007,19 +3102,38 @@ export default function AssessmentsAdminPage() {
                 ) : (
                   assignments.map((assignment) => (
                     <div key={assignment.id} className="rounded-2xl border border-slate-700 p-4">
-                      <p className="font-semibold text-white">{assignment.title}</p>
-                      <p className="text-xs text-slate-400">
-                        {assignment.assignmentType === "class" ? "Class" : "Translation"} · {assignment.hoursAssigned} hrs ·{" "}
-                        {assignment.status}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Assigned to: {assignment.assignees.map((a) => a.name).join(", ") || "—"}
-                      </p>
-                      {assignment.dueDate && (
-                        <p className="text-xs text-amber-200">
-                          Due {new Date(assignment.dueDate).toLocaleDateString()}
-                        </p>
-                      )}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="font-semibold text-white">{assignment.title}</p>
+                          <p className="text-xs text-slate-400">
+                            {assignment.assignmentType === "class" ? "Class" : "Translation"} · {assignment.hoursAssigned} hrs ·{" "}
+                            {assignment.status}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Assigned to: {assignment.assignees.map((a) => `${a.name} (${a.email})`).join(", ") || "—"}
+                          </p>
+                          {assignment.client && (
+                            <p className="text-xs text-slate-500">Client: {assignment.client}</p>
+                          )}
+                          {assignment.startDate && assignment.dueDate && (
+                            <p className="text-xs text-amber-200">
+                              {new Date(assignment.startDate).toLocaleDateString()} - {new Date(assignment.dueDate).toLocaleDateString()}
+                            </p>
+                          )}
+                          {!assignment.startDate && assignment.dueDate && (
+                            <p className="text-xs text-amber-200">
+                              Ends {new Date(assignment.dueDate).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => startEditingAssignment(assignment)}
+                          className="text-xs text-teal-400 hover:text-teal-300"
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}

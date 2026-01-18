@@ -94,10 +94,12 @@ export default function ClassesManager({ adminToken }: { adminToken: string }) {
     meetingProvider: "teams",
     location: "",
     sessionType: "regular",
+    generateTeamsMeeting: false,
   });
 
   const [showEnrollForm, setShowEnrollForm] = useState(false);
   const [enrollStudentId, setEnrollStudentId] = useState("");
+  const [generatingTeamsForSession, setGeneratingTeamsForSession] = useState<string | null>(null);
 
   // Load classes
   const loadClasses = useCallback(async () => {
@@ -372,6 +374,7 @@ export default function ClassesManager({ adminToken }: { adminToken: string }) {
           meetingProvider: sessionForm.meetingProvider || undefined,
           location: sessionForm.location || undefined,
           sessionType: sessionForm.sessionType,
+          generateTeamsMeeting: sessionForm.generateTeamsMeeting,
         }),
       });
 
@@ -381,7 +384,7 @@ export default function ClassesManager({ adminToken }: { adminToken: string }) {
       }
 
       setShowSessionForm(false);
-      setSessionForm({ title: "", startTime: "", endTime: "", meetingUrl: "", meetingProvider: "teams", location: "", sessionType: "regular" });
+      setSessionForm({ title: "", startTime: "", endTime: "", meetingUrl: "", meetingProvider: "teams", location: "", sessionType: "regular", generateTeamsMeeting: false });
       loadClassDetails(selectedClass.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create session");
@@ -412,6 +415,36 @@ export default function ClassesManager({ adminToken }: { adminToken: string }) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to cancel session");
+    }
+  };
+
+  // Generate Teams meeting for existing session
+  const handleGenerateTeamsLink = async (sessionId: string) => {
+    setGeneratingTeamsForSession(sessionId);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/portal/admin/classes/sessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-token": adminToken,
+        },
+        body: JSON.stringify({ action: "generate-teams-meeting", sessionId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to generate Teams link");
+      }
+
+      if (selectedClass) {
+        loadClassDetails(selectedClass.id);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate Teams link");
+    } finally {
+      setGeneratingTeamsForSession(null);
     }
   };
 
@@ -613,6 +646,15 @@ export default function ClassesManager({ adminToken }: { adminToken: string }) {
                               >
                                 Join Meeting
                               </a>
+                            )}
+                            {!session.meeting_url && !session.cancelled && (
+                              <button
+                                onClick={() => handleGenerateTeamsLink(session.id)}
+                                disabled={generatingTeamsForSession === session.id}
+                                className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
+                              >
+                                {generatingTeamsForSession === session.id ? "Generating..." : "Generate Teams Link"}
+                              </button>
                             )}
                           </div>
                           {!session.cancelled && (
@@ -849,10 +891,20 @@ export default function ClassesManager({ adminToken }: { adminToken: string }) {
                 <input
                   type="url"
                   value={sessionForm.meetingUrl}
-                  onChange={(e) => setSessionForm({ ...sessionForm, meetingUrl: e.target.value })}
+                  onChange={(e) => setSessionForm({ ...sessionForm, meetingUrl: e.target.value, generateTeamsMeeting: false })}
                   placeholder="https://teams.microsoft.com/..."
-                  className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm"
+                  disabled={sessionForm.generateTeamsMeeting}
+                  className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm disabled:opacity-50"
                 />
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sessionForm.generateTeamsMeeting}
+                    onChange={(e) => setSessionForm({ ...sessionForm, generateTeamsMeeting: e.target.checked, meetingUrl: e.target.checked ? "" : sessionForm.meetingUrl })}
+                    className="rounded border-slate-600 bg-slate-700"
+                  />
+                  <span className="text-sm text-slate-300">Auto-generate Teams meeting link</span>
+                </label>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -903,7 +955,7 @@ export default function ClassesManager({ adminToken }: { adminToken: string }) {
               <button
                 onClick={() => {
                   setShowSessionForm(false);
-                  setSessionForm({ title: "", startTime: "", endTime: "", meetingUrl: "", meetingProvider: "teams", location: "", sessionType: "regular" });
+                  setSessionForm({ title: "", startTime: "", endTime: "", meetingUrl: "", meetingProvider: "teams", location: "", sessionType: "regular", generateTeamsMeeting: false });
                 }}
                 className="px-4 py-2 rounded-lg border border-slate-600 text-sm"
               >
