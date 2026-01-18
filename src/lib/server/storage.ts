@@ -202,9 +202,14 @@ export type PortalAssignmentRecord = {
   hoursAssigned: number;
   startDate?: string;
   dueDate?: string;
-  status: "assigned" | "in_progress" | "submitted" | "completed";
+  status: "assigned" | "accepted" | "rejected" | "in_progress" | "submitted" | "completed";
   assignedTo: string[];
-  participants: string[];
+  participants: string[]; // For classes, these are student IDs from the students table
+  schedule?: string; // Human readable: "Every Wednesday 7:00-8:30pm PST"
+  meetingUrl?: string; // Teams/Zoom link
+  acceptedAt?: string;
+  rejectedAt?: string;
+  rejectionNote?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -332,7 +337,7 @@ export async function listPortalAssignments(): Promise<PortalAssignmentRecord[]>
     const { data, error } = await supabase
       .from("portal_assignments")
       .select(
-        "id, title, assignment_type, description, client, language_pair, hours_assigned, start_date, due_date, status, assigned_to, participants, created_at, updated_at"
+        "id, title, assignment_type, description, client, language_pair, hours_assigned, start_date, due_date, status, assigned_to, participants, schedule, meeting_url, accepted_at, rejected_at, rejection_note, created_at, updated_at"
       )
       .order("created_at", { ascending: false });
     if (!error && data) {
@@ -349,6 +354,11 @@ export async function listPortalAssignments(): Promise<PortalAssignmentRecord[]>
         status: row.status ?? "assigned",
         assignedTo: (row.assigned_to as string[]) ?? [],
         participants: (row.participants as string[]) ?? [],
+        schedule: row.schedule ?? undefined,
+        meetingUrl: row.meeting_url ?? undefined,
+        acceptedAt: row.accepted_at ?? undefined,
+        rejectedAt: row.rejected_at ?? undefined,
+        rejectionNote: row.rejection_note ?? undefined,
         createdAt: row.created_at ?? new Date().toISOString(),
         updatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
       }));
@@ -388,6 +398,11 @@ export async function addPortalAssignment(data: Omit<PortalAssignmentRecord, "id
       status: record.status ?? "assigned",
       assigned_to: record.assignedTo ?? [],
       participants: record.participants ?? [],
+      schedule: record.schedule ?? null,
+      meeting_url: record.meetingUrl ?? null,
+      accepted_at: record.acceptedAt ?? null,
+      rejected_at: record.rejectedAt ?? null,
+      rejection_note: record.rejectionNote ?? null,
       created_at: record.createdAt,
       updated_at: record.updatedAt,
     });
@@ -407,9 +422,35 @@ export async function updatePortalAssignment(id: string, updater: (assignment: P
   if (idx === -1) {
     throw new Error("Assignment not found");
   }
-  assignments[idx] = { ...updater(assignments[idx]), updatedAt: new Date().toISOString() };
-  await savePortalAssignments(assignments);
-  return assignments[idx];
+  const updated = { ...updater(assignments[idx]), updatedAt: new Date().toISOString() };
+
+  // Persist to Supabase
+  try {
+    const supabase = createSupabaseAdminClient();
+    await supabase.from("portal_assignments").update({
+      title: updated.title,
+      assignment_type: updated.assignmentType,
+      description: updated.description ?? null,
+      client: updated.client ?? null,
+      language_pair: updated.languagePair ?? null,
+      hours_assigned: updated.hoursAssigned,
+      start_date: updated.startDate ?? null,
+      due_date: updated.dueDate ?? null,
+      status: updated.status,
+      assigned_to: updated.assignedTo ?? [],
+      participants: updated.participants ?? [],
+      schedule: updated.schedule ?? null,
+      meeting_url: updated.meetingUrl ?? null,
+      accepted_at: updated.acceptedAt ?? null,
+      rejected_at: updated.rejectedAt ?? null,
+      rejection_note: updated.rejectionNote ?? null,
+      updated_at: updated.updatedAt,
+    }).eq("id", id);
+  } catch (err) {
+    console.error("Failed to update assignment in Supabase:", err);
+  }
+
+  return updated;
 }
 
 export async function deletePortalAssignment(id: string): Promise<void> {

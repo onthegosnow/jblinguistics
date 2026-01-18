@@ -14,8 +14,13 @@ type AssignmentSummary = {
     hoursAssigned: number;
     startDate?: string;
     dueDate?: string;
-    status: "assigned" | "in_progress" | "submitted" | "completed";
+    status: "assigned" | "accepted" | "rejected" | "in_progress" | "submitted" | "completed";
     participants: string[];
+    schedule?: string;
+    meetingUrl?: string;
+    acceptedAt?: string;
+    rejectedAt?: string;
+    rejectionNote?: string;
   };
   hoursLogged: number;
   hoursRemaining: number;
@@ -198,6 +203,13 @@ export default function PortalPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AssignmentDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [respondingToAssignment, setRespondingToAssignment] = useState(false);
+  const [rejectionNote, setRejectionNote] = useState("");
+  const [classSessionForm, setClassSessionForm] = useState({
+    sessionDate: new Date().toISOString().slice(0, 10),
+    sessionNotes: "",
+    submitting: false,
+  });
   const [hourForm, setHourForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     hours: 1,
@@ -1097,6 +1109,62 @@ export default function PortalPage() {
     }
   };
 
+  // Submit class session - auto-logs 1.5 hours
+  const submitClassSession = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!token || !activeAssignmentSummary || !detail) return;
+
+    // Validate session date is not in the future
+    const sessionDate = new Date(classSessionForm.sessionDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (sessionDate > today) {
+      setLoginError("Cannot log hours for a future class session.");
+      return;
+    }
+
+    // Validate total hours won't exceed assigned hours
+    const CLASS_HOURS = 1.5;
+    const currentHours = detail.hoursLogged;
+    const maxHours = detail.assignment.hoursAssigned;
+    if (currentHours + CLASS_HOURS > maxHours) {
+      setLoginError(`Cannot log session. Only ${(maxHours - currentHours).toFixed(1)} hours remaining of ${maxHours} assigned.`);
+      return;
+    }
+
+    setClassSessionForm((prev) => ({ ...prev, submitting: true }));
+    try {
+      const response = await fetch(`/api/portal/assignments/${activeAssignmentSummary.assignment.id}/time-entries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-portal-token": token },
+        body: JSON.stringify({
+          date: classSessionForm.sessionDate,
+          hours: CLASS_HOURS,
+          notes: classSessionForm.sessionNotes || "Class session completed",
+          issues: "",
+          extraHoursRequested: false,
+          extraHoursNote: "",
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Unable to save class session.");
+      }
+      const payload: AssignmentDetail = await response.json();
+      setDetail(payload);
+      setClassSessionForm({
+        sessionDate: new Date().toISOString().slice(0, 10),
+        sessionNotes: "",
+        submitting: false,
+      });
+      await loadAssignments();
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "Unable to save class session.");
+    } finally {
+      setClassSessionForm((prev) => ({ ...prev, submitting: false }));
+    }
+  };
+
   const handleForgot = async () => {
     if (!forgotEmail.trim()) {
       setForgotError("Enter your email.");
@@ -1176,6 +1244,43 @@ export default function PortalPage() {
       setLoginError(err instanceof Error ? err.message : "Unable to save attendance.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRespondToAssignment = async (action: "accept" | "reject") => {
+    if (!token || !activeAssignmentSummary) return;
+    if (action === "reject" && !rejectionNote.trim()) {
+      setLoginError("Please provide a reason for rejecting the assignment.");
+      return;
+    }
+    setRespondingToAssignment(true);
+    setLoginError(null);
+    try {
+      const response = await fetch("/api/portal/assignments/respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-portal-token": token },
+        body: JSON.stringify({
+          assignmentId: activeAssignmentSummary.assignment.id,
+          action,
+          rejectionNote: action === "reject" ? rejectionNote.trim() : undefined,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || `Unable to ${action} assignment.`);
+      }
+      setRejectionNote("");
+      await loadAssignments();
+      if (selectedId) {
+        await loadDetail(selectedId);
+      }
+      if (action === "accept") {
+        alert(`Assignment accepted! Welcome emails have been sent to ${data.studentsNotified || 0} students.`);
+      }
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : `Unable to ${action} assignment.`);
+    } finally {
+      setRespondingToAssignment(false);
     }
   };
 
@@ -2365,63 +2470,128 @@ export default function PortalPage() {
             <>
               <div className="flex flex-wrap items-start gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Assignment</p>
-                  <h2 className="text-2xl font-semibold text-slate-900">{detail.assignment.title}</h2>
-                  <p className="text-sm text-slate-500">
-                    {detail.assignment.assignmentType === "class" ? "Class" : "Translation"} · {detail.assignment.client || "Client TBD"}
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    {detail.assignment.assignmentType === "class" ? "Class Assignment" : "Translation Assignment"}
                   </p>
-                </div>
-                <div className="ml-auto space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => markStatus("in_progress")}
-                    className="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                  >
-                    Mark in progress
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => markStatus("submitted")}
-                    className="rounded-full border border-teal-400 px-3 py-1 text-xs text-teal-600 hover:bg-teal-50"
-                  >
-                    Translation completed
-                  </button>
-                </div>
-              </div>
-              <div className="grid md:grid-cols-3 gap-4 text-sm">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Hours</p>
-                  <p className="text-xl font-semibold text-slate-900">
-                    {detail.hoursLogged} / {detail.assignment.hoursAssigned}
+                  <h2 className="text-2xl font-semibold text-white">{detail.assignment.title}</h2>
+                  <p className="text-sm text-slate-300">
+                    {detail.assignment.client || "Client TBD"}
+                    {detail.assignment.startDate && detail.assignment.dueDate && (
+                      <> · {new Date(detail.assignment.startDate).toLocaleDateString()} - {new Date(detail.assignment.dueDate).toLocaleDateString()}</>
+                    )}
                   </p>
-                  <p className="text-xs text-slate-500">Remaining: {detail.hoursRemaining}</p>
+                  {detail.assignment.schedule && (
+                    <p className="text-sm text-teal-300 mt-1">Schedule: {detail.assignment.schedule}</p>
+                  )}
+                  {detail.assignment.meetingUrl && (
+                    <p className="text-sm text-blue-300 mt-1">
+                      <a href={detail.assignment.meetingUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        Join Meeting →
+                      </a>
+                    </p>
+                  )}
                 </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Attendance sessions</p>
-                  <p className="text-xl font-semibold text-slate-900">{detail.attendanceRecords.length}</p>
-                  <p className="text-xs text-slate-500">Participants: {detail.assignment.participants.length}</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Uploads</p>
-                  <p className="text-xl font-semibold text-slate-900">{detail.uploads.length}</p>
-                  <p className="text-xs text-slate-500">Latest: {detail.uploads[0]?.filename || "–"}</p>
+                <div className="ml-auto flex flex-col gap-2">
+                  {/* For CLASS assignments with status "assigned" - show Accept/Reject */}
+                  {detail.assignment.assignmentType === "class" && detail.assignment.status === "assigned" && (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => handleRespondToAssignment("accept")}
+                        disabled={respondingToAssignment}
+                        className="w-full rounded-full bg-teal-500 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-400 disabled:opacity-50"
+                      >
+                        {respondingToAssignment ? "Processing..." : "Accept Assignment"}
+                      </button>
+                      <div className="space-y-1">
+                        <textarea
+                          placeholder="Reason for declining (required)"
+                          value={rejectionNote}
+                          onChange={(e) => setRejectionNote(e.target.value)}
+                          rows={2}
+                          className="w-full rounded-xl border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white placeholder-slate-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRespondToAssignment("reject")}
+                          disabled={respondingToAssignment || !rejectionNote.trim()}
+                          className="w-full rounded-full border border-rose-400 px-4 py-2 text-sm font-semibold text-rose-300 hover:bg-rose-900/30 disabled:opacity-50"
+                        >
+                          Decline Assignment
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {/* For TRANSLATION assignments or accepted class assignments */}
+                  {detail.assignment.assignmentType === "translation" && (
+                    <div className="space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => markStatus("in_progress")}
+                        className="rounded-full border border-slate-500 px-3 py-1 text-xs text-slate-300 hover:bg-slate-700"
+                      >
+                        Mark in progress
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => markStatus("submitted")}
+                        className="rounded-full border border-teal-400 px-3 py-1 text-xs text-teal-300 hover:bg-teal-900/30"
+                      >
+                        Translation completed
+                      </button>
+                    </div>
+                  )}
+                  {/* Show status badge for accepted/rejected assignments */}
+                  {detail.assignment.status === "accepted" && (
+                    <span className="text-xs text-teal-300 bg-teal-900/30 px-3 py-1 rounded-full">✓ Accepted</span>
+                  )}
+                  {detail.assignment.status === "rejected" && (
+                    <span className="text-xs text-rose-300 bg-rose-900/30 px-3 py-1 rounded-full">✗ Declined</span>
+                  )}
                 </div>
               </div>
 
+              {/* Stats cards */}
+              <div className="grid md:grid-cols-3 gap-4 text-sm">
+                <div className="rounded-2xl bg-slate-700 p-4">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">Hours</p>
+                  <p className="text-xl font-semibold text-white">
+                    {detail.hoursLogged} / {detail.assignment.hoursAssigned}
+                  </p>
+                  <p className="text-xs text-slate-400">Remaining: {detail.hoursRemaining}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-700 p-4">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">
+                    {detail.assignment.assignmentType === "class" ? "Students" : "Sessions"}
+                  </p>
+                  <p className="text-xl font-semibold text-white">{detail.assignment.participants.length}</p>
+                  <p className="text-xs text-slate-400">
+                    {detail.assignment.assignmentType === "class" ? "Enrolled" : `Logged: ${detail.attendanceRecords.length}`}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-slate-700 p-4">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">Uploads</p>
+                  <p className="text-xl font-semibold text-white">{detail.uploads.length}</p>
+                  <p className="text-xs text-slate-400">Latest: {detail.uploads[0]?.filename || "–"}</p>
+                </div>
+              </div>
+
+              {/* Only show Log hours for TRANSLATION assignments */}
+              {detail.assignment.assignmentType === "translation" && (
               <div className="grid md:grid-cols-2 gap-6">
-                <form onSubmit={submitHours} className="rounded-2xl border border-slate-200 p-4 space-y-3">
-                  <h3 className="text-lg font-semibold text-slate-900">Log hours</h3>
+                <form onSubmit={submitHours} className="rounded-2xl border border-slate-600 bg-slate-700 p-4 space-y-3">
+                  <h3 className="text-lg font-semibold text-white">Log hours</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <label className="space-y-1 text-slate-600">
+                    <label className="space-y-1 text-slate-300">
                       Date
                       <input
                         type="date"
                         value={hourForm.date}
                         onChange={(e) => setHourForm((prev) => ({ ...prev, date: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                        className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white"
                       />
                     </label>
-                    <label className="space-y-1 text-slate-600">
+                    <label className="space-y-1 text-slate-300">
                       Hours
                       <input
                         type="number"
@@ -2429,29 +2599,29 @@ export default function PortalPage() {
                         step={0.25}
                         value={hourForm.hours}
                         onChange={(e) => setHourForm((prev) => ({ ...prev, hours: Number(e.target.value) }))}
-                        className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                        className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white"
                       />
                     </label>
                   </div>
-                  <label className="text-sm text-slate-600 space-y-1">
+                  <label className="text-sm text-slate-300 space-y-1">
                     Notes
                     <textarea
                       rows={2}
                       value={hourForm.notes}
                       onChange={(e) => setHourForm((prev) => ({ ...prev, notes: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                      className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white"
                     />
                   </label>
-                  <label className="text-sm text-slate-600 space-y-1">
+                  <label className="text-sm text-slate-300 space-y-1">
                     Issues / delays
                     <textarea
                       rows={2}
                       value={hourForm.issues}
                       onChange={(e) => setHourForm((prev) => ({ ...prev, issues: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                      className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white"
                     />
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <label className="flex items-center gap-2 text-sm text-slate-300">
                     <input
                       type="checkbox"
                       checked={hourForm.extraHoursRequested}
@@ -2465,7 +2635,7 @@ export default function PortalPage() {
                       value={hourForm.extraHoursNote}
                       onChange={(e) => setHourForm((prev) => ({ ...prev, extraHoursNote: e.target.value }))}
                       placeholder="Explain why more hours are required."
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-400"
                     />
                   )}
                   <button
@@ -2476,25 +2646,25 @@ export default function PortalPage() {
                   </button>
                 </form>
 
-                <form onSubmit={submitAttendance} className="rounded-2xl border border-slate-200 p-4 space-y-3">
-                  <h3 className="text-lg font-semibold text-slate-900">Log attendance</h3>
+                <form onSubmit={submitAttendance} className="rounded-2xl border border-slate-600 bg-slate-700 p-4 space-y-3">
+                  <h3 className="text-lg font-semibold text-white">Log attendance</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <label className="space-y-1 text-slate-600">
+                    <label className="space-y-1 text-slate-300">
                       Session date
                       <input
                         type="date"
                         value={attendanceForm.sessionDate}
                         onChange={(e) => setAttendanceForm((prev) => ({ ...prev, sessionDate: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                        className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white"
                       />
                     </label>
-                    <label className="space-y-1 text-slate-600">
+                    <label className="space-y-1 text-slate-300">
                       Session label
                       <input
                         type="text"
                         value={attendanceForm.sessionLabel}
                         onChange={(e) => setAttendanceForm((prev) => ({ ...prev, sessionLabel: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                        className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white"
                       />
                     </label>
                   </div>
@@ -2513,7 +2683,7 @@ export default function PortalPage() {
                               })
                             }
                           />
-                          <span className="font-semibold text-slate-800">{row.name}</span>
+                          <span className="font-semibold text-white">{row.name}</span>
                         </label>
                         <input
                           type="text"
@@ -2526,37 +2696,84 @@ export default function PortalPage() {
                               return { ...prev, rows };
                             })
                           }
-                          className="flex-1 rounded-xl border border-slate-300 px-2 py-1 text-xs"
+                          className="flex-1 rounded-xl border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-white placeholder-slate-400"
                         />
                       </div>
                     ))}
                   </div>
                   <button
                     type="submit"
-                    className="rounded-full bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800"
+                    className="rounded-full bg-teal-500 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-400"
                   >
                     Save attendance
                   </button>
                 </form>
               </div>
+              )}
 
-              <form onSubmit={submitUpload} className="rounded-2xl border border-slate-200 p-4 space-y-3">
-                <h3 className="text-lg font-semibold text-slate-900">Upload documents</h3>
+              {/* For CLASS assignments that are accepted - show session completion form */}
+              {detail.assignment.assignmentType === "class" && detail.assignment.status === "accepted" && (
+              <form onSubmit={submitClassSession} className="rounded-2xl border border-slate-600 bg-slate-700 p-4 space-y-3">
+                <h3 className="text-lg font-semibold text-white">Complete Class Session</h3>
+                <p className="text-sm text-slate-400">
+                  Log a completed class session. Each session automatically records 1.5 hours.
+                </p>
+                <div className="grid md:grid-cols-2 gap-3 text-sm">
+                  <label className="space-y-1 text-slate-300">
+                    Session Date
+                    <input
+                      type="date"
+                      value={classSessionForm.sessionDate}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setClassSessionForm((prev) => ({ ...prev, sessionDate: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+                    />
+                  </label>
+                  <label className="space-y-1 text-slate-300">
+                    Session Notes (optional)
+                    <input
+                      type="text"
+                      placeholder="e.g., Week 3 - Grammar review"
+                      value={classSessionForm.sessionNotes}
+                      onChange={(e) => setClassSessionForm((prev) => ({ ...prev, sessionNotes: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white placeholder-slate-500"
+                    />
+                  </label>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="submit"
+                    disabled={classSessionForm.submitting || detail.hoursRemaining < 1.5}
+                    className="rounded-full bg-teal-500 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-50"
+                  >
+                    {classSessionForm.submitting ? "Saving..." : "Log Session (1.5 hrs)"}
+                  </button>
+                  {detail.hoursRemaining < 1.5 && (
+                    <span className="text-xs text-amber-400">
+                      All class hours have been logged
+                    </span>
+                  )}
+                </div>
+              </form>
+              )}
+
+              <form onSubmit={submitUpload} className="rounded-2xl border border-slate-600 bg-slate-700 p-4 space-y-3">
+                <h3 className="text-lg font-semibold text-white">Upload documents</h3>
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
-                  <label className="space-y-1 text-slate-600">
+                  <label className="space-y-1 text-slate-300">
                     File
                     <input
                       type="file"
                       onChange={(e) => setUploadState((prev) => ({ ...prev, file: e.target.files?.[0] ?? null }))}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                      className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white file:mr-3 file:rounded-lg file:border-0 file:bg-slate-600 file:px-3 file:py-1 file:text-sm file:text-white"
                     />
                   </label>
-                  <label className="space-y-1 text-slate-600">
+                  <label className="space-y-1 text-slate-300">
                     Category
                     <select
                       value={uploadState.category}
                       onChange={(e) => setUploadState((prev) => ({ ...prev, category: e.target.value as typeof prev.category }))}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                      className="w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-white"
                     >
                       <option value="original">Original brief</option>
                       <option value="final">Final translation</option>
@@ -2567,14 +2784,14 @@ export default function PortalPage() {
                 </div>
                 <button
                   type="submit"
-                  className="rounded-full bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800 disabled:opacity-40"
+                  className="rounded-full bg-teal-500 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-400 disabled:opacity-40"
                   disabled={!uploadState.file}
                 >
                   Upload file
                 </button>
                 <div className="mt-4">
-                  <h4 className="text-sm font-semibold text-slate-700">Uploaded files</h4>
-                  <div className="mt-2 space-y-2 text-xs text-slate-600">
+                  <h4 className="text-sm font-semibold text-slate-300">Uploaded files</h4>
+                  <div className="mt-2 space-y-2 text-xs text-slate-400">
                     {detail.uploads.length === 0 ? (
                       <p>No uploads yet.</p>
                     ) : (
@@ -2582,10 +2799,10 @@ export default function PortalPage() {
                         <a
                           key={upload.id}
                           href={`/api/portal/assignments/${detail.assignment.id}/uploads/${upload.id}`}
-                          className="flex justify-between rounded-xl border border-slate-200 px-3 py-2 hover:bg-slate-50"
+                          className="flex justify-between rounded-xl border border-slate-600 px-3 py-2 hover:bg-slate-600 text-slate-300"
                         >
                           <span>
-                            {upload.filename} <span className="text-slate-400">({upload.category})</span>
+                            {upload.filename} <span className="text-slate-500">({upload.category})</span>
                           </span>
                           <span>{new Date(upload.uploadedAt).toLocaleDateString()}</span>
                         </a>
@@ -2595,22 +2812,24 @@ export default function PortalPage() {
                 </div>
               </form>
 
-              <div className="rounded-2xl border border-slate-200 p-4">
-                <h3 className="text-lg font-semibold text-slate-900">Attendance summary</h3>
+              <div className="rounded-2xl border border-slate-600 bg-slate-700 p-4">
+                <h3 className="text-lg font-semibold text-white">
+                  {detail.assignment.assignmentType === "class" ? "Students" : "Attendance summary"}
+                </h3>
                 <div className="mt-3 overflow-auto">
                   <table className="w-full text-sm">
-                    <thead className="text-slate-500">
+                    <thead className="text-slate-400">
                       <tr>
-                        <th className="text-left py-2">Participant</th>
+                        <th className="text-left py-2">{detail.assignment.assignmentType === "class" ? "Student" : "Participant"}</th>
                         <th className="text-left py-2">Present</th>
                         <th className="text-left py-2">Total</th>
                         <th className="text-left py-2">Rate</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="text-slate-300">
                       {detail.attendanceSummary.map((row) => (
-                        <tr key={row.name} className="border-t border-slate-100">
-                          <td className="py-2 font-semibold text-slate-800">{row.name}</td>
+                        <tr key={row.name} className="border-t border-slate-600">
+                          <td className="py-2 font-semibold text-white">{row.name}</td>
                           <td className="py-2">{row.attended}</td>
                           <td className="py-2">{row.total}</td>
                           <td className="py-2">{row.rate}%</td>
@@ -2621,14 +2840,14 @@ export default function PortalPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 p-4 text-sm">
-                <label className="text-slate-600">
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-600 bg-slate-700 p-4 text-sm">
+                <label className="text-slate-300">
                   Monthly report
                   <input
                     type="month"
                     value={reportMonth}
                     onChange={(e) => setReportMonth(e.target.value)}
-                    className="ml-2 rounded-xl border border-slate-300 px-3 py-1"
+                    className="ml-2 rounded-xl border border-slate-600 bg-slate-800 px-3 py-1 text-white"
                   />
                 </label>
                 <button

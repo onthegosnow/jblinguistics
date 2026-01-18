@@ -194,9 +194,14 @@ type PortalAssignmentAdmin = {
   hoursAssigned: number;
   startDate?: string;
   dueDate?: string;
-  status: "assigned" | "in_progress" | "submitted" | "completed";
+  status: "assigned" | "accepted" | "rejected" | "in_progress" | "submitted" | "completed";
   participants: string[];
   assignees: { id: string; name: string; email: string }[];
+  schedule?: string;
+  meetingUrl?: string;
+  acceptedAt?: string;
+  rejectedAt?: string;
+  rejectionNote?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -318,6 +323,8 @@ export default function AssessmentsAdminPage() {
     dueDate: "",
     participants: [] as string[],
     assignedTo: [] as string[],
+    schedule: "",
+    meetingUrl: "",
   });
   const [assignmentFiles, setAssignmentFiles] = useState<FileList | null>(null);
   const [deletingApplicantId, setDeletingApplicantId] = useState<string | null>(null);
@@ -1285,6 +1292,8 @@ export default function AssessmentsAdminPage() {
           dueDate: assignmentForm.dueDate,
           assignedTo: assignmentForm.assignedTo,
           participants: assignmentForm.participants,
+          schedule: assignmentForm.schedule,
+          meetingUrl: assignmentForm.meetingUrl,
           attachments,
         }),
       });
@@ -1303,6 +1312,8 @@ export default function AssessmentsAdminPage() {
         dueDate: "",
         participants: [],
         assignedTo: [],
+        schedule: "",
+        meetingUrl: "",
       });
       setAssignmentFiles(null);
       await refreshData();
@@ -1337,6 +1348,8 @@ export default function AssessmentsAdminPage() {
           dueDate: assignmentForm.dueDate,
           assignedTo: assignmentForm.assignedTo,
           participants: assignmentForm.participants,
+          schedule: assignmentForm.schedule,
+          meetingUrl: assignmentForm.meetingUrl,
         }),
       });
       if (!response.ok) {
@@ -1355,6 +1368,8 @@ export default function AssessmentsAdminPage() {
         dueDate: "",
         participants: [],
         assignedTo: [],
+        schedule: "",
+        meetingUrl: "",
       });
       await refreshData();
     } catch (err) {
@@ -1377,6 +1392,8 @@ export default function AssessmentsAdminPage() {
       dueDate: assignment.dueDate ?? "",
       participants: assignment.participants ?? [],
       assignedTo: assignment.assignees.map((a) => a.id),
+      schedule: assignment.schedule ?? "",
+      meetingUrl: assignment.meetingUrl ?? "",
     });
   };
 
@@ -1393,6 +1410,8 @@ export default function AssessmentsAdminPage() {
       dueDate: "",
       participants: [],
       assignedTo: [],
+      schedule: "",
+      meetingUrl: "",
     });
   };
 
@@ -3125,6 +3144,30 @@ export default function AssessmentsAdminPage() {
                     )}
                   </div>
                 </div>
+                {assignmentForm.assignmentType === "class" && (
+                  <>
+                    <label className="text-xs text-slate-300 uppercase tracking-wide">
+                      Schedule (e.g., "Every Wednesday 7:00-8:30pm PST")
+                      <input
+                        type="text"
+                        value={assignmentForm.schedule}
+                        onChange={(e) => setAssignmentForm((prev) => ({ ...prev, schedule: e.target.value }))}
+                        placeholder="Every Wednesday 7:00-8:30pm PST"
+                        className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                      />
+                    </label>
+                    <label className="text-xs text-slate-300 uppercase tracking-wide">
+                      Meeting URL (Teams/Zoom link)
+                      <input
+                        type="url"
+                        value={assignmentForm.meetingUrl}
+                        onChange={(e) => setAssignmentForm((prev) => ({ ...prev, meetingUrl: e.target.value }))}
+                        placeholder="https://teams.microsoft.com/..."
+                        className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+                      />
+                    </label>
+                  </>
+                )}
                 <label className="text-xs text-slate-300 uppercase tracking-wide md:col-span-2">
                   Description / brief
                   <textarea

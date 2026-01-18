@@ -93,6 +93,8 @@ type AdminAssignmentInput = {
   status?: PortalAssignmentRecord["status"];
   assignedTo?: string[];
   participants?: string[];
+  schedule?: string;
+  meetingUrl?: string;
   attachments?: Array<{
     filename: string;
     mimeType: string;
@@ -124,7 +126,9 @@ export async function POST(request: NextRequest) {
     dueDate: body.dueDate,
     status: body.status ?? "assigned",
     assignedTo: body.assignedTo,
-    participants: body.participants?.map((p) => p.trim()).filter(Boolean) ?? [],
+    participants: body.participants ?? [],
+    schedule: body.schedule?.trim(),
+    meetingUrl: body.meetingUrl?.trim(),
   });
 
   if (body.attachments?.length) {
@@ -186,7 +190,9 @@ export async function PUT(request: NextRequest) {
       dueDate: body.dueDate ?? existing.dueDate,
       status: body.status ?? existing.status,
       assignedTo: body.assignedTo ?? existing.assignedTo,
-      participants: body.participants?.map((p) => p.trim()).filter(Boolean) ?? existing.participants,
+      participants: body.participants ?? existing.participants,
+      schedule: body.schedule?.trim() ?? existing.schedule,
+      meetingUrl: body.meetingUrl?.trim() ?? existing.meetingUrl,
     }));
 
     return NextResponse.json({ assignment: updated });
