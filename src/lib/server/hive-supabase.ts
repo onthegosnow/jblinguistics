@@ -97,7 +97,7 @@ export function buildHiveFilename(params: {
   const parts = [level, skill, topic, type];
   if (descriptor) parts.push(descriptor);
   parts.push(initials, date);
-  return `${parts.join("_")}${ext}`;
+  return `${parts.join("-")}${ext}`;
 }
 
 export async function uploadHivePending(params: {
@@ -339,7 +339,7 @@ export async function uploadHiveLink(params: {
     .map((p) => p[0]?.toUpperCase())
     .join("") || "XX";
 
-  const linkPath = `links/${params.resourceType}/${Date.now()}-${params.displayName.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  const linkPath = `links/${params.resourceType}/${Date.now()}-${params.displayName.replace(/[^a-zA-Z0-9]/g, "-")}`;
 
   const { error: insertError, data } = await supabase
     .from("hive_files")
