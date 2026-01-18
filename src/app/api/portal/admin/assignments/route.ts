@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 import {
   addPortalAssignment,
   appendAssignmentUpload,
+  deletePortalAssignment,
   listPortalAssignments,
   listPortalUsers,
   PortalAssignmentRecord,
@@ -233,6 +234,26 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, sentTo: assignees.map((a) => a.email) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to resend notification";
+    return NextResponse.json({ message }, { status: 500 });
+  }
+}
+
+// Delete assignment
+export async function DELETE(request: NextRequest) {
+  requireAdmin(request.headers.get("x-admin-token") ?? undefined);
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ message: "Assignment ID is required." }, { status: 400 });
+  }
+
+  try {
+    await deletePortalAssignment(id);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete assignment";
     return NextResponse.json({ message }, { status: 500 });
   }
 }

@@ -210,6 +210,13 @@ type EmailLog = {
   archived?: boolean;
 };
 
+type StudentPortal = {
+  id: string;
+  name: string;
+  email: string;
+  active: boolean;
+};
+
 type InquiryAdmin = {
   id: string;
   createdAt: string | null;
@@ -287,6 +294,8 @@ export default function AssessmentsAdminPage() {
   const [assignments, setAssignments] = useState<PortalAssignmentAdmin[]>([]);
   const [editingAssignment, setEditingAssignment] = useState<PortalAssignmentAdmin | null>(null);
   const [resendingAssignmentId, setResendingAssignmentId] = useState<string | null>(null);
+  const [deletingAssignmentId, setDeletingAssignmentId] = useState<string | null>(null);
+  const [students, setStudents] = useState<StudentPortal[]>([]);
   const [bulkEmail, setBulkEmail] = useState({ subject: "", message: "" });
   const [bulkEmailAttachments, setBulkEmailAttachments] = useState<File[]>([]);
   const [showBulkEmail, setShowBulkEmail] = useState(false);
@@ -307,7 +316,7 @@ export default function AssessmentsAdminPage() {
     hoursAssigned: 1.5,
     startDate: "",
     dueDate: "",
-    participants: "",
+    participants: [] as string[],
     assignedTo: [] as string[],
   });
   const [assignmentFiles, setAssignmentFiles] = useState<FileList | null>(null);
@@ -448,6 +457,7 @@ export default function AssessmentsAdminPage() {
         employeesRes,
         hiveRes,
         boardRes,
+        studentsRes,
       ] = await Promise.all([
         fetch("/api/assessments/results", { headers: { "x-admin-token": token } }),
         fetch("/api/assessments/access-codes", { headers: { "x-admin-token": token } }),
@@ -460,6 +470,7 @@ export default function AssessmentsAdminPage() {
         fetch("/api/portal/admin/employees", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/hive", { headers: { "x-admin-token": token } }),
         fetch("/api/portal/admin/board?room=all", { headers: { "x-admin-token": token } }),
+        fetch("/api/portal/admin/students", { headers: { "x-admin-token": token } }),
       ]);
       if (!resultsRes.ok) {
         const data = await resultsRes.json().catch(() => ({}));
@@ -512,12 +523,14 @@ export default function AssessmentsAdminPage() {
       const employeesData = await employeesRes.json();
       const hiveData = await hiveRes.json();
       const boardData = await boardRes.json();
+      const studentsData = studentsRes.ok ? await studentsRes.json() : { students: [] };
       setResults(resultsData.results ?? []);
       setCodes(codesData.codes ?? []);
       setApplicants(applicantsData.applicants ?? []);
       setRejectedApplicants(applicantsData.rejectedApplicants ?? []);
       setPortalUsers(usersData.users ?? []);
       setAssignments(assignmentsData.assignments ?? []);
+      setStudents((studentsData.students ?? []).filter((s: StudentPortal) => s.active));
       setInquiries(inquiriesData.inquiries ?? []);
       setOnboardingEnvelopes(onboardingData.envelopes ?? []);
       const applicantMap = new Map<string, ApplicantRecord>();
@@ -1239,6 +1252,10 @@ export default function AssessmentsAdminPage() {
       setError("Assignments require a title, hours, and at least one assignee.");
       return;
     }
+    if (assignmentForm.startDate && assignmentForm.dueDate && assignmentForm.dueDate < assignmentForm.startDate) {
+      setError("End date cannot be before start date.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -1267,12 +1284,7 @@ export default function AssessmentsAdminPage() {
           startDate: assignmentForm.startDate,
           dueDate: assignmentForm.dueDate,
           assignedTo: assignmentForm.assignedTo,
-          participants: assignmentForm.participants
-            .split("\n")
-            .join(",")
-            .split(",")
-            .map((value) => value.trim())
-            .filter(Boolean),
+          participants: assignmentForm.participants,
           attachments,
         }),
       });
@@ -1289,7 +1301,7 @@ export default function AssessmentsAdminPage() {
         hoursAssigned: 1.5,
         startDate: "",
         dueDate: "",
-        participants: "",
+        participants: [],
         assignedTo: [],
       });
       setAssignmentFiles(null);
@@ -1303,6 +1315,10 @@ export default function AssessmentsAdminPage() {
 
   const handleUpdateAssignment = async () => {
     if (!editingAssignment) return;
+    if (assignmentForm.startDate && assignmentForm.dueDate && assignmentForm.dueDate < assignmentForm.startDate) {
+      setError("End date cannot be before start date.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -1320,7 +1336,7 @@ export default function AssessmentsAdminPage() {
           startDate: assignmentForm.startDate,
           dueDate: assignmentForm.dueDate,
           assignedTo: assignmentForm.assignedTo,
-          participants: assignmentForm.participants.split(/[,\n]/).map((p) => p.trim()).filter(Boolean),
+          participants: assignmentForm.participants,
         }),
       });
       if (!response.ok) {
@@ -1337,7 +1353,7 @@ export default function AssessmentsAdminPage() {
         hoursAssigned: 1.5,
         startDate: "",
         dueDate: "",
-        participants: "",
+        participants: [],
         assignedTo: [],
       });
       await refreshData();
@@ -1359,7 +1375,7 @@ export default function AssessmentsAdminPage() {
       hoursAssigned: assignment.hoursAssigned,
       startDate: assignment.startDate ?? "",
       dueDate: assignment.dueDate ?? "",
-      participants: assignment.participants?.join(", ") ?? "",
+      participants: assignment.participants ?? [],
       assignedTo: assignment.assignees.map((a) => a.id),
     });
   };
@@ -1375,7 +1391,7 @@ export default function AssessmentsAdminPage() {
       hoursAssigned: 1.5,
       startDate: "",
       dueDate: "",
-      participants: "",
+      participants: [],
       assignedTo: [],
     });
   };
@@ -1398,6 +1414,29 @@ export default function AssessmentsAdminPage() {
       setError(err instanceof Error ? err.message : "Failed to resend notification");
     } finally {
       setResendingAssignmentId(null);
+    }
+  };
+
+  const handleDeleteAssignment = async (assignmentId: string) => {
+    if (!confirm("Are you sure you want to delete this assignment? This cannot be undone.")) {
+      return;
+    }
+    setDeletingAssignmentId(assignmentId);
+    setError(null);
+    try {
+      const response = await fetch(`/api/portal/admin/assignments?id=${assignmentId}`, {
+        method: "DELETE",
+        headers: { "x-admin-token": token },
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to delete assignment");
+      }
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete assignment");
+    } finally {
+      setDeletingAssignmentId(null);
     }
   };
 
@@ -3051,19 +3090,41 @@ export default function AssessmentsAdminPage() {
                   <input
                     type="date"
                     value={assignmentForm.dueDate}
+                    min={assignmentForm.startDate || undefined}
                     onChange={(e) => setAssignmentForm((prev) => ({ ...prev, dueDate: e.target.value }))}
                     className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
                   />
+                  {assignmentForm.startDate && assignmentForm.dueDate && assignmentForm.dueDate < assignmentForm.startDate && (
+                    <span className="text-xs text-red-400 mt-1 block">End date cannot be before start date</span>
+                  )}
                 </label>
-                <label className="text-xs text-slate-300 uppercase tracking-wide">
-                  Participants (comma or line separated)
-                  <textarea
-                    rows={2}
-                    value={assignmentForm.participants}
-                    onChange={(e) => setAssignmentForm((prev) => ({ ...prev, participants: e.target.value }))}
-                    className="mt-1 w-full rounded-2xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-                  />
-                </label>
+                <div className="text-xs text-slate-300 uppercase tracking-wide">
+                  Participants (students)
+                  <div className="mt-2 max-h-32 overflow-y-auto rounded-2xl border border-slate-600 bg-slate-900 p-2">
+                    {students.length === 0 ? (
+                      <p className="text-slate-500 text-sm py-1">No students in the system yet.</p>
+                    ) : (
+                      students.map((student) => (
+                        <label key={student.id} className="flex items-center gap-2 py-1 text-sm text-slate-200 normal-case">
+                          <input
+                            type="checkbox"
+                            checked={assignmentForm.participants.includes(student.id)}
+                            onChange={(e) =>
+                              setAssignmentForm((prev) => ({
+                                ...prev,
+                                participants: e.target.checked
+                                  ? [...prev.participants, student.id]
+                                  : prev.participants.filter((id) => id !== student.id),
+                              }))
+                            }
+                          />
+                          <span>{student.name}</span>
+                          <span className="text-xs text-slate-400">({student.email})</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
                 <label className="text-xs text-slate-300 uppercase tracking-wide md:col-span-2">
                   Description / brief
                   <textarea
@@ -3163,6 +3224,14 @@ export default function AssessmentsAdminPage() {
                             className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
                           >
                             {resendingAssignmentId === assignment.id ? "Sending..." : "Resend"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAssignment(assignment.id)}
+                            disabled={deletingAssignmentId === assignment.id}
+                            className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+                          >
+                            {deletingAssignmentId === assignment.id ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       </div>

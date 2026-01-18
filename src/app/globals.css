@@ -27,3 +27,11 @@ body {
   -webkit-font-smoothing: antialiased;
   line-height: 1.6;
 }
+
+/* Make date/time input calendar icons white on dark backgrounds */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}

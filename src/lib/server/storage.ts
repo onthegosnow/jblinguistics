@@ -412,6 +412,22 @@ export async function updatePortalAssignment(id: string, updater: (assignment: P
   return assignments[idx];
 }
 
+export async function deletePortalAssignment(id: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+
+  // First delete any related time entries
+  await supabase.from("portal_time_entries").delete().eq("assignment_id", id);
+
+  // Delete any related uploads
+  await supabase.from("assignment_uploads").delete().eq("assignment_id", id);
+
+  // Delete the assignment
+  const { error } = await supabase.from("portal_assignments").delete().eq("id", id);
+  if (error) {
+    throw new Error("Failed to delete assignment");
+  }
+}
+
 export async function listAssignmentTimeEntries(): Promise<AssignmentTimeEntry[]> {
   try {
     const supabase = createSupabaseAdminClient();
