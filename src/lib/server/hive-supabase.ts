@@ -339,10 +339,13 @@ export async function uploadHiveLink(params: {
     .map((p) => p[0]?.toUpperCase())
     .join("") || "XX";
 
+  const linkPath = `links/${params.resourceType}/${Date.now()}-${params.displayName.replace(/[^a-zA-Z0-9]/g, "_")}`;
+
   const { error: insertError, data } = await supabase
     .from("hive_files")
     .insert({
-      path: "", // No file path for links
+      path: linkPath,
+      file_path: linkPath, // Required column
       display_name: params.displayName,
       language: params.metadata.language,
       level: params.metadata.level,
